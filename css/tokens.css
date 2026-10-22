@@ -1,0 +1,130 @@
+/* ============================================================
+   USTIL Forum — 设计令牌
+   色值/圆角/阴影/版式宽度为 REA 逆向测得的事实度量（见 docs/），
+   命名与组织为本项目自有；字体使用开源替代，不含任何专有字体文件。
+   ============================================================ */
+
+:root {
+  /* —— 暖灰阶（纸感）—— */
+  --gray-000: #ffffff;
+  --gray-050: #faf9f5;   /* 全站主背景 */
+  --gray-100: #f5f4ed;
+  --gray-150: #f0eee6;
+  --gray-200: #e8e6dc;   /* 次级填充 */
+  --gray-250: #dedcd1;
+  --gray-300: #d1cfc5;
+  --gray-350: #c2c0b6;
+  --gray-400: #b0aea5;   /* 主描边 */
+  --gray-450: #9c9a92;
+  --gray-500: #87867f;
+  --gray-550: #73726c;
+  --gray-600: #5e5d59;
+  --gray-700: #3d3d3a;
+  --gray-750: #30302e;
+  --gray-800: #262624;
+  --gray-900: #1a1918;
+  --gray-950: #141413;   /* 正文墨色 / 深色底 */
+
+  /* —— 强调与品牌调色板 —— */
+  --clay: #d97757;         /* 主强调（陶土橙） */
+  --clay-hover: #c6613f;
+  --clay-dark: #c46849;
+  --clay-soft: #ebc9b7;    /* peach */
+  --cactus: #bcd1ca;
+  --mineral: #629987;
+  --heather: #cbcadb;
+  --plum: #827dbd;
+  --sky: #6a9bcc;
+  --error: #bf4d43;
+  --ok: #2c84db;
+
+  --line-warm: #e3dacc;    /* 高频暖描边/分隔色 */
+
+  /* —— 语义别名 —— */
+  --bg-page: var(--gray-050);
+  --bg-sunken: var(--gray-100);
+  --bg-raised: var(--gray-000);
+  --bg-inverse: var(--gray-950);
+  --ink: var(--gray-950);
+  --ink-muted: var(--gray-600);
+  --ink-faint: var(--gray-500);
+  --ink-inverse: var(--gray-050);
+  --border: var(--line-warm);
+  --border-strong: var(--gray-300);
+  --accent: var(--clay);
+  --accent-interactive: var(--clay-hover);
+
+  /* —— 描边 —— */
+  --bw-hair: 0.5px;
+  --bw-sm: 1px;
+  --bw-md: 1.5px;
+  --bw-lg: 2px;
+
+  /* —— 圆角 —— */
+  --br-2: 2px;
+  --br-4: 4px;
+  --br-6: 6px;
+  --br-8: 8px;
+  --br-12: 12px;
+  --br-16: 16px;
+  --br-24: 24px;
+  --br-32: 32px;
+  --br-pill: 999px;
+
+  /* —— 阴影（极轻）—— */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-lift: 0 6px 24px rgba(20, 20, 19, 0.08);
+
+  /* —— 间距 —— */
+  --gap-xs: 1rem;
+  --gap-sm: 1.5rem;
+  --gap-md: 2rem;
+  --gap-lg: 3rem;
+
+  /* —— 版式宽度（行宽控制）—— */
+  --text-w-narrow: 20ch;
+  --text-w-headline: 30ch;
+  --text-w-title: 45ch;
+  --text-w-body: 60ch;
+  --text-w-wide: 70ch;
+  --text-w-prose: 80ch;
+
+  /* —— 字体（开源替代）—— */
+  --font-serif: "Source Serif 4", "Noto Serif SC", "Songti SC", Georgia, serif;
+  --font-sans: "Inter", "Noto Sans SC", -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* —— 字号（流式）—— */
+  --fs-body: clamp(15px, 0.19vw + 14.3px, 17px);
+  --fs-small: 0.8125rem;
+  --fs-meta: 0.875rem;
+  --fs-lead: clamp(1.125rem, 1.25vw, 1.3125rem);
+  --fs-h3: clamp(1.25rem, 1.6vw, 1.5rem);
+  --fs-h2: clamp(1.75rem, 2.6vw, 2.375rem);
+  --fs-h1: clamp(2.5rem, 5.2vw, 4.25rem);
+
+  /* —— 布局 —— */
+  --nav-height: 4.25rem;
+  --page-max: 76rem;
+  --prose-max: 46rem;
+  --ease: cubic-bezier(0.33, 1, 0.68, 1);
+  --t-fast: 150ms;
+  --t-med: 220ms;
+}
+
+/* 深色区块局部令牌（hero / footer 反色区） */
+.theme-inverse {
+  --bg-page: var(--gray-950);
+  --ink: var(--gray-050);
+  --ink-muted: var(--gray-400);
+  --border: rgba(227, 218, 204, 0.18);
+}
