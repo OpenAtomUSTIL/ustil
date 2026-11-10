@@ -11,7 +11,6 @@ ustil/
 ├── ustil-hub/        后端：NestJS + Drizzle + PostgreSQL + Redis
 ├── ustil-front/      前端：Vue 3 + Vite + TypeScript + Pinia
 ├── deploy/           部署：docker compose 编排、nginx 反代
-├── 初期需求及技术栈.md          产品需求与技术选型
 └── 社团网站技术栈学习路线.md    新人学习路线
 ```
 
@@ -96,5 +95,4 @@ docker compose up -d
 |---|---|
 | [ustil-hub/AGENTS.md](ustil-hub/AGENTS.md) | 后端规格 + 跨端契约（**唯一事实来源**）、权限矩阵、安全红线 |
 | [ustil-front/AGENTS.md](ustil-front/AGENTS.md) | 前端红线（唯一请求出口、鉴权状态、上传与倒计时规则） |
-| [初期需求及技术栈.md](初期需求及技术栈.md) | 产品需求与技术选型 |
 | [社团网站技术栈学习路线.md](社团网站技术栈学习路线.md) | 新人学习路线 |
