@@ -61,7 +61,9 @@ pipeline {
           // 注意：pnpm test:e2e 若依赖 pg/redis，需在 agent 预起服务，或给 docker run 加 --network
           sh '''
             docker run --rm -v "$PWD":/app -w /app -e CI=true node:20-alpine sh -c '
+              sed -i "s/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g" /etc/apk/repositories &&
               apk add --no-cache python3 make g++ >/dev/null &&
+              npm config set registry https://registry.npmmirror.com &&
               npm install -g pnpm@10 >/dev/null &&
               pnpm install --frozen-lockfile &&
               pnpm lint &&
@@ -78,6 +80,7 @@ pipeline {
         dir('ustil-front') {
           sh '''
             docker run --rm -v "$PWD":/app -w /app -e CI=true node:20-alpine sh -c '
+              npm config set registry https://registry.npmmirror.com &&
               npm install -g pnpm@10 >/dev/null &&
               pnpm install --frozen-lockfile &&
               pnpm typecheck &&
