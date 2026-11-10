@@ -1,0 +1,7 @@
+# USTIL 部署目录 .gitignore —— 敏感文件不入库
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store

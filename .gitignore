@@ -1,0 +1,16 @@
+# ustil 伞仓库：只管 deploy/ 与项目文档
+# ustil-hub / ustil-front 是独立 git 仓库（CI 中单独检出到同名兄弟目录）
+/ustil-hub/
+/ustil-front/
+
+# 防御：根目录不放依赖（pnpm 误装会生成 package.json/node_modules）
+node_modules/
+package.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example

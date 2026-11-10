@@ -1,0 +1,166 @@
+// ============================================================
+// USTIL 社区网站 —— Jenkins 声明式部署流水线
+//
+// 工作区布局约定（与本地 OpenAtomUSTIL 一致，相对 $WORKSPACE 根）：
+//   deploy/       本流水线 + docker-compose.yml + nginx/（主 SCM 自动检出；
+//                 若主仓库根即 deploy/ 内容，把各 stage 的 dir('deploy') 改为工作区根）
+//   ustil-hub/    后端仓库（Checkout 阶段检出）
+//   ustil-front/  前端仓库（Checkout 阶段检出）
+//
+// 红线：
+//   - 密钥全部经 Jenkins Credentials（environment 块绑定），MUST NOT 硬编码、MUST NOT 写进仓库
+//   - 迁移只由 Migrate 阶段幂等执行（AGENTS.md §8），MUST NOT 写进容器启动命令/app boot
+//   - Node 20 锁定（质量门在 node:20 容器内执行）；包管理器只用 pnpm
+//
+// 运行要求：Linux agent（本机 Docker + Docker Compose v2）；agent 无需预装 Node/pnpm
+// ============================================================
+
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+
+  parameters {
+    string(name: 'REGISTRY', defaultValue: 'registry.example.com/ustil', description: '镜像仓库前缀（含命名空间），如 registry.cn-hangzhou.aliyuncs.com/你的命名空间')
+    string(name: 'IMAGE_TAG', defaultValue: '', description: '镜像 tag，留空则用 BUILD_NUMBER')
+    // 两个业务仓库的地址/分支：也可在 Job「环境变量」里配置（效果与参数相同）
+    string(name: 'HUB_GIT_URL', defaultValue: 'https://github.com/your-org/ustil-hub.git', description: 'ustil-hub 仓库地址')
+    string(name: 'HUB_GIT_BRANCH', defaultValue: 'main', description: 'ustil-hub 分支')
+    string(name: 'FRONT_GIT_URL', defaultValue: 'https://github.com/your-org/ustil-front.git', description: 'ustil-front 仓库地址')
+    string(name: 'FRONT_GIT_BRANCH', defaultValue: 'main', description: 'ustil-front 分支')
+  }
+
+  environment {
+    // 镜像 tag：参数优先，留空则用 BUILD_NUMBER
+    IMAGE_TAG = "${params.IMAGE_TAG ?: env.BUILD_NUMBER}"
+    REGISTRY  = "${params.REGISTRY}"
+    // 前端构建期注入：同源反代（nginx /api/ → api:3000）留空即可
+    VITE_API_BASE_URL = ''
+    // —— git 检出：URL/分支经参数/环境变量注入，凭据经 Jenkins Credentials ——
+    GIT_CREDENTIALS_ID = 'ustil-git-credentials'   // 私有仓库用；公开仓库可置空并去掉 git step 的 credentialsId
+    HUB_GIT_URL    = "${params.HUB_GIT_URL}"
+    HUB_GIT_BRANCH = "${params.HUB_GIT_BRANCH}"
+    FRONT_GIT_URL    = "${params.FRONT_GIT_URL}"
+    FRONT_GIT_BRANCH = "${params.FRONT_GIT_BRANCH}"
+    // —— 以下全为密钥/机密，MUST 经 Jenkins Credentials 绑定（Manage Jenkins → Credentials）——
+    REGISTRY_CRED        = credentials('ustil-registry-account')  // usernamePassword → REGISTRY_CRED_USR / REGISTRY_CRED_PSW
+    POSTGRES_PASSWORD    = credentials('ustil-postgres-password')
+    JWT_ACCESS_SECRET    = credentials('ustil-jwt-access-secret')
+    JWT_REFRESH_SECRET   = credentials('ustil-jwt-refresh-secret')
+    R2_ACCESS_KEY_ID     = credentials('ustil-r2-access-key-id')
+    R2_SECRET_ACCESS_KEY = credentials('ustil-r2-secret-access-key')
+    // —— 非机密项：改默认值走参数/环境变量，同样不进仓库 ——
+    POSTGRES_DB   = 'ustil'
+    POSTGRES_USER = 'ustil'
+    STORAGE_DRIVER = 'local'
+    UPLOAD_MAX_SIZE = '10485760'
+    CORS_ORIGIN = 'http://localhost'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        // 主 SCM（含 deploy/ 的仓库）由 Jenkins 自动检出到工作区根；
+        // ustil-hub 与 ustil-front 是独立 git 仓库，这里按注入的 URL/分支检出到子目录，
+        // 保证 deploy/docker-compose.yml 里的 ../ustil-hub、../ustil-front 构建上下文正确
+        dir('ustil-hub') {
+          git url: "${HUB_GIT_URL}", branch: "${HUB_GIT_BRANCH}", credentialsId: "${GIT_CREDENTIALS_ID}"
+        }
+        dir('ustil-front') {
+          git url: "${FRONT_GIT_URL}", branch: "${FRONT_GIT_BRANCH}", credentialsId: "${GIT_CREDENTIALS_ID}"
+        }
+      }
+    }
+
+    stage('后端质量门') {
+      steps {
+        dir('ustil-hub') {
+          // 在 node:20-alpine 容器内执行，强制锁定 Node 20 红线（AGENTS.md §5）；
+          // 若 agent 已装 Node 20 + pnpm 9，可去掉 docker run 直接执行同样的 pnpm 命令
+          // 注意：pnpm test:e2e 若依赖 pg/redis，需在 agent 预起服务，或给 docker run 加 --network
+          sh '''
+            docker run --rm -v "$PWD":/app -w /app -e CI=true node:20-alpine sh -c '
+              npm install -g pnpm@9 >/dev/null &&
+              pnpm install --frozen-lockfile &&
+              pnpm lint &&
+              pnpm test &&
+              pnpm test:e2e
+            '
+          '''
+        }
+      }
+    }
+
+    stage('前端质量门') {
+      steps {
+        dir('ustil-front') {
+          sh '''
+            docker run --rm -v "$PWD":/app -w /app -e CI=true node:20-alpine sh -c '
+              npm install -g pnpm@9 >/dev/null &&
+              pnpm install --frozen-lockfile &&
+              pnpm typecheck &&
+              pnpm lint &&
+              pnpm build
+            '
+          '''
+        }
+      }
+    }
+
+    stage('Build & Push') {
+      steps {
+        // 三类镜像：api（runtime 目标）、api-migrate（migrate 目标，同一 Dockerfile 的另一 target）、web
+        // tag 策略：BUILD_NUMBER 与 latest 双打，migrate 镜像单独 tag（内容与 runtime 不同，不能复用 tag）
+        sh '''
+          set -e
+          docker build --target runtime -t "$REGISTRY/ustil-api:$IMAGE_TAG" -t "$REGISTRY/ustil-api:latest" ustil-hub
+          docker build --target migrate -t "$REGISTRY/ustil-api-migrate:$IMAGE_TAG" -t "$REGISTRY/ustil-api-migrate:latest" ustil-hub
+          docker build --build-arg VITE_API_BASE_URL="$VITE_API_BASE_URL" \
+            -t "$REGISTRY/ustil-web:$IMAGE_TAG" -t "$REGISTRY/ustil-web:latest" ustil-front
+          echo "$REGISTRY_CRED_PSW" | docker login -u "$REGISTRY_CRED_USR" --password-stdin "${REGISTRY%%/*}"
+          docker push "$REGISTRY/ustil-api:$IMAGE_TAG"
+          docker push "$REGISTRY/ustil-api:latest"
+          docker push "$REGISTRY/ustil-api-migrate:$IMAGE_TAG"
+          docker push "$REGISTRY/ustil-api-migrate:latest"
+          docker push "$REGISTRY/ustil-web:$IMAGE_TAG"
+          docker push "$REGISTRY/ustil-web:latest"
+        '''
+      }
+    }
+
+    stage('Migrate') {
+      steps {
+        // 幂等迁移 Job（AGENTS.md §8 唯一合法迁移路径）：
+        // drizzle-kit migrate 只应用未执行过的迁移，可重入、可重复执行；
+        // MUST NOT 把迁移写进 api 容器启动命令或 app boot（多实例并发风险）
+        dir('deploy') {
+          sh 'docker compose --profile migrate run --rm migrate'
+        }
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        // compose 通过 $REGISTRY/$IMAGE_TAG 插值复用 Build & Push 阶段已构建的镜像
+        dir('deploy') {
+          sh 'docker compose up -d --remove-orphans'
+        }
+      }
+    }
+  }
+
+  post {
+    failure {
+      // 失败通知占位：接入企业微信机器人 / 邮件 / Webhook 后替换
+      echo 'USTIL 部署流水线失败，请查看上方阶段日志（通知渠道待接入）'
+    }
+    always {
+      // 可选：清理工作区（需要保留产物排查时保持注释）
+      // cleanWs()
+    }
+  }
+}
