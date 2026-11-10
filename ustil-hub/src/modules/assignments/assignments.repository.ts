@@ -1,0 +1,124 @@
+import { Injectable } from '@nestjs/common';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { db } from '../../db';
+import { assignmentSubmissions, assignments } from '../../db/schema';
+
+export type AssignmentRow = typeof assignments.$inferSelect;
+export type SubmissionRow = typeof assignmentSubmissions.$inferSelect;
+
+@Injectable()
+export class AssignmentsRepository {
+  async list(page: number, pageSize: number): Promise<{ rows: AssignmentRow[]; total: number }> {
+    const rows = await db
+      .select()
+      .from(assignments)
+      .orderBy(desc(assignments.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    const totalRows = await db.select({ count: sql<number>`count(*)::int` }).from(assignments);
+    return { rows, total: totalRows[0]?.count ?? 0 };
+  }
+
+  async findById(id: string): Promise<AssignmentRow | null> {
+    const rows = await db.select().from(assignments).where(eq(assignments.id, id)).limit(1);
+    return rows[0] ?? null;
+  }
+
+  async insert(row: {
+    title: string;
+    description: string;
+    publisherId: string;
+    startAt: Date;
+    deadlineAt: Date;
+  }): Promise<AssignmentRow> {
+    const inserted = await db.insert(assignments).values(row).returning();
+    return inserted[0];
+  }
+
+  async update(
+    id: string,
+    patch: {
+      title?: string;
+      description?: string;
+      startAt?: Date;
+      deadlineAt?: Date;
+    },
+  ): Promise<AssignmentRow | null> {
+    const rows = await db.update(assignments).set(patch).where(eq(assignments.id, id)).returning();
+    return rows[0] ?? null;
+  }
+
+  async findMySubmissions(
+    assignmentIds: string[],
+    submitterId: string,
+  ): Promise<SubmissionRow[]> {
+    if (assignmentIds.length === 0) {
+      return [];
+    }
+    return db
+      .select()
+      .from(assignmentSubmissions)
+      .where(
+        and(
+          inArray(assignmentSubmissions.assignmentId, assignmentIds),
+          eq(assignmentSubmissions.submitterId, submitterId),
+        ),
+      );
+  }
+
+  async findSubmission(assignmentId: string, submitterId: string): Promise<SubmissionRow | null> {
+    const rows = await db
+      .select()
+      .from(assignmentSubmissions)
+      .where(
+        and(
+          eq(assignmentSubmissions.assignmentId, assignmentId),
+          eq(assignmentSubmissions.submitterId, submitterId),
+        ),
+      )
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  // 重复提交：按 (assignment_id, submitter_id) 覆盖旧提交，保留 created_at、刷新 updated_at
+  async upsertSubmission(row: {
+    assignmentId: string;
+    submitterId: string;
+    note: string | null;
+    attachmentId: string;
+  }): Promise<SubmissionRow> {
+    const inserted = await db
+      .insert(assignmentSubmissions)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [assignmentSubmissions.assignmentId, assignmentSubmissions.submitterId],
+        set: {
+          note: row.note,
+          attachmentId: row.attachmentId,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return inserted[0];
+  }
+
+  async listSubmissions(
+    assignmentId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ rows: SubmissionRow[]; total: number }> {
+    const where = eq(assignmentSubmissions.assignmentId, assignmentId);
+    const rows = await db
+      .select()
+      .from(assignmentSubmissions)
+      .where(where)
+      .orderBy(desc(assignmentSubmissions.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    const totalRows = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(assignmentSubmissions)
+      .where(where);
+    return { rows, total: totalRows[0]?.count ?? 0 };
+  }
+}
