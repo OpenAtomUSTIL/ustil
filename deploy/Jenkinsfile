@@ -143,6 +143,7 @@ pipeline {
     always {
       // 可选：清理工作区（需要保留产物排查时保持注释）
       // cleanWs()
+      echo "构建 #${env.BUILD_NUMBER} 执行完毕，状态：${currentBuild.currentResult ?: 'UNKNOWN'}"
     }
   }
 }

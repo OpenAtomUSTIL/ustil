@@ -11,8 +11,8 @@ def instance = Jenkins.getInstance()
 if (instance.getItem('ustil-deploy') == null) {
     def repoUrl = System.getenv('USTIL_REPO_URL') ?: 'https://github.com/OpenAtomUSTIL/ustil.git'
     def remote = new UserRemoteConfig(repoUrl, null, null, 'ustil-git-credentials')
-    def scm = new GitSCM([remote])
-    scm.branches = [new BranchSpec('*/main')]
+    // DataBound 构造器：(userRemoteConfigs, branches, browser, gitTool, extensions)
+    def scm = new GitSCM([remote], [new BranchSpec('*/main')], null, null, [])
     def job = instance.createProject(WorkflowJob, 'ustil-deploy')
     job.setDefinition(new CpsScmFlowDefinition(scm, 'deploy/Jenkinsfile'))
     job.save()

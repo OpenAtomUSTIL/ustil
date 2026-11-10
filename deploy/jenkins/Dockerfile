@@ -7,17 +7,20 @@
 FROM jenkins/jenkins:lts-jdk17
 
 USER root
+# docker CLI 走 Debian 官方包（download.docker.com 内网不可达）：docker-cli + docker-buildx
+# （docker.io 只含 daemon 不含 CLI；buildx 提供 BuildKit，Dockerfile 里的 RUN --mount 需要它）；
+# Debian 13 无 docker-compose-v2 包，compose v2 插件从 GitHub Release 下载（--retry 抗网络抖动）
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
-    && install -m 0755 -d /etc/apt/keyrings \
-    && curl -fsSL https://download.docker.com/linux/debian/gpg \
-       | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-       https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-       > /etc/apt/sources.list.d/docker.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends docker-ce-cli docker-compose-plugin \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends docker-cli docker-buildx curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && arch="$(dpkg --print-architecture)" \
+    && case "$arch" in arm64) comp=aarch64 ;; amd64) comp=x86_64 ;; *) comp="$arch" ;; esac \
+    && install -m 0755 -d /usr/local/lib/docker/cli-plugins \
+    && curl -fsSL --retry 5 --retry-all-errors --retry-delay 2 \
+       -o /usr/local/lib/docker/cli-plugins/docker-compose \
+       "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-${comp}" \
+    && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose \
+    && docker --version && docker compose version
 USER jenkins
 
 RUN jenkins-plugin-cli --plugins \
