@@ -16,15 +16,17 @@ node_modules/
 # 构建产物
 dist/
 build/
+*.tsbuildinfo
+coverage/
 *.log
 npm-debug.log*
 pnpm-debug.log*
 
-# Docker 挂载数据目录（防止数据库文件污染仓库）
-postgres-data/
-redis-data/
-uploads/
-storage/
+# Docker 挂载数据目录（防止数据库文件污染仓库；仅忽略仓库根目录，避免误伤 src/modules/storage）
+/postgres-data/
+/redis-data/
+/uploads/
+/storage/
 
 # 编辑器与系统配置
 .vscode/
