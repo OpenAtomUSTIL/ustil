@@ -1,0 +1,10 @@
+# 构建上下文排除：防 .env 等敏感文件被 COPY 进镜像层，同时缩小上下文
+.git
+node_modules
+dist
+*.tsbuildinfo
+coverage
+.env
+.env.*
+*.log
+docs
