@@ -1,11 +1,11 @@
 // ============================================================
 // USTIL 社区网站 —— Jenkins 声明式部署流水线
 //
-// 工作区布局约定（与本地 OpenAtomUSTIL 一致，相对 $WORKSPACE 根）：
-//   deploy/       本流水线 + docker-compose.yml + nginx/（主 SCM 自动检出；
-//                 若主仓库根即 deploy/ 内容，把各 stage 的 dir('deploy') 改为工作区根）
-//   ustil-hub/    后端仓库（Checkout 阶段检出）
-//   ustil-front/  前端仓库（Checkout 阶段检出）
+// 工作区布局约定（monorepo，与本地 OpenAtomUSTIL 一致，相对 $WORKSPACE 根）：
+//   deploy/       本流水线 + docker-compose.yml + nginx/ + jenkins/
+//   ustil-hub/    后端（同仓库子目录）
+//   ustil-front/  前端（同仓库子目录）
+// ustil 仓库存储前后端全部项目代码，Pipeline from SCM 单仓库检出即得全部上下文。
 //
 // 红线：
 //   - 密钥全部经 Jenkins Credentials（environment 块绑定），MUST NOT 硬编码、MUST NOT 写进仓库
@@ -28,11 +28,6 @@ pipeline {
     string(name: 'REGISTRY', defaultValue: 'ustil', description: '镜像仓库前缀（含命名空间）；本地模式留 ustil 即可，远程仓库如 registry.cn-hangzhou.aliyuncs.com/你的命名空间')
     string(name: 'IMAGE_TAG', defaultValue: '', description: '镜像 tag，留空则用 BUILD_NUMBER')
     booleanParam(name: 'PUSH_IMAGES', defaultValue: false, description: '是否登录镜像仓库并推送（本地/内网部署无需推送，镜像已在本机构建）')
-    // 两个业务仓库的地址/分支：也可在 Job「环境变量」里配置（效果与参数相同）
-    string(name: 'HUB_GIT_URL', defaultValue: 'https://github.com/your-org/ustil-hub.git', description: 'ustil-hub 仓库地址')
-    string(name: 'HUB_GIT_BRANCH', defaultValue: 'main', description: 'ustil-hub 分支')
-    string(name: 'FRONT_GIT_URL', defaultValue: 'https://github.com/your-org/ustil-front.git', description: 'ustil-front 仓库地址')
-    string(name: 'FRONT_GIT_BRANCH', defaultValue: 'main', description: 'ustil-front 分支')
   }
 
   environment {
@@ -42,12 +37,6 @@ pipeline {
     PUSH_IMAGES = "${params.PUSH_IMAGES}"
     // 前端构建期注入：同源反代（nginx /api/ → api:3000）留空即可
     VITE_API_BASE_URL = ''
-    // —— git 检出：URL/分支经参数/环境变量注入，凭据经 Jenkins Credentials ——
-    GIT_CREDENTIALS_ID = 'ustil-git-credentials'   // 私有仓库用；公开仓库可置空并去掉 git step 的 credentialsId
-    HUB_GIT_URL    = "${params.HUB_GIT_URL}"
-    HUB_GIT_BRANCH = "${params.HUB_GIT_BRANCH}"
-    FRONT_GIT_URL    = "${params.FRONT_GIT_URL}"
-    FRONT_GIT_BRANCH = "${params.FRONT_GIT_BRANCH}"
     // —— 以下全为密钥/机密，MUST 经 Jenkins Credentials 绑定（Manage Jenkins → Credentials）——
     REGISTRY_CRED        = credentials('ustil-registry-account')  // usernamePassword → REGISTRY_CRED_USR / REGISTRY_CRED_PSW
     POSTGRES_PASSWORD    = credentials('ustil-postgres-password')
@@ -64,20 +53,6 @@ pipeline {
   }
 
   stages {
-    stage('Checkout') {
-      steps {
-        // 主 SCM（含 deploy/ 的仓库）由 Jenkins 自动检出到工作区根；
-        // ustil-hub 与 ustil-front 是独立 git 仓库，这里按注入的 URL/分支检出到子目录，
-        // 保证 deploy/docker-compose.yml 里的 ../ustil-hub、../ustil-front 构建上下文正确
-        dir('ustil-hub') {
-          git url: "${HUB_GIT_URL}", branch: "${HUB_GIT_BRANCH}", credentialsId: "${GIT_CREDENTIALS_ID}"
-        }
-        dir('ustil-front') {
-          git url: "${FRONT_GIT_URL}", branch: "${FRONT_GIT_BRANCH}", credentialsId: "${GIT_CREDENTIALS_ID}"
-        }
-      }
-    }
-
     stage('后端质量门') {
       steps {
         dir('ustil-hub') {
