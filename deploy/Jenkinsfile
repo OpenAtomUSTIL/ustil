@@ -25,8 +25,9 @@ pipeline {
   }
 
   parameters {
-    string(name: 'REGISTRY', defaultValue: 'registry.example.com/ustil', description: '镜像仓库前缀（含命名空间），如 registry.cn-hangzhou.aliyuncs.com/你的命名空间')
+    string(name: 'REGISTRY', defaultValue: 'ustil', description: '镜像仓库前缀（含命名空间）；本地模式留 ustil 即可，远程仓库如 registry.cn-hangzhou.aliyuncs.com/你的命名空间')
     string(name: 'IMAGE_TAG', defaultValue: '', description: '镜像 tag，留空则用 BUILD_NUMBER')
+    booleanParam(name: 'PUSH_IMAGES', defaultValue: false, description: '是否登录镜像仓库并推送（本地/内网部署无需推送，镜像已在本机构建）')
     // 两个业务仓库的地址/分支：也可在 Job「环境变量」里配置（效果与参数相同）
     string(name: 'HUB_GIT_URL', defaultValue: 'https://github.com/your-org/ustil-hub.git', description: 'ustil-hub 仓库地址')
     string(name: 'HUB_GIT_BRANCH', defaultValue: 'main', description: 'ustil-hub 分支')
@@ -38,6 +39,7 @@ pipeline {
     // 镜像 tag：参数优先，留空则用 BUILD_NUMBER
     IMAGE_TAG = "${params.IMAGE_TAG ?: env.BUILD_NUMBER}"
     REGISTRY  = "${params.REGISTRY}"
+    PUSH_IMAGES = "${params.PUSH_IMAGES}"
     // 前端构建期注入：同源反代（nginx /api/ → api:3000）留空即可
     VITE_API_BASE_URL = ''
     // —— git 检出：URL/分支经参数/环境变量注入，凭据经 Jenkins Credentials ——
@@ -84,7 +86,7 @@ pipeline {
           // 注意：pnpm test:e2e 若依赖 pg/redis，需在 agent 预起服务，或给 docker run 加 --network
           sh '''
             docker run --rm -v "$PWD":/app -w /app -e CI=true node:20-alpine sh -c '
-              npm install -g pnpm@9 >/dev/null &&
+              npm install -g pnpm@10 >/dev/null &&
               pnpm install --frozen-lockfile &&
               pnpm lint &&
               pnpm test &&
@@ -100,7 +102,7 @@ pipeline {
         dir('ustil-front') {
           sh '''
             docker run --rm -v "$PWD":/app -w /app -e CI=true node:20-alpine sh -c '
-              npm install -g pnpm@9 >/dev/null &&
+              npm install -g pnpm@10 >/dev/null &&
               pnpm install --frozen-lockfile &&
               pnpm typecheck &&
               pnpm lint &&
@@ -121,13 +123,18 @@ pipeline {
           docker build --target migrate -t "$REGISTRY/ustil-api-migrate:$IMAGE_TAG" -t "$REGISTRY/ustil-api-migrate:latest" ustil-hub
           docker build --build-arg VITE_API_BASE_URL="$VITE_API_BASE_URL" \
             -t "$REGISTRY/ustil-web:$IMAGE_TAG" -t "$REGISTRY/ustil-web:latest" ustil-front
-          echo "$REGISTRY_CRED_PSW" | docker login -u "$REGISTRY_CRED_USR" --password-stdin "${REGISTRY%%/*}"
-          docker push "$REGISTRY/ustil-api:$IMAGE_TAG"
-          docker push "$REGISTRY/ustil-api:latest"
-          docker push "$REGISTRY/ustil-api-migrate:$IMAGE_TAG"
-          docker push "$REGISTRY/ustil-api-migrate:latest"
-          docker push "$REGISTRY/ustil-web:$IMAGE_TAG"
-          docker push "$REGISTRY/ustil-web:latest"
+          # 仅在 PUSH_IMAGES=true 时登录并推送；本地/内网部署镜像已直接落在本机 daemon，无需仓库
+          if [ "$PUSH_IMAGES" = "true" ]; then
+            echo "$REGISTRY_CRED_PSW" | docker login -u "$REGISTRY_CRED_USR" --password-stdin "${REGISTRY%%/*}"
+            docker push "$REGISTRY/ustil-api:$IMAGE_TAG"
+            docker push "$REGISTRY/ustil-api:latest"
+            docker push "$REGISTRY/ustil-api-migrate:$IMAGE_TAG"
+            docker push "$REGISTRY/ustil-api-migrate:latest"
+            docker push "$REGISTRY/ustil-web:$IMAGE_TAG"
+            docker push "$REGISTRY/ustil-web:latest"
+          else
+            echo "PUSH_IMAGES=false：跳过镜像推送（本地部署复用本机构建镜像）"
+          fi
         '''
       }
     }
