@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { articlesApi, assignmentsApi, describeError, isForbidden, issuesApi } from '@/api/request'
+import { describeError, isForbidden } from '@/api/error'
+import { articlesApi, assignmentsApi, issuesApi } from '@/api/request'
 import type { ArticleListItem, IssueListItem } from '@/api/types'
 import ArticleCard from '@/components/ArticleCard.vue'
 import EmptyState from '@/components/EmptyState.vue'

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { assignmentsApi, describeError, isForbidden } from '@/api/request'
+import { describeError, isForbidden } from '@/api/error'
+import { assignmentsApi } from '@/api/request'
 import type { AssignmentItem, SubmissionView } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'

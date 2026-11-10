@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { authApi, describeError, usersApi } from '@/api/request'
+import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { describeError } from '@/api/error'
+import { authApi, usersApi } from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { useUiStore } from '@/stores/ui'
 import { formatDate, roleLabel } from '@/utils/format'
 import { AVATAR_EXTENSIONS } from '@/utils/upload'
 import AppAvatar from '@/components/AppAvatar.vue'
 import FileUploader from '@/components/FileUploader.vue'
 
-const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const toast = useToastStore()
-
-const shown = ref(false)
+const ui = useUiStore()
 
 const nickname = ref('')
 const profileError = ref('')
@@ -34,18 +35,34 @@ const savingIdentifier = ref(false)
 const emailText = computed(() => auth.user?.email ?? '未绑定')
 const phoneText = computed(() => auth.user?.phone ?? '未绑定')
 
-onMounted(async () => {
-  await auth.ensureReady()
-  nickname.value = auth.user?.nickname ?? ''
-  await nextTick()
-  shown.value = true
-})
+watch(
+  () => ui.profileOpen,
+  async (open) => {
+    if (!open) return
+    await auth.ensureReady()
+    nickname.value = auth.user?.nickname ?? ''
+    profileError.value = ''
+    passwordError.value = ''
+    identifierError.value = ''
+    currentPassword.value = ''
+    newPassword.value = ''
+    newPassword2.value = ''
+    identifierType.value = 'email'
+    identifierValue.value = ''
+    identifierPassword.value = ''
+  },
+)
+
+watch(
+  () => route.fullPath,
+  () => {
+    ui.closeProfile()
+  },
+  { flush: 'sync' },
+)
 
 function close(): void {
-  shown.value = false
-  window.setTimeout(() => {
-    router.back()
-  }, 300)
+  ui.closeProfile()
 }
 
 async function saveProfile(): Promise<void> {
@@ -118,8 +135,8 @@ async function bindIdentifier(): Promise<void> {
 
 <template>
   <Teleport to="body">
-    <div class="drawer-backdrop" :class="{ shown }" @click="close" />
-    <aside class="profile-drawer" :class="{ shown }" aria-label="个人中心">
+    <div class="drawer-backdrop" :class="{ shown: ui.profileOpen }" @click="close" />
+    <aside class="profile-drawer" :class="{ shown: ui.profileOpen }" aria-label="个人中心">
       <header class="pd-head">
         <h2>个人中心</h2>
         <button class="pd-close" type="button" aria-label="关闭" @click="close">
@@ -154,10 +171,10 @@ async function bindIdentifier(): Promise<void> {
         </div>
 
         <div class="pd-links">
-          <RouterLink class="pd-link" :to="{ name: 'articles' }" @click="shown = false">
+          <RouterLink class="pd-link" :to="{ name: 'articles' }" @click="close">
             我的文章<span>查看与管理已发布文章</span>
           </RouterLink>
-          <RouterLink class="pd-link" :to="{ name: 'assignments' }" @click="shown = false">
+          <RouterLink class="pd-link" :to="{ name: 'assignments' }" @click="close">
             我的作业提交<span>查看提交记录与截止时间</span>
           </RouterLink>
         </div>

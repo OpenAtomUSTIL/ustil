@@ -191,12 +191,3 @@ export interface BanResult {
   id: string
   status: string
 }
-
-/** 统一错误体（后端 AllExceptionsFilter 产出） */
-export interface ErrorBody {
-  statusCode: number
-  error: string
-  message: string | string[]
-  path: string
-  timestamp: string
-}

@@ -367,8 +367,12 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-family: var(--font-sans); font-size: var(--fs-small); font-weight: var(--fw-semibold);
   letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-500); margin-bottom: 1.05rem;
 }
-.footer-col a { display: block; padding: 0.28rem 0; font-size: var(--fs-meta); color: var(--ink-muted); transition: color var(--t-fast) var(--ease); }
-.footer-col a:hover { color: var(--clay-soft); }
+.footer-col a, .footer-col button {
+  display: block; padding: 0.28rem 0; font-size: var(--fs-meta); color: var(--ink-muted);
+  transition: color var(--t-fast) var(--ease);
+  background: none; border: 0; cursor: pointer; font-family: inherit; text-align: left;
+}
+.footer-col a:hover, .footer-col button:hover { color: var(--clay-soft); }
 .footer-bottom {
   margin-top: 3rem; padding-top: 1.65rem; border-top: var(--bw-sm) solid rgba(227, 218, 204, 0.14);
   display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
@@ -518,21 +522,28 @@ ul { margin: 0; padding: 0; list-style: none; }
 .drawer-backdrop {
   position: fixed; inset: 0; z-index: 60;
   background: rgba(20, 20, 19, 0.42);
-  opacity: 0; transition: opacity var(--t-med) var(--ease);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--t-med) var(--ease), visibility 0s linear var(--t-med);
 }
-.drawer-backdrop.shown { opacity: 1; }
+.drawer-backdrop.shown {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transition: opacity var(--t-med) var(--ease), visibility 0s;
+}
 
 .profile-drawer {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 70;
   width: min(27.5rem, 92vw);
   background: var(--bg-page); border-left: var(--bw-sm) solid var(--border);
   box-shadow: var(--shadow-lift);
-  transform: translateX(100%);
-  transition: transform 320ms var(--ease);
+  transform: translateX(100%); visibility: hidden;
+  transition: transform 320ms var(--ease), visibility 0s linear 320ms;
   overflow-y: auto;
   display: flex; flex-direction: column;
 }
-.profile-drawer.shown { transform: translateX(0); }
+.profile-drawer.shown {
+  transform: translateX(0); visibility: visible;
+  transition: transform 320ms var(--ease), visibility 0s;
+}
 
 .pd-head {
   position: sticky; top: 0; z-index: 1;

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { assignmentsApi, describeError, isForbidden } from '@/api/request'
+import { describeError, isForbidden } from '@/api/error'
+import { assignmentsApi } from '@/api/request'
 import type { AssignmentItem } from '@/api/types'
 import { formatCountdown, formatDateTime, timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { articlesApi, describeError, isForbidden } from '@/api/request'
+import { describeError, isForbidden } from '@/api/error'
+import { articlesApi } from '@/api/request'
 import { useToastStore } from '@/stores/toast'
 
 const route = useRoute()

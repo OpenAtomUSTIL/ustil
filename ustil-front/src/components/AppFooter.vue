@@ -1,5 +1,20 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
+
 const year = new Date().getFullYear()
+const router = useRouter()
+const auth = useAuthStore()
+const ui = useUiStore()
+
+function openProfile(): void {
+  if (auth.isLoggedIn) {
+    ui.openProfile()
+    return
+  }
+  void router.push({ name: 'login', query: { redirect: '/profile' } })
+}
 </script>
 
 <template>
@@ -35,7 +50,7 @@ const year = new Date().getFullYear()
           <h4>账号</h4>
           <RouterLink :to="{ name: 'login' }">登录</RouterLink>
           <RouterLink :to="{ name: 'register' }">注册</RouterLink>
-          <RouterLink :to="{ name: 'profile' }">个人中心</RouterLink>
+          <button type="button" @click="openProfile">个人中心</button>
         </div>
       </div>
       <div class="footer-bottom">

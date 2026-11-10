@@ -1,96 +1,54 @@
 /* 路由表与守卫
-   meta.requiresAuth：未登录跳登录页（登录后回跳 redirect） */
+   每个路由一个文件（同目录），此处直接引入并组装
+   _authenticated.<name>.ts — meta.requiresAuth 的受保护路由
+   _guest.<name>.ts         — meta.guestOnly 的游客路由（登录/注册）
+   _public.<name>.ts        — 公开路由
+   meta.requiresAuth：未登录跳登录页（登录后回跳 redirect）
+   meta.guestOnly：已登录用户访问登录/注册页跳回首页 */
 
 import { createRouter, createWebHistory } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+
+import home from './_public.home'
+import login from './_guest.login'
+import register from './_guest.register'
+import articles from './_public.articles'
+import articleNew from './_authenticated.article-new'
+import articleEdit from './_authenticated.article-edit'
+import articleDetail from './_public.article-detail'
+import assignments from './_public.assignments'
+import assignmentNew from './_authenticated.assignment-new'
+import assignmentDetail from './_public.assignment-detail'
+import issues from './_public.issues'
+import issueNew from './_authenticated.issue-new'
+import issueDetail from './_public.issue-detail'
+import profile from './_authenticated.profile'
+import forbidden from './_public.forbidden'
+import notFound from './_public.not-found'
+
+const routes: RouteRecordRaw[] = [
+  home,
+  login,
+  register,
+  articles,
+  articleNew,
+  articleEdit,
+  articleDetail,
+  assignments,
+  assignmentNew,
+  assignmentDetail,
+  issues,
+  issueNew,
+  issueDetail,
+  profile,
+  forbidden,
+  notFound,
+]
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    { path: '/', name: 'home', component: () => import('@/views/HomeView.vue') },
-    {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/views/LoginView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/register',
-      name: 'register',
-      component: () => import('@/views/RegisterView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/articles',
-      name: 'articles',
-      component: () => import('@/views/ArticlesView.vue'),
-    },
-    {
-      path: '/articles/new',
-      name: 'article-new',
-      component: () => import('@/views/ArticleEditorView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/articles/:id/edit',
-      name: 'article-edit',
-      component: () => import('@/views/ArticleEditorView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/articles/:id',
-      name: 'article-detail',
-      component: () => import('@/views/ArticleDetailView.vue'),
-    },
-    {
-      path: '/assignments',
-      name: 'assignments',
-      component: () => import('@/views/AssignmentsView.vue'),
-    },
-    {
-      path: '/assignments/new',
-      name: 'assignment-new',
-      component: () => import('@/views/AssignmentCreateView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/assignments/:id',
-      name: 'assignment-detail',
-      component: () => import('@/views/AssignmentDetailView.vue'),
-    },
-    {
-      path: '/issues',
-      name: 'issues',
-      component: () => import('@/views/IssuesView.vue'),
-    },
-    {
-      path: '/issues/new',
-      name: 'issue-new',
-      component: () => import('@/views/IssueCreateView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/issues/:id',
-      name: 'issue-detail',
-      component: () => import('@/views/IssueDetailView.vue'),
-    },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: () => import('@/views/ProfileView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/403',
-      name: 'forbidden',
-      component: () => import('@/views/ForbiddenView.vue'),
-    },
-    {
-      path: '/:pathMatch(.*)*',
-      name: 'not-found',
-      component: () => import('@/views/NotFoundView.vue'),
-    },
-  ],
+  routes,
   scrollBehavior(_to, _from, savedPosition) {
     return savedPosition ?? { top: 0 }
   },

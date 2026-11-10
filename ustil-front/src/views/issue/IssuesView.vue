@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { describeError, isForbidden, issuesApi } from '@/api/request'
+import { describeError, isForbidden } from '@/api/error'
+import { issuesApi } from '@/api/request'
 import type { IssueListItem, IssueStatus } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'

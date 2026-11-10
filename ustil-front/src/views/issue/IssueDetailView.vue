@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { describeError, isForbidden, issuesApi } from '@/api/request'
+import { describeError, isForbidden } from '@/api/error'
+import { issuesApi } from '@/api/request'
 import type { IssueDetail, IssueStatus } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'

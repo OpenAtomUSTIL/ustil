@@ -5,6 +5,7 @@
    - 鉴权走 httpOnly cookie（credentials: 'include'），禁读写 token
    - 非 2xx 解析统一错误体并抛出 ApiError；401 统一触发重新登录
    - pageSize > 100 本地拦截（与后端约定一致）
+   - 错误类与错误判定见 ./error
    ============================================================ */
 
 import type {
@@ -16,7 +17,6 @@ import type {
   BanResult,
   CreateIssueRequest,
   CreateReplyRequest,
-  ErrorBody,
   IssueDetail,
   IssueListItem,
   IssueStatus,
@@ -32,61 +32,10 @@ import type {
   UserPublic,
   UserSelf,
 } from './types'
+import { ApiError, localError, triggerUnauthorized, type ErrorBody } from './error'
 
 const API_BASE = `${import.meta.env.VITE_API_BASE_URL}/api/v1`
 const PAGE_SIZE_MAX = 100
-
-/** 统一 API 错误（message 可能是 string[]，已归一为文案） */
-export class ApiError extends Error {
-  readonly statusCode: number
-  readonly errorName: string
-  readonly path: string
-  readonly timestamp: string
-  readonly details: string[]
-
-  constructor(body: ErrorBody) {
-    const details = Array.isArray(body.message) ? body.message : [body.message]
-    super(details.join('；'))
-    this.name = 'ApiError'
-    this.statusCode = body.statusCode
-    this.errorName = body.error
-    this.path = body.path
-    this.timestamp = body.timestamp
-    this.details = details
-  }
-}
-
-function localError(statusCode: number, message: string, path: string): ApiError {
-  return new ApiError({
-    statusCode,
-    error: statusCode === 0 ? 'Network Error' : 'Bad Request',
-    message,
-    path,
-    timestamp: new Date().toISOString(),
-  })
-}
-
-/** 从任意异常提取用户可读文案 */
-export function describeError(err: unknown): string {
-  if (err instanceof ApiError) return err.message
-  return '网络异常，请稍后重试'
-}
-
-export function isForbidden(err: unknown): boolean {
-  return err instanceof ApiError && err.statusCode === 403
-}
-
-export function isUnauthorized(err: unknown): boolean {
-  return err instanceof ApiError && err.statusCode === 401
-}
-
-/* —— 401 统一处理：由 main.ts 注册跳转登录逻辑 —— */
-type UnauthorizedHandler = () => void
-let onUnauthorized: UnauthorizedHandler | null = null
-
-export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
-  onUnauthorized = handler
-}
 
 /* ============ 基础请求 ============ */
 
@@ -122,7 +71,7 @@ function assertPageSize(query: QueryParams | undefined, path: string): void {
 
 async function handleResponse<T>(res: Response, path: string, skipAuthHandler: boolean): Promise<T> {
   if (res.status === 401 && !skipAuthHandler) {
-    onUnauthorized?.()
+    triggerUnauthorized()
   }
   if (!res.ok) {
     let body: ErrorBody | null = null
@@ -170,7 +119,7 @@ function upload<T>(
     }
     xhr.onload = () => {
       if (xhr.status === 401 && !skipAuthHandler) {
-        onUnauthorized?.()
+        triggerUnauthorized()
       }
       if (xhr.status >= 200 && xhr.status < 300) {
         const text = xhr.responseText

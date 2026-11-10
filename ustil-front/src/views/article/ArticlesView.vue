@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { articlesApi, describeError, isForbidden } from '@/api/request'
+import { describeError, isForbidden } from '@/api/error'
+import { articlesApi } from '@/api/request'
 import type { ArticleListItem } from '@/api/types'
 import ArticleCard from '@/components/ArticleCard.vue'
 import BasePagination from '@/components/BasePagination.vue'

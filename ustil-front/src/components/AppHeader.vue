@@ -3,11 +3,13 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { useUiStore } from '@/stores/ui'
 import AppAvatar from '@/components/AppAvatar.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
+const ui = useUiStore()
 
 const scrolled = ref(false)
 const menuOpen = ref(false)
@@ -110,10 +112,10 @@ async function logout(): Promise<void> {
 
         <div class="nav-actions">
           <template v-if="auth.isLoggedIn">
-            <RouterLink class="btn btn-ghost" :to="{ name: 'profile' }" title="个人中心">
+            <button class="btn btn-ghost" type="button" title="个人中心" @click="ui.openProfile()">
               <AppAvatar :nickname="nickname" :avatar-url="avatarUrl" :user-id="userId" />
               {{ nickname }}
-            </RouterLink>
+            </button>
             <button class="btn btn-ghost" type="button" @click="logout">退出</button>
           </template>
           <template v-else>

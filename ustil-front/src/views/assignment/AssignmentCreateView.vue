@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { assignmentsApi, describeError, isForbidden } from '@/api/request'
+import { describeError, isForbidden } from '@/api/error'
+import { assignmentsApi } from '@/api/request'
 import { useToastStore } from '@/stores/toast'
 
 const router = useRouter()
