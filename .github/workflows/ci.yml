@@ -1,0 +1,52 @@
+# 质量门：PR 与 main 推送时校验前后端
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  backend:
+    name: 后端质量门（lint / test / e2e）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ustil-hub
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 安装 pnpm
+        run: npm install -g pnpm@10
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+      - name: lint
+        run: pnpm lint
+      - name: 单元测试
+        run: pnpm test
+      - name: e2e 冒烟（守卫）
+        run: pnpm test:e2e
+
+  frontend:
+    name: 前端质量门（typecheck / lint / build）
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ustil-front
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 安装 pnpm
+        run: npm install -g pnpm@10
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+      - name: 类型检查
+        run: pnpm typecheck
+      - name: lint
+        run: pnpm lint
+      - name: 构建
+        run: pnpm build

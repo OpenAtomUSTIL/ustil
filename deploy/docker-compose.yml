@@ -4,7 +4,7 @@
 #
 # 变量注入（密钥不落盘、不入库）：
 #   - 本地：cp .env.example .env 填真实值，compose 自动读取 deploy/.env 做插值
-#   - CI：Jenkins credentials → environment 块注入同名变量
+#   - CI：GitHub Actions secrets → environment 注入同名变量
 #
 # 迁移红线（AGENTS.md §8）：MUST NOT 写进容器启动，只由部署 job 幂等执行：
 #   docker compose --profile migrate run --rm migrate
@@ -43,7 +43,7 @@ services:
     build:
       context: ../ustil-hub
       target: runtime
-    # Jenkins 构建/推送的镜像 tag 与本处一致（$REGISTRY/$IMAGE_TAG），部署时直接复用
+    # CI（GitHub Actions release.yml）构建/推送的镜像 tag 与本处一致（$REGISTRY/$IMAGE_TAG），部署时直接复用
     image: ${REGISTRY:-ustil}/ustil-api:${IMAGE_TAG:-latest}
     environment:
       NODE_ENV: production

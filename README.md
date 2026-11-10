@@ -10,7 +10,7 @@
 ustil/
 ├── ustil-hub/        后端：NestJS + Drizzle + PostgreSQL + Redis
 ├── ustil-front/      前端：Vue 3 + Vite + TypeScript + Pinia
-├── deploy/           部署：docker compose 编排、nginx 反代、Jenkins 流水线
+├── deploy/           部署：docker compose 编排、nginx 反代
 ├── 初期需求及技术栈.md          产品需求与技术选型
 └── 社团网站技术栈学习路线.md    新人学习路线
 ```
@@ -24,7 +24,7 @@ ustil/
 | 数据库 | PostgreSQL 16（迁移由部署 job 幂等执行） |
 | 缓存 / 限流 | Redis 7（登录限流、refresh token 白名单） |
 | 前端 | Vue 3（Composition API）、Vite、Pinia、marked + DOMPurify |
-| 部署 | Docker Compose（pg + redis + api + web/nginx + migrate）、Jenkins |
+| 部署 | Docker Compose（pg + redis + api + web/nginx + migrate）、GitHub Actions |
 
 ## 本地开发
 
@@ -64,14 +64,23 @@ docker compose --profile migrate run --rm migrate   # 部署前执行（幂等�
 
 > 迁移红线：启动命令不跑迁移，迁移只由部署 job 幂等执行（避免多实例并发）。
 
-## CI/CD（Jenkins）
+## CI/CD（GitHub Actions）
 
-流水线定义在 `deploy/Jenkinsfile`，控制器镜像与初始化脚本在 `deploy/jenkins/`（含凭据与 `ustil-deploy` 任务的幂等初始化）。
+| 工作流 | 触发 | 内容 |
+|---|---|---|
+| `.github/workflows/ci.yml` | PR、push main | 质量门：后端 lint / test / e2e，前端 typecheck / lint / build（PR 页可直接看 check 状态） |
+| `.github/workflows/release.yml` | push main、手动 | 构建 api / api-migrate / web 三镜像并推送到 GHCR（`ghcr.io/<owner>/ustil-*:sha` 与 `latest`） |
 
-阶段：**质量门**（后端 lint/test/e2e、前端 typecheck/lint/build）→ **构建镜像**（api / api-migrate / web）→ **幂等迁移** → **compose 部署**。
+部署在目标主机执行（拉取 CI 产物镜像即可，无需现场构建）：
 
-- 手动触发部署；参数 `REGISTRY` / `IMAGE_TAG` / `PUSH_IMAGES`（本地部署无需推送镜像时留默认）
-- 有正式镜像仓库时：`REGISTRY=<仓库前缀>` + `PUSH_IMAGES=true` 即可推送
+```bash
+cd deploy
+cp .env.example .env                       # 填真实密钥
+export REGISTRY=ghcr.io/<owner>            # 使用 GHCR 镜像
+docker compose pull
+docker compose --profile migrate run --rm migrate   # 幂等迁移
+docker compose up -d
+```
 
 ## API 约定（摘要）
 
