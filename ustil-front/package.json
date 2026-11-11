@@ -1,6 +1,7 @@
 {
   "name": "ustil-front",
   "private": true,
+  "packageManager": "pnpm@10.34.9",
   "version": "0.1.0",
   "type": "module",
   "engines": {

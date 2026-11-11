@@ -14,10 +14,8 @@
 FROM node:24-alpine AS base
 # argon2 等原生依赖在 musl 上无预编译产物，需 node-gyp 编译链（python3/make/g++）
 RUN apk add --no-cache python3 make g++ \
-    # pnpm 锁定主版本 10：兼容 pnpm-workspace.yaml 设置文件（pnpm@9 会报 "packages field
-    # missing"）；当前项目继续使用 pnpm 10，与 CI 保持一致；
-    # 实测 pnpm 10 对 pnpm 11 生成的 lockfile(v9.0) --frozen-lockfile 校验通过
-    && npm install -g pnpm@10
+    # 与 packageManager 和 CI 固定为同一版本，避免补丁锁文件格式不兼容。
+    && npm install -g pnpm@10.34.9
 WORKDIR /app
 
 # ---------- deps：全量依赖（含构建与迁移工具）----------

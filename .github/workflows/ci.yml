@@ -19,7 +19,7 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: 安装 pnpm
-        run: npm install -g pnpm@10
+        run: npm install -g pnpm@10.34.9
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
       - name: lint
@@ -41,7 +41,7 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: 安装 pnpm
-        run: npm install -g pnpm@10
+        run: npm install -g pnpm@10.34.9
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
       - name: 类型检查

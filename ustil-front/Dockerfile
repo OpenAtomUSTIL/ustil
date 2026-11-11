@@ -12,8 +12,8 @@
 
 # ---------- base：Node 24 + pnpm ----------
 FROM node:24-alpine AS base
-# pnpm 锁定主版本 10（兼容 Node 24 与 pnpm-workspace.yaml 设置文件，理由见 ustil-hub/Dockerfile）
-RUN npm install -g pnpm@10
+# 与 packageManager、后端构建和 CI 固定为同一版本。
+RUN npm install -g pnpm@10.34.9
 WORKDIR /app
 
 # ---------- deps：安装依赖 ----------
