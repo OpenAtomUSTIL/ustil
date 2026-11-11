@@ -13,6 +13,7 @@ const toast = useToastStore()
 const identifier = ref('')
 const nickname = ref('')
 const password = ref('')
+const inviteCode = ref('')
 const error = ref('')
 const submitting = ref(false)
 
@@ -25,6 +26,7 @@ async function submit(): Promise<void> {
       identifier: identifier.value.trim(),
       nickname: nickname.value.trim(),
       password: password.value,
+      inviteCode: inviteCode.value.trim() || undefined,
     })
     toast.show('注册成功，欢迎加入')
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
@@ -57,6 +59,11 @@ async function submit(): Promise<void> {
         <div class="field">
           <label for="reg-password">密码</label>
           <input id="reg-password" v-model="password" type="password" autocomplete="new-password" required>
+        </div>
+        <div class="field">
+          <label for="reg-invite">邀请码（可选）</label>
+          <input id="reg-invite" v-model="inviteCode" type="text" maxlength="64" placeholder="持邀请码注册可直接成为学习成员">
+          <span class="hint">没有邀请码也可注册，将先成为临时访客</span>
         </div>
         <button class="btn btn-primary btn-lg" type="submit" :disabled="submitting">
           {{ submitting ? '注册中…' : '注册' }}

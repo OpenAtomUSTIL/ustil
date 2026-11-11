@@ -9,6 +9,8 @@
    ============================================================ */
 
 import type {
+  AdminStats,
+  AdminUser,
   ArticleDetail,
   ArticleListItem,
   ArticleWriteRequest,
@@ -17,6 +19,8 @@ import type {
   BanResult,
   CreateIssueRequest,
   CreateReplyRequest,
+  GenerateInviteCodesRequest,
+  InviteCode,
   IssueDetail,
   IssueListItem,
   IssueStatus,
@@ -29,6 +33,7 @@ import type {
   UpdateIdentifierRequest,
   UpdateIssueStatusRequest,
   UpdateProfileRequest,
+  UpdateUserRoleRequest,
   UserPublic,
   UserSelf,
 } from './types'
@@ -153,6 +158,9 @@ export const authApi = {
     request<void>('/auth/password', { method: 'POST', body: payload }),
   /** 恢复登录态的唯一来源；未登录返回 401，不触发跳转 */
   me: () => request<UserSelf>('/auth/me', { skipAuthHandler: true }),
+  /** 持码转正：VISITOR 提交邀请码升级为 MEMBER，换发双 token */
+  redeemInviteCode: (payload: { inviteCode: string }) =>
+    request<UserSelf>('/auth/invite-code', { method: 'POST', body: payload }),
 }
 
 export const usersApi = {
@@ -214,6 +222,22 @@ export const issuesApi = {
     request<void>(`/issues/${id}/replies`, { method: 'POST', body: payload }),
   updateStatus: (id: string, payload: UpdateIssueStatusRequest) =>
     request<void>(`/issues/${id}/status`, { method: 'PATCH', body: payload }),
+}
+
+export const adminApi = {
+  stats: () => request<AdminStats>('/admin/stats'),
+  generateInviteCodes: (payload: GenerateInviteCodesRequest) =>
+    request<{ items: InviteCode[] }>('/admin/invite-codes', { method: 'POST', body: payload }),
+  listInviteCodes: (query: PageQuery & { status?: string }) =>
+    request<Page<InviteCode>>('/admin/invite-codes', { query }),
+  revokeInviteCode: (id: string) =>
+    request<void>(`/admin/invite-codes/${id}/revoke`, { method: 'POST' }),
+  listUsers: (query: PageQuery & { keyword?: string; role?: string; status?: string }) =>
+    request<Page<AdminUser>>('/admin/users', { query }),
+  updateUserRole: (id: string, payload: UpdateUserRoleRequest) =>
+    request<AdminUser>(`/admin/users/${id}/role`, { method: 'PATCH', body: payload }),
+  promoteUser: (id: string) => request<AdminUser>(`/admin/users/${id}/promote`, { method: 'POST' }),
+  deleteUser: (id: string) => request<void>(`/admin/users/${id}`, { method: 'DELETE' }),
 }
 
 /* 文件下载/预览直接使用 AttachmentView.url（GET /storage/files/:key，同源带 cookie），不经 JS 读写 */

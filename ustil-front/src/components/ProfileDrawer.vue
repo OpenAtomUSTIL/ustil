@@ -32,6 +32,10 @@ const identifierPassword = ref('')
 const identifierError = ref('')
 const savingIdentifier = ref(false)
 
+const inviteCode = ref('')
+const redeemError = ref('')
+const savingRedeem = ref(false)
+
 const emailText = computed(() => auth.user?.email ?? '未绑定')
 const phoneText = computed(() => auth.user?.phone ?? '未绑定')
 
@@ -50,6 +54,8 @@ watch(
     identifierType.value = 'email'
     identifierValue.value = ''
     identifierPassword.value = ''
+    inviteCode.value = ''
+    redeemError.value = ''
   },
 )
 
@@ -63,6 +69,21 @@ watch(
 
 function close(): void {
   ui.closeProfile()
+}
+
+async function redeem(): Promise<void> {
+  if (savingRedeem.value) return
+  redeemError.value = ''
+  savingRedeem.value = true
+  try {
+    const updated = await authApi.redeemInviteCode({ inviteCode: inviteCode.value.trim() })
+    auth.setUser(updated)
+    toast.show('已转正为学习成员')
+  } catch (err) {
+    redeemError.value = describeError(err)
+  } finally {
+    savingRedeem.value = false
+  }
 }
 
 async function saveProfile(): Promise<void> {
@@ -169,6 +190,21 @@ async function bindIdentifier(): Promise<void> {
           <span><b>邮箱：</b>{{ emailText }}</span>
           <span><b>手机号：</b>{{ phoneText }}</span>
         </div>
+
+        <section v-if="auth.user.role === 'VISITOR'" class="pd-section">
+          <h3>邀请码转正</h3>
+          <p class="hint">持邀请码可立即成为学习成员；临时访客账号满 7 天将自动删除。</p>
+          <div v-if="redeemError" class="form-error">{{ redeemError }}</div>
+          <form class="form-grid" @submit.prevent="redeem">
+            <div class="field">
+              <label for="pd-invite">邀请码</label>
+              <input id="pd-invite" v-model="inviteCode" type="text" maxlength="64" required placeholder="输入邀请码">
+            </div>
+            <button class="btn btn-clay" type="submit" :disabled="savingRedeem">
+              {{ savingRedeem ? '提交中…' : '转正为学习成员' }}
+            </button>
+          </form>
+        </section>
 
         <div class="pd-links">
           <RouterLink class="pd-link" :to="{ name: 'articles' }" @click="close">

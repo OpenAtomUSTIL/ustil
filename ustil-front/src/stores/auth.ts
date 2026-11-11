@@ -16,7 +16,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'ADMIN')
   /** 内容创作入口显隐（体验优化，权限以后端为准） */
   const canManageContent = computed(
-    () => user.value?.role === 'ADMIN' || user.value?.role === 'ALUMNI',
+    () => user.value?.role === 'ADMIN' || user.value?.role === 'ALUMNI' || user.value?.role === 'WHEEL',
+  )
+  /** 管理后台入口显隐（体验优化，权限以后端为准） */
+  const canAccessAdmin = computed(
+    () => user.value?.role === 'ADMIN' || user.value?.role === 'WHEEL',
   )
 
   function setUser(next: UserSelf | null): void {
@@ -62,6 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
     role,
     isAdmin,
     canManageContent,
+    canAccessAdmin,
     setUser,
     clear,
     ensureReady,

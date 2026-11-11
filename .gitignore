@@ -6,6 +6,8 @@ node_modules/
 /pnpm-lock.yaml
 /pnpm-workspace.yaml
 
+/.mimocode
+
 .DS_Store
 *.log
 .env

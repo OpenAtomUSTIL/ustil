@@ -112,6 +112,9 @@ async function logout(): Promise<void> {
 
         <div class="nav-actions">
           <template v-if="auth.isLoggedIn">
+            <RouterLink v-if="auth.canAccessAdmin" class="btn btn-ghost" :to="{ name: 'admin-dashboard' }">
+              管理后台
+            </RouterLink>
             <button class="btn btn-ghost" type="button" title="个人中心" @click="ui.openProfile()">
               <AppAvatar :nickname="nickname" :avatar-url="avatarUrl" :user-id="userId" />
               {{ nickname }}

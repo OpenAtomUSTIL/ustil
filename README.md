@@ -1,6 +1,6 @@
 # USTIL 社区网站
 
-开放原子 USTIL（University Student Technology & Innovation Lab）学生开源社区的官网 / 门户。本质是一个 **RBAC 权限系统**：三级角色（`ADMIN` / `ALUMNI` / `MEMBER`），提供文章、作业、Issue 讨论等能力，敏捷迭代——先上线最小可用版本，再持续演进。
+开放原子 USTIL（University Student Technology & Innovation Lab）学生开源社区的官网 / 门户。本质是一个 **RBAC 权限系统**：五角色（`VISITOR` / `MEMBER` / `ALUMNI` / `WHEEL` / `ADMIN`），提供文章、作业、Issue 讨论、管理后台（邀请码、用户管理）等能力，敏捷迭代——先上线最小可用版本，再持续演进。
 
 本仓库为 **monorepo**，存储前后端全部项目代码与部署设施（原 `ustil-hub` / `ustil-front` 仓库已并入本仓库并保留提交历史，仅作归档）。
 
@@ -46,8 +46,9 @@ pnpm dev                    # Vite 开发服务器
 
 | 位置 | 命令 | 说明 |
 |---|---|---|
-| ustil-hub | `pnpm lint` / `pnpm test` / `pnpm test:e2e` | 质量门（19 单测 + 8 守卫冒烟） |
+| ustil-hub | `pnpm lint` / `pnpm test` / `pnpm test:e2e` | 质量门（43 单测 + 22 e2e） |
 | ustil-hub | `pnpm db:generate` / `pnpm db:migrate` | 生成 / 执行迁移 |
+| ustil-hub | `pnpm seed:admin` | 初始 ADMIN 种子（幂等，读 `ADMIN_EMAIL` / `ADMIN_PASSWORD`） |
 | ustil-front | `pnpm typecheck` / `pnpm lint` / `pnpm build` | 质量门 |
 
 ## Docker 部署
@@ -57,6 +58,7 @@ cd deploy
 cp .env.example .env        # 填 JWT 密钥、POSTGRES_PASSWORD 等真实值
 docker compose up -d --build
 docker compose --profile migrate run --rm migrate   # 部署前执行（幂等）
+docker compose --profile seed run --rm seed         # 初始 ADMIN 种子（幂等，可选）
 ```
 
 访问 `http://localhost`：nginx 托管前端静态文件并把 `/api/` 反代到后端。

@@ -1,7 +1,7 @@
 # AGENTS.md — ustil-hub 前端红线
 
-> 前端目前处于**占位阶段**：这份文件只锁「不可协商的红线与契约」，不规定具体页面实现。
-> 目录结构、UI 库、状态管理等见 §10 待定项 —— **在你确认之前不要自行选型**。
+> 本文件锁「不可协商的红线与契约」，不规定具体页面实现。
+> 目录结构、UI 库、状态管理等选型已落地，见 §10 —— **`MUST NOT` 擅自更换**。
 >
 > 后端细则见仓库根 `AGENTS.md`。两边冲突时以根文件为准（跨端契约的唯一事实来源）。
 
@@ -57,6 +57,7 @@
 
 ## 6. 权限"前端不判、只隐藏"
 
+- 角色枚举五值（与后端 `AGENTS.md` §3 一致）：`VISITOR` / `MEMBER` / `ALUMNI` / `WHEEL` / `ADMIN`。
 - 按钮/入口的显隐可以按 `role` 做，但**`MUST NOT`** 把前端隐藏当权限控制。
 - 所有权限由后端 service 层拦截；前端只是一个 `v-if` 的体验优化。
 - 收到 403 时 `MUST` 展示"无权访问"，`MUST NOT` 静默吞掉或自动重试。
@@ -82,14 +83,12 @@
 - [ ] 没有实现根 `AGENTS.md` §2 里标 🔴/❌ 的后续功能（私信、关注、积分等）
 - [ ] 没有自行选定 UI 库 / 状态管理 / 路由方案（见 §10）
 
-## 10. 待定项（`MUST NOT` 自行选型）
+## 10. 选型现状（已落地，`MUST NOT` 擅自更换）
 
-以下项在你确认之前不得写入代码，需要时先问：
-
-- **UI 组件库**：Element Plus / Naive UI / 自研 + Tailwind —— 未定
-- **状态管理**：Pinia 是否引入，登录态 store 如何组织 —— 未定
-- **路由守卫**：未登录跳转策略、`meta.requiresAuth` 约定 —— 未定
-- **目录结构**：`src/views` / `src/components` / `src/api` / `src/stores` 的具体切分 —— 未定
-- **页面清单与路由表**：文章列表、作业列表、issue 区、个人页（侧拉式）—— 未定
-- **Markdown 渲染方案**：后端返回 MD 还是 HTML，XSS 过滤在谁那侧 —— 依赖后端 §21 第 1 条
-- **前端仓库最终位置**：当前假定为 `web/`，若改为 monorepo（`apps/web`）需整体迁移
+- **UI 组件库**：自研组件 + 手写 CSS（设计令牌见 `src/styles/tokens.css`），`MUST NOT` 引入 Element Plus / Naive UI 等 UI 库
+- **状态管理**：Pinia（登录态唯一来源 `src/stores/auth.ts`）
+- **路由守卫**：`src/router/index.ts` 全局 `beforeEach`，`meta.requiresAuth` / `meta.guestOnly` / `meta.requiresRole` 约定，一文件一路由（`_public.*` / `_guest.*` / `_authenticated.*` / `_admin.*`）
+- **目录结构**：`src/views`（按业务模块分目录）/ `src/components` / `src/api` / `src/stores` / `src/router`
+- **页面清单与路由表**：见 `src/router/`（文章、作业、issue、个人中心侧拉抽屉、管理后台）
+- **Markdown 渲染方案**：前端渲染（`src/utils/markdown.ts`，marked + DOMPurify 过滤 XSS）
+- **前端仓库位置**：monorepo `ustil-front/`

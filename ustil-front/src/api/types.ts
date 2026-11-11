@@ -3,8 +3,8 @@
    禁止凭想象增减字段；字段名一律 camelCase；时间一律 ISO 8601 UTC 字符串。
    ============================================================ */
 
-/** 角色：管理员 / 往届生 / 普通成员 */
-export type Role = 'ADMIN' | 'ALUMNI' | 'MEMBER'
+/** 角色：临时访客 / 学习成员 / 校友 / 负责人 / 管理员 */
+export type Role = 'VISITOR' | 'MEMBER' | 'ALUMNI' | 'WHEEL' | 'ADMIN'
 
 /** Issue 状态：未解决 / 已解答 / 搁置 */
 export type IssueStatus = 'OPEN' | 'ANSWERED' | 'ON_HOLD'
@@ -132,6 +132,8 @@ export interface RegisterRequest {
   identifier: string
   password: string
   nickname: string
+  /** 可选邀请码：有效则注册为 MEMBER，无码注册为 VISITOR */
+  inviteCode?: string
 }
 
 export interface LoginRequest {
@@ -190,4 +192,45 @@ export type PageQuery = {
 export interface BanResult {
   id: string
   status: string
+}
+
+/* ============ 管理后台 ============ */
+
+/** 邀请码（status 取值：ACTIVE / REVOKED） */
+export interface InviteCode {
+  id: string
+  code: string
+  status: string
+  maxUses: number
+  usedCount: number
+  remaining: number
+  expiresAt: string | null
+  createdAt: string
+}
+
+/** 管理后台用户视图（联系方式脱敏） */
+export interface AdminUser {
+  id: string
+  nickname: string
+  contact: string | null
+  role: Role
+  status: string
+  createdAt: string
+}
+
+/** 概览统计 */
+export interface AdminStats {
+  users: Record<Role, number>
+  activeInviteCodes: number
+  visitorPendingCleanup: number
+}
+
+export interface GenerateInviteCodesRequest {
+  count: number
+  maxUses?: number
+  expiresAt?: string
+}
+
+export interface UpdateUserRoleRequest {
+  role: 'VISITOR' | 'MEMBER' | 'ALUMNI' | 'WHEEL'
 }

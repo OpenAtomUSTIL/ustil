@@ -1,10 +1,12 @@
 /* 路由表与守卫
    每个路由一个文件（同目录），此处直接引入并组装
+   _admin.<name>.ts           — 管理后台子路由（布局与角色守卫在 _admin.ts）
    _authenticated.<name>.ts — meta.requiresAuth 的受保护路由
    _guest.<name>.ts         — meta.guestOnly 的游客路由（登录/注册）
    _public.<name>.ts        — 公开路由
    meta.requiresAuth：未登录跳登录页（登录后回跳 redirect）
-   meta.guestOnly：已登录用户访问登录/注册页跳回首页 */
+   meta.guestOnly：已登录用户访问登录/注册页跳回首页
+   meta.requiresRole：角色不匹配跳 403（仅体验优化，权限以后端为准） */
 
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
@@ -24,6 +26,7 @@ import issues from './_public.issues'
 import issueNew from './_authenticated.issue-new'
 import issueDetail from './_public.issue-detail'
 import profile from './_authenticated.profile'
+import admin from './_admin'
 import forbidden from './_public.forbidden'
 import notFound from './_public.not-found'
 
@@ -42,6 +45,7 @@ const routes: RouteRecordRaw[] = [
   issueNew,
   issueDetail,
   profile,
+  admin,
   forbidden,
   notFound,
 ]
@@ -63,6 +67,10 @@ router.beforeEach(async (to) => {
   }
   if (to.meta.guestOnly && auth.isLoggedIn) {
     return { name: 'home' }
+  }
+  const requiredRole = to.meta.requiresRole as string[] | undefined
+  if (requiredRole && (auth.role === null || !requiredRole.includes(auth.role))) {
+    return { name: 'forbidden' }
   }
   return true
 })

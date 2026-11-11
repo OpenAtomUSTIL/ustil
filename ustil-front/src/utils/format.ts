@@ -59,10 +59,14 @@ export function roleLabel(role: string): string {
   switch (role) {
     case 'ADMIN':
       return '管理员'
+    case 'WHEEL':
+      return '负责人'
     case 'ALUMNI':
-      return '往届生'
+      return '校友'
     case 'MEMBER':
-      return '普通成员'
+      return '学习成员'
+    case 'VISITOR':
+      return '临时访客'
     default:
       return role
   }
