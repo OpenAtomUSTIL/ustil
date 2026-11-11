@@ -358,7 +358,7 @@ export const adminApi = {
 }
 
 /** 文件内容预览地址（同源 <img> 直接加载，带 cookie，不经 JS 读写）
-    走管理端统一出口 /admin/files/:id/content（WHEEL/ADMIN，附件与头像皆可读） */
+    走管理端统一出口 /admin/files/:id/content；附件仍受作业归属权限约束。 */
 export function fileContentUrl(id: string): string {
   return `${API_BASE}/admin/files/${encodeURIComponent(id)}/content`
 }

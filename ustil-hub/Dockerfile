@@ -23,6 +23,7 @@ WORKDIR /app
 # ---------- deps：全量依赖（含构建与迁移工具）----------
 FROM base AS deps
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
+COPY patches/ ./patches/
 # lockfile 已生成 → --frozen-lockfile（CI/部署标准姿势）
 # 工程化初期 lockfile 尚未生成 → 退回 --no-frozen-lockfile 兼容；
 # pnpm-lock.yaml 提交后本分支自动走 frozen 路径
@@ -43,6 +44,7 @@ RUN pnpm build
 # ---------- prod-deps：仅生产依赖 ----------
 FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
+COPY patches/ ./patches/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     if [ -f pnpm-lock.yaml ]; then \
       pnpm install --frozen-lockfile --prod --store-dir /pnpm/store; \
