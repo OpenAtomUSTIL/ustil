@@ -1,15 +1,166 @@
-# ustil monorepo：deploy/ + ustil-hub/ + ustil-front/ 全部项目代码
-#
-# 防御：根目录不放依赖（pnpm 误装会生成 package.json/node_modules）
+# USTIL monorepo：Vue / Vite 前端 + NestJS 后端 + PostgreSQL / Redis
+# 本规则覆盖所有子目录；子目录已有的 .gitignore 仍然生效。
+# 保留源码、迁移 SQL、环境模板、CI 配置和项目协作说明。
+
+# ===== 依赖与包管理器缓存 =====
 node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.pnp.*
+.bun/
+*.tgz
+
+# 保留原有约定：依赖分别安装在 ustil-front/ 和 ustil-hub/。
+# 子项目的 package.json、pnpm-lock.yaml、pnpm-workspace.yaml 正常提交。
 /package.json
 /pnpm-lock.yaml
 /pnpm-workspace.yaml
 
-/.mimocode
-
-.DS_Store
-*.log
+# ===== 本地环境变量、凭据与私钥 =====
 .env
 .env.*
 !.env.example
+.envrc
+.envrc.*
+!.envrc.example
+.npmrc.local
+.netrc
+.pgpass
+.rediscli_history
+.psql_history
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# ===== 构建产物与工具缓存 =====
+dist/
+build/
+*.tsbuildinfo
+.vite/
+.vite-temp/
+.cache/
+.eslintcache
+.stylelintcache
+.parcel-cache/
+.turbo/
+.nx/
+.rollup.cache/
+
+# ===== 测试报告、浏览器测试产物 =====
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+.playwright/
+.playwright-mcp/
+.jest-cache/
+.vitest/
+# 浏览器登录态可能包含 cookie / token，不提交。
+playwright/.auth/
+.auth/
+
+# ===== 运行日志、崩溃报告与临时文件 =====
+logs/
+*.log
+*.log.*
+*.pid
+*.pid.lock
+*.seed
+report.*.json
+tmp/
+temp/
+.tmp/
+.temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+
+# ===== 本地运行数据：限定路径，避免误伤源码 storage 模块 =====
+/storage/
+/uploads/
+/postgres-data/
+/redis-data/
+/ustil-hub/storage/
+/ustil-hub/uploads/
+/ustil-hub/postgres-data/
+/ustil-hub/redis-data/
+/deploy/storage/
+/deploy/uploads/
+/deploy/postgres-data/
+/deploy/redis-data/
+/deploy/pg-data/
+/deploy/uploads-data/
+/deploy/backups/
+/backups/
+# Redis 本地快照和持久化文件；数据库迁移 *.sql 正常提交。
+dump.rdb
+appendonly.aof
+appendonlydir/
+
+# ===== Agent 本地设置、会话、索引与缓存 =====
+# 按需通过 git add -f 单独纳入需要共享的规则；不屏蔽 AGENTS.md 等说明。
+.agents/
+.agent/
+.claude/
+.claude.json
+.claude.json.*
+.codex/
+.chatgpt/
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.continue/
+.cline/
+.clinerules
+.roo/
+.roorules
+.kilocode/
+.gemini/
+.qwen/
+.opencode/
+.trae/
+.kiro/
+.augment/
+.tabnine/
+.copilot/
+.dsh/
+.mimocode
+.codebase-memory/
+.serena/
+.specstory/
+.aider*
+.mcp.json
+.mcp.local.json
+.mcp.json.local
+.mcp.local.*
+.mcp-server*.log
+
+# ===== 编辑器与操作系统本地文件 =====
+.idea/
+.vscode/
+*.code-workspace
+.history/
+.fleet/
+.zed/
+.DS_Store
+._*
+.AppleDouble/
+.LSOverride
+.Spotlight-V100/
+.Trashes/
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

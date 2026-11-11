@@ -78,11 +78,11 @@ async function logout(): Promise<void> {
         <nav id="nav-main" class="nav-main" :class="{ open: menuOpen }" aria-label="主导航">
           <RouterLink class="nav-link" :to="{ name: 'home' }">首页</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'articles' }">文章</RouterLink>
-          <RouterLink class="nav-link" :to="{ name: 'assignments' }">作业</RouterLink>
+          <RouterLink v-if="auth.canViewAssignments" class="nav-link" :to="{ name: 'assignments' }">作业</RouterLink>
           <RouterLink class="nav-link" :to="{ name: 'issues' }">讨论</RouterLink>
 
           <!-- 发布入口显隐仅为体验优化，权限以后端为准 -->
-          <div v-if="auth.isLoggedIn" ref="publishItem" class="nav-item" :class="{ open: publishOpen }">
+          <div v-if="auth.canCreateIssue" ref="publishItem" class="nav-item" :class="{ open: publishOpen }">
             <button
               class="nav-trigger"
               type="button"

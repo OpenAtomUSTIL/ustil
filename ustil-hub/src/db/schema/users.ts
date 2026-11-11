@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { check, index, integer, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { v7 as uuidv7 } from 'uuid';
 import { inviteCodes } from './invite_codes';
 
@@ -25,6 +25,8 @@ export const users = pgTable(
     avatarUrl: text('avatar_url'),
     role: userRoleEnum('role').notNull().default('MEMBER'),
     status: userStatusEnum('status').notNull().default('ACTIVE'),
+    // 改密、登出、角色/封禁变更后递增，让已签发的 access/refresh 同时失效。
+    sessionVersion: integer('session_version').notNull().default(0),
     // 注册时使用的邀请码（来源追溯，一个码对应多个用户）
     inviteCodeId: uuid('invite_code_id').references(() => inviteCodes.id, {
       onDelete: 'set null',

@@ -26,7 +26,7 @@
   - 拼接 baseURL（`import.meta.env.VITE_API_BASE_URL`）与 `/api/v1` 前缀
   - `credentials: 'include'`（鉴权走 httpOnly cookie，不带这个参数等于没登录）
   - 非 2xx → 解析错误体 `{ statusCode, error, message, path, timestamp }` 并抛出统一 `ApiError`
-  - 401 → 触发重新登录流程；`MUST NOT` 在每个页面各写一遍
+  - 401 → 统一尝试续期并最多重试一次，续期失败才触发重新登录；普通请求、上传、下载共用同一机制，`MUST NOT` 在每个页面各写一遍
   - `pageSize` 上限 100 的本地校验（和后端约定一致，提前拦住而不是靠后端报错）
 
 ## 3. 接口类型不许猜

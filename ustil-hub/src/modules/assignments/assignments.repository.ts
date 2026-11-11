@@ -80,6 +80,12 @@ export class AssignmentsRepository {
     return rows[0] ?? null;
   }
 
+  async findSubmissionByAttachmentId(attachmentId: string): Promise<SubmissionRow | null> {
+    const rows = await db.select().from(assignmentSubmissions)
+      .where(eq(assignmentSubmissions.attachmentId, attachmentId)).limit(1);
+    return rows[0] ?? null;
+  }
+
   // 重复提交：按 (assignment_id, submitter_id) 覆盖旧提交，保留 created_at、刷新 updated_at
   async upsertSubmission(row: {
     assignmentId: string;

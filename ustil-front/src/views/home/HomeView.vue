@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { describeError, isForbidden } from '@/api/error'
 import { articlesApi, assignmentsApi, issuesApi } from '@/api/request'
 import type { ArticleListItem, IssueListItem } from '@/api/types'
@@ -10,6 +11,7 @@ import IssueCard from '@/components/IssueCard.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const articles = ref<ArticleListItem[]>([])
 const issues = ref<IssueListItem[]>([])
@@ -24,13 +26,15 @@ onMounted(async () => {
     const [articlePage, issuePage, assignmentPage] = await Promise.all([
       articlesApi.list({ page: 1, pageSize: 5 }),
       issuesApi.list({ page: 1, pageSize: 5 }),
-      assignmentsApi.list({ page: 1, pageSize: 1 }),
+      auth.canViewAssignments
+        ? assignmentsApi.list({ page: 1, pageSize: 1 })
+        : Promise.resolve(null),
     ])
     articles.value = articlePage.items
     issues.value = issuePage.items
     articleTotal.value = articlePage.total
     issueTotal.value = issuePage.total
-    assignmentTotal.value = assignmentPage.total
+    assignmentTotal.value = assignmentPage?.total ?? 0
   } catch (err) {
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
@@ -54,13 +58,13 @@ onMounted(async () => {
             USTIL 开放论坛是校园开源社区的公共讨论区：提问、协作、复盘、招新 —— 用开放的方式，把想法推进到有人在用。
           </p>
           <div class="hero-cta">
-            <RouterLink class="btn btn-clay btn-lg" :to="{ name: 'issue-new' }">发起讨论</RouterLink>
+            <RouterLink v-if="auth.canCreateIssue" class="btn btn-clay btn-lg" :to="{ name: 'issue-new' }">发起讨论</RouterLink>
             <RouterLink class="btn btn-outline btn-lg" :to="{ name: 'issues' }">浏览全部讨论</RouterLink>
           </div>
           <div class="hero-stats">
             <div class="hero-stat"><b>{{ articleTotal }}</b><span>文章</span></div>
             <div class="hero-stat"><b>{{ issueTotal }}</b><span>讨论</span></div>
-            <div class="hero-stat"><b>{{ assignmentTotal }}</b><span>作业</span></div>
+            <div v-if="auth.canViewAssignments" class="hero-stat"><b>{{ assignmentTotal }}</b><span>作业</span></div>
           </div>
         </div>
         <aside class="hero-panel" aria-label="最新讨论">
@@ -85,7 +89,7 @@ onMounted(async () => {
         <p>社区的技术长文、周报与复盘沉淀。</p>
         <span class="go">浏览文章 →</span>
       </RouterLink>
-      <RouterLink class="entry-card" :to="{ name: 'assignments' }">
+      <RouterLink v-if="auth.canViewAssignments" class="entry-card" :to="{ name: 'assignments' }">
         <h3>作业</h3>
         <p>练习任务与提交通道，按截止时间推进。</p>
         <span class="go">查看作业 →</span>

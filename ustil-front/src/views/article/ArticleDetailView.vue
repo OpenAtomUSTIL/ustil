@@ -26,7 +26,7 @@ const articleId = computed(() => String(route.params.id))
 
 const isAuthor = computed(() => auth.user !== null && article.value?.author.id === auth.user.id)
 /** 入口显隐仅为体验优化，权限以后端为准 */
-const canEdit = computed(() => auth.canManageContent && (auth.isAdmin || isAuthor.value))
+const canEdit = computed(() => auth.canManageContent && isAuthor.value)
 const canDelete = computed(() => auth.isAdmin || (auth.canManageContent && isAuthor.value))
 
 async function load(): Promise<void> {

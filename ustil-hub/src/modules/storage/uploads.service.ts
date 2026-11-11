@@ -1,4 +1,4 @@
-import { Inject, Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { v7 as uuidv7 } from 'uuid';
 import { AppConfig, configuration } from '../../config/configuration';
 import { AttachmentsRepository, AttachmentRow } from './attachments.repository';
@@ -7,6 +7,7 @@ import {
   STORAGE_SERVICE,
   StorageContentReader,
   StorageService,
+  isValidStorageKey,
 } from './storage.types';
 
 export interface UploadedFileInput {
@@ -77,14 +78,15 @@ export class UploadsService {
       originalName: row.originalName,
       size: row.size,
       mime: row.mime,
-      url: this.storage.getUrl(row.key),
+      // 私有附件永远走作业权限校验，不能暴露 local / R2 的通用读取出口。
+      url: `/api/v1/assignments/files/${row.id}`,
     };
   }
 
   // 作业提交附件：校验 → 落盘 → 记录 attachments
   async saveAssignmentFile(file: UploadedFileInput, uploaderId: string): Promise<AttachmentView> {
     const ext = this.validate(file, ASSIGNMENT_ALLOWED);
-    const key = this.buildKey(ext);
+    const key = `assignment-${this.buildKey(ext)}`;
     const size = file.size > 0 ? file.size : file.buffer.length;
     await this.storage.put(key, file.buffer, file.mimetype.toLowerCase());
     try {
@@ -130,9 +132,20 @@ export class UploadsService {
   }
 
   async resolveFile(key: string): Promise<{ data: Buffer; contentType: string }> {
-    if (!key) {
+    if (!isValidStorageKey(key)) {
       throw new NotFoundException('文件不存在');
     }
+    // 同时拦截旧 key 和新私有前缀，避免仅换 URL 后旧链接仍然能绕过权限。
+    if (key.startsWith('assignment-') || await this.attachmentsRepository.findByKey(key)) {
+      throw new ForbiddenException('请通过作业提交页面访问附件');
+    }
+    if (!/\.(png|jpe?g)$/i.test(key)) throw new NotFoundException('文件不存在');
     return this.storage.get(key);
+  }
+
+  async readAttachment(id: string): Promise<{ data: Buffer; contentType: string }> {
+    const row = await this.attachmentsRepository.findById(id);
+    if (!row) throw new NotFoundException('文件不存在');
+    return this.storage.get(row.key);
   }
 }

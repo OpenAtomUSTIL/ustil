@@ -8,6 +8,8 @@ import { hashPassword } from '../auth/password';
 import { UsersRepository, UserRow } from './users.repository';
 import { UsersService } from './users.service';
 
+const actor = { id: 'admin-actor', role: Role.ADMIN };
+
 const now = new Date('2026-01-01T00:00:00.000Z');
 
 function row(overrides: Partial<UserRow> = {}): UserRow {
@@ -55,8 +57,7 @@ describe('UsersService', () => {
   };
   const refreshStore = {
     register: jest.fn(),
-    has: jest.fn(),
-    revoke: jest.fn(),
+    rotate: jest.fn(),
     revokeAll: jest.fn(),
   };
 
@@ -104,9 +105,10 @@ describe('UsersService', () => {
   });
 
   it('封禁：状态置为 BANNED 并吊销全部 refresh', async () => {
+    usersRepository.findById.mockResolvedValue(row());
     usersRepository.updateStatus.mockResolvedValue(row({ status: UserStatus.BANNED }));
 
-    const result = await service.ban('01890a5d-ac96-7000-8000-000000000001');
+    const result = await service.ban('01890a5d-ac96-7000-8000-000000000001', actor);
 
     expect(result.status).toBe(UserStatus.BANNED);
     expect(refreshStore.revokeAll).toHaveBeenCalledWith('01890a5d-ac96-7000-8000-000000000001');
@@ -116,7 +118,7 @@ describe('UsersService', () => {
     usersRepository.findById.mockResolvedValue(row());
     usersRepository.updateRole.mockResolvedValue(row({ role: Role.ALUMNI }));
 
-    const result = await service.updateRole('01890a5d-ac96-7000-8000-000000000001', Role.ALUMNI);
+    const result = await service.updateRole('01890a5d-ac96-7000-8000-000000000001', Role.ALUMNI, actor);
 
     expect(result.role).toBe(Role.ALUMNI);
     expect(result.contact).toBe('a***@example.com');
@@ -128,7 +130,7 @@ describe('UsersService', () => {
     usersRepository.findById.mockResolvedValue(row({ role: Role.ADMIN }));
 
     await expect(
-      service.updateRole('01890a5d-ac96-7000-8000-000000000001', Role.WHEEL),
+      service.updateRole('01890a5d-ac96-7000-8000-000000000001', Role.WHEEL, actor),
     ).rejects.toThrow(ForbiddenException);
     expect(usersRepository.updateRole).not.toHaveBeenCalled();
   });
@@ -137,12 +139,12 @@ describe('UsersService', () => {
     usersRepository.findById.mockResolvedValue(row());
     usersRepository.updateRole.mockResolvedValue(row({ role: Role.ALUMNI }));
 
-    const result = await service.promoteToAlumni('01890a5d-ac96-7000-8000-000000000001');
+    const result = await service.promoteToAlumni('01890a5d-ac96-7000-8000-000000000001', actor);
     expect(result.role).toBe(Role.ALUMNI);
 
     usersRepository.findById.mockResolvedValue(row({ role: Role.ALUMNI }));
     await expect(
-      service.promoteToAlumni('01890a5d-ac96-7000-8000-000000000001'),
+      service.promoteToAlumni('01890a5d-ac96-7000-8000-000000000001', actor),
     ).rejects.toThrow(ForbiddenException);
   });
 
@@ -150,13 +152,13 @@ describe('UsersService', () => {
     usersRepository.findById.mockResolvedValue(row({ role: Role.VISITOR }));
     usersRepository.deleteById.mockResolvedValue(row({ role: Role.VISITOR }));
 
-    await service.removeByAdmin('01890a5d-ac96-7000-8000-000000000001');
+    await service.removeByAdmin('01890a5d-ac96-7000-8000-000000000001', actor);
     expect(refreshStore.revokeAll).toHaveBeenCalledWith('01890a5d-ac96-7000-8000-000000000001');
     expect(usersRepository.deleteById).toHaveBeenCalled();
 
     usersRepository.findById.mockResolvedValue(row({ role: Role.ALUMNI }));
     await expect(
-      service.removeByAdmin('01890a5d-ac96-7000-8000-000000000001'),
+      service.removeByAdmin('01890a5d-ac96-7000-8000-000000000001', actor),
     ).rejects.toThrow(ForbiddenException);
     expect(usersRepository.deleteById).toHaveBeenCalledTimes(1);
   });

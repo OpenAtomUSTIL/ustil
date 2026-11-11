@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { Page } from '../../common/dto/page';
 import { CurrentAuthUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/decorators/roles.decorator';
+import { requireRole } from '../../common/permissions';
 import { UsersService } from '../users/users.service';
 import { UserPublic } from '../users/users.views';
 import { ArticleRow, ArticlesRepository } from './articles.repository';
@@ -97,6 +98,7 @@ export class ArticlesService {
   }
 
   async update(id: string, user: CurrentAuthUser, dto: UpdateArticleDto): Promise<ArticleDetail> {
+    requireRole(user, Role.ALUMNI, Role.WHEEL, Role.ADMIN);
     const row = await this.articlesRepository.findById(id);
     if (!row) {
       throw new NotFoundException('文章不存在');
@@ -115,6 +117,7 @@ export class ArticlesService {
   }
 
   async remove(id: string, user: CurrentAuthUser): Promise<void> {
+    requireRole(user, Role.ALUMNI, Role.WHEEL, Role.ADMIN);
     const row = await this.articlesRepository.findById(id);
     if (!row) {
       throw new NotFoundException('文章不存在');

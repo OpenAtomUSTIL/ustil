@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Page } from '../../common/dto/page';
 import { CurrentAuthUser } from '../../common/decorators/current-user.decorator';
 import { Role } from '../../common/decorators/roles.decorator';
+import { requireRole } from '../../common/permissions';
 import { AttachmentView } from '../storage/storage.types';
 import { UploadedFileInput, UploadsService } from '../storage/uploads.service';
 import { UsersService } from '../users/users.service';
@@ -191,6 +192,7 @@ export class AssignmentsService {
     user: CurrentAuthUser,
     dto: UpdateAssignmentDto,
   ): Promise<AssignmentItem> {
+    requireRole(user, Role.ALUMNI, Role.WHEEL, Role.ADMIN);
     const row = await this.requireAssignment(id);
     if (row.publisherId !== user.id && user.role !== Role.ADMIN) {
       throw new ForbiddenException('无权访问该资源');
@@ -259,6 +261,7 @@ export class AssignmentsService {
     user: CurrentAuthUser,
     query: { page: number; pageSize: number },
   ): Promise<Page<SubmissionView>> {
+    requireRole(user, Role.ALUMNI, Role.WHEEL, Role.ADMIN);
     const row = await this.requireAssignment(id);
     if (row.publisherId !== user.id && user.role !== Role.ADMIN) {
       throw new ForbiddenException('无权访问该资源');
@@ -279,5 +282,17 @@ export class AssignmentsService {
       return this.toSubmissionView(s, submitter, attachment);
     });
     return { items, total, page: query.page, pageSize: query.pageSize };
+  }
+
+  async downloadAttachment(attachmentId: string, user: CurrentAuthUser): Promise<{ data: Buffer; contentType: string }> {
+    if (user.role === Role.VISITOR) throw new ForbiddenException('无权访问该资源');
+    const submission = await this.assignmentsRepository.findSubmissionByAttachmentId(attachmentId);
+    if (!submission) throw new NotFoundException('提交记录不存在');
+    const assignment = await this.requireAssignment(submission.assignmentId);
+    const isPublisher = assignment.publisherId === user.id && (user.role === Role.ALUMNI || user.role === Role.WHEEL);
+    if (submission.submitterId !== user.id && !isPublisher && user.role !== Role.ADMIN) {
+      throw new ForbiddenException('无权访问该资源');
+    }
+    return this.uploadsService.readAttachment(attachmentId);
   }
 }

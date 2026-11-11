@@ -22,6 +22,13 @@
       "when": 1794359342133,
       "tag": "0002_woozy_karen_page",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794369998890,
+      "tag": "0003_add_user_session_version",
+      "breakpoints": true
     }
   ]
 }

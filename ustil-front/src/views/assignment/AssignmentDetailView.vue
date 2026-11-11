@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
 import { assignmentsApi } from '@/api/request'
-import type { AssignmentItem, SubmissionView } from '@/api/types'
+import type { AssignmentItem, AttachmentView, SubmissionView } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatCountdown, formatDateTime, formatSize, roleLabel, timeAgo } from '@/utils/format'
@@ -39,7 +39,21 @@ const isPublisher = computed(
   () => auth.user !== null && assignment.value?.publisher.id === auth.user.id,
 )
 /** 入口显隐仅为体验优化，权限以后端为准 */
-const canViewSubmissions = computed(() => auth.isAdmin || isPublisher.value)
+const canViewSubmissions = computed(() => auth.isAdmin || (auth.canManageContent && isPublisher.value))
+
+async function download(attachment: AttachmentView): Promise<void> {
+  try {
+    const blob = await assignmentsApi.downloadAttachment(attachment.id)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = attachment.originalName
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  } catch (err) {
+    toast.show(describeError(err))
+  }
+}
 
 async function load(): Promise<void> {
   loading.value = true
@@ -185,7 +199,7 @@ onBeforeUnmount(() => {
           <div class="meta-rows">
             <span>
               <span class="k">文件</span>
-              <a class="v" :href="assignment.mySubmission.attachment.url" style="color: var(--clay-dark); text-decoration: underline; text-underline-offset: 3px">
+              <a class="v" :href="assignment.mySubmission.attachment.url" style="color: var(--clay-dark); text-decoration: underline; text-underline-offset: 3px" @click.prevent="download(assignment.mySubmission.attachment)">
                 {{ assignment.mySubmission.attachment.originalName }}
               </a>
               （{{ formatSize(assignment.mySubmission.attachment.size) }}）
@@ -221,7 +235,7 @@ onBeforeUnmount(() => {
           <div class="r-body">
             <p>
               附件：
-              <a :href="item.attachment.url" style="color: var(--clay-dark); text-decoration: underline; text-underline-offset: 3px">
+              <a :href="item.attachment.url" style="color: var(--clay-dark); text-decoration: underline; text-underline-offset: 3px" @click.prevent="download(item.attachment)">
                 {{ item.attachment.originalName }}
               </a>
               （{{ formatSize(item.attachment.size) }}）

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, desc, eq, ilike, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, lt, ne, or, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { UserStatus, users } from '../../db/schema';
 
@@ -65,14 +65,21 @@ export class UsersRepository {
   }
 
   async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
-    await db.update(users).set({ passwordHash }).where(eq(users.id, id));
+    await db.update(users).set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` }).where(eq(users.id, id));
+  }
+
+  async invalidateSessions(id: string, expectedVersion?: number): Promise<boolean> {
+    const rows = await db.update(users).set({ sessionVersion: sql`${users.sessionVersion} + 1` })
+      .where(and(eq(users.id, id), expectedVersion === undefined ? undefined : eq(users.sessionVersion, expectedVersion)))
+      .returning({ id: users.id });
+    return rows.length > 0;
   }
 
   async updateStatus(id: string, status: UserStatus): Promise<UserRow | null> {
     const rows = await db
       .update(users)
-      .set({ status })
-      .where(eq(users.id, id))
+      .set({ status, sessionVersion: sql`${users.sessionVersion} + 1` })
+      .where(and(eq(users.id, id), ne(users.role, 'ADMIN')))
       .returning();
     return rows[0] ?? null;
   }
@@ -116,17 +123,17 @@ export class UsersRepository {
     return { rows, total: totalRows[0]?.count ?? 0 };
   }
 
-  async updateRole(id: string, role: UserRow['role']): Promise<UserRow | null> {
+  async updateRole(id: string, role: Exclude<UserRow['role'], 'ADMIN'>, expectedRole: UserRow['role']): Promise<UserRow | null> {
     const rows = await db
       .update(users)
-      .set({ role })
-      .where(eq(users.id, id))
+      .set({ role, sessionVersion: sql`${users.sessionVersion} + 1` })
+      .where(and(eq(users.id, id), eq(users.role, expectedRole), ne(users.role, 'ADMIN')))
       .returning();
     return rows[0] ?? null;
   }
 
   async deleteById(id: string): Promise<UserRow | null> {
-    const rows = await db.delete(users).where(eq(users.id, id)).returning();
+    const rows = await db.delete(users).where(and(eq(users.id, id), inArray(users.role, ['MEMBER', 'VISITOR']))).returning();
     return rows[0] ?? null;
   }
 
@@ -159,7 +166,7 @@ export class UsersRepository {
   async promoteMembersCreatedBefore(before: Date): Promise<number> {
     const rows = await db
       .update(users)
-      .set({ role: 'ALUMNI' })
+      .set({ role: 'ALUMNI', sessionVersion: sql`${users.sessionVersion} + 1` })
       .where(and(eq(users.role, 'MEMBER'), lt(users.createdAt, before)))
       .returning({ id: users.id });
     return rows.length;
@@ -168,7 +175,7 @@ export class UsersRepository {
   async applyInviteCode(id: string, inviteCodeId: string): Promise<UserRow | null> {
     const rows = await db
       .update(users)
-      .set({ role: 'MEMBER', inviteCodeId })
+      .set({ role: 'MEMBER', inviteCodeId, sessionVersion: sql`${users.sessionVersion} + 1` })
       .where(and(eq(users.id, id), eq(users.role, 'VISITOR')))
       .returning();
     return rows[0] ?? null;

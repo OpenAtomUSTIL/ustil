@@ -4,7 +4,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from '@/App.vue'
 import router from '@/router'
-import { setUnauthorizedHandler } from '@/api/error'
+import { setSessionRestoredHandler, setUnauthorizedHandler } from '@/api/error'
 import { useAuthStore } from '@/stores/auth'
 import '@/styles/tokens.css'
 import '@/styles/app.css'
@@ -14,6 +14,10 @@ const pinia = createPinia()
 
 app.use(pinia)
 app.use(router)
+
+setSessionRestoredHandler((user) => {
+  useAuthStore().setUser(user)
+})
 
 // 401 统一触发重新登录（由请求层调用，页面不各写一遍）
 setUnauthorizedHandler(() => {

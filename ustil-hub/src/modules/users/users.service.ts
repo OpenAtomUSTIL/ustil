@@ -2,6 +2,8 @@ import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenEx
 import { verify } from 'argon2';
 import { isEmail, isMobilePhone } from 'class-validator';
 import { Role } from '../../common/decorators/roles.decorator';
+import { CurrentAuthUser } from '../../common/decorators/current-user.decorator';
+import { requireRole } from '../../common/permissions';
 import { REFRESH_TOKEN_STORE, RefreshTokenStore } from '../../db/redis';
 import { UserStatus } from '../../db/schema';
 import { UploadsService, UploadedFileInput } from '../storage/uploads.service';
@@ -117,7 +119,7 @@ export class UsersService {
 
   async getAuthUser(id: string): Promise<AuthUser | null> {
     const row = await this.usersRepository.findById(id);
-    return row ? { id: row.id, role: row.role as Role, status: row.status } : null;
+    return row ? { id: row.id, role: row.role as Role, status: row.status, sessionVersion: row.sessionVersion } : null;
   }
 
   async getPublic(id: string): Promise<UserPublic> {
@@ -166,10 +168,16 @@ export class UsersService {
       throw new ConflictException('该邮箱或手机号已被占用');
     }
     // 一个账号只绑定一个标识：换绑时清空另一种标识
-    const updated = await this.usersRepository.updateIdentifier(id, {
-      email: dto.type === 'email' ? value : null,
-      phone: dto.type === 'phone' ? value : null,
-    });
+    let updated: UserRow | null;
+    try {
+      updated = await this.usersRepository.updateIdentifier(id, {
+        email: dto.type === 'email' ? value : null,
+        phone: dto.type === 'phone' ? value : null,
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) throw new ConflictException('该邮箱或手机号已被占用');
+      throw error;
+    }
     if (!updated) {
       throw new NotFoundException('用户不存在');
     }
@@ -185,7 +193,22 @@ export class UsersService {
     await this.usersRepository.updatePasswordHash(id, passwordHash);
   }
 
-  async ban(id: string): Promise<{ id: string; status: UserStatus }> {
+  async invalidateSessions(id: string, expectedVersion?: number): Promise<void> {
+    if (await this.usersRepository.invalidateSessions(id, expectedVersion)) {
+      await this.refreshStore.revokeAll(id);
+    }
+  }
+
+  private async requireNonAdmin(id: string): Promise<UserRow> {
+    const row = await this.usersRepository.findById(id);
+    if (!row) throw new NotFoundException('用户不存在');
+    if (row.role === Role.ADMIN) throw new ForbiddenException('不可修改管理员账号');
+    return row;
+  }
+
+  async ban(id: string, actor: CurrentAuthUser): Promise<{ id: string; status: UserStatus }> {
+    requireRole(actor, Role.ADMIN);
+    await this.requireNonAdmin(id);
     const row = await this.usersRepository.updateStatus(id, UserStatus.BANNED);
     if (!row) {
       throw new NotFoundException('用户不存在');
@@ -195,7 +218,9 @@ export class UsersService {
     return { id: row.id, status: row.status };
   }
 
-  async unban(id: string): Promise<{ id: string; status: UserStatus }> {
+  async unban(id: string, actor: CurrentAuthUser): Promise<{ id: string; status: UserStatus }> {
+    requireRole(actor, Role.ADMIN);
+    await this.requireNonAdmin(id);
     const row = await this.usersRepository.updateStatus(id, UserStatus.ACTIVE);
     if (!row) {
       throw new NotFoundException('用户不存在');
@@ -232,7 +257,8 @@ export class UsersService {
     status?: UserStatus;
     page: number;
     pageSize: number;
-  }): Promise<AdminUserPage> {
+  }, actor: CurrentAuthUser): Promise<AdminUserPage> {
+    requireRole(actor, Role.WHEEL, Role.ADMIN);
     const { rows, total } = await this.usersRepository.listForAdmin(query);
     return {
       items: rows.map((row) => this.toAdminView(row)),
@@ -242,7 +268,11 @@ export class UsersService {
     };
   }
 
-  async updateRole(id: string, role: Exclude<Role, 'ADMIN'>): Promise<AdminUserView> {
+  async updateRole(id: string, role: Exclude<Role, 'ADMIN'>, actor: CurrentAuthUser): Promise<AdminUserView> {
+    requireRole(actor, Role.ADMIN);
+    if (![Role.VISITOR, Role.MEMBER, Role.ALUMNI, Role.WHEEL].includes(role)) {
+      throw new BadRequestException('不允许授予该角色');
+    }
     const row = await this.usersRepository.findById(id);
     if (!row) {
       throw new NotFoundException('用户不存在');
@@ -250,16 +280,17 @@ export class UsersService {
     if (row.role === Role.ADMIN) {
       throw new ForbiddenException('不可修改管理员账号');
     }
-    const updated = await this.usersRepository.updateRole(id, role);
+    const updated = await this.usersRepository.updateRole(id, role, row.role);
     if (!updated) {
-      throw new NotFoundException('用户不存在');
+      throw new ConflictException('用户角色已变化，请刷新后重试');
     }
     // 角色变更后强制重登（旧 token 内含旧角色）
     await this.refreshStore.revokeAll(id);
     return this.toAdminView(updated);
   }
 
-  async promoteToAlumni(id: string): Promise<AdminUserView> {
+  async promoteToAlumni(id: string, actor: CurrentAuthUser): Promise<AdminUserView> {
+    requireRole(actor, Role.WHEEL, Role.ADMIN);
     const row = await this.usersRepository.findById(id);
     if (!row) {
       throw new NotFoundException('用户不存在');
@@ -267,15 +298,16 @@ export class UsersService {
     if (row.role !== Role.MEMBER) {
       throw new ForbiddenException('仅学习成员可提前提拔');
     }
-    const updated = await this.usersRepository.updateRole(id, Role.ALUMNI);
+    const updated = await this.usersRepository.updateRole(id, Role.ALUMNI, Role.MEMBER);
     if (!updated) {
-      throw new NotFoundException('用户不存在');
+      throw new ConflictException('用户角色已变化，请刷新后重试');
     }
     await this.refreshStore.revokeAll(id);
     return this.toAdminView(updated);
   }
 
-  async removeByAdmin(id: string): Promise<void> {
+  async removeByAdmin(id: string, actor: CurrentAuthUser): Promise<void> {
+    requireRole(actor, Role.WHEEL, Role.ADMIN);
     const row = await this.usersRepository.findById(id);
     if (!row) {
       throw new NotFoundException('用户不存在');
@@ -284,7 +316,8 @@ export class UsersService {
       throw new ForbiddenException('仅可剔除学习成员或临时访客');
     }
     await this.refreshStore.revokeAll(id);
-    await this.usersRepository.deleteById(id);
+    const deleted = await this.usersRepository.deleteById(id);
+    if (!deleted) throw new ConflictException('用户角色已变化，请刷新后重试');
   }
 
   async countByRole(): Promise<Record<string, number>> {

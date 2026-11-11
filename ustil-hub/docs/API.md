@@ -9,8 +9,8 @@
 - **认证方式**：httpOnly Cookie 双 token，前端无需手动携带 Header。
   | Cookie | 内容 | TTL | Path |
   |---|---|---|---|
-  | `access_token` | JWT（`sub` = userId，`role`） | 15 分钟 | `/` |
-  | `refresh_token` | JWT（`sub` + `jti`），刷新时轮换 | 7 天 | `/api/v1/auth` |
+  | `access_token` | JWT（`sub` = userId，`role`，`sessionVersion`） | 15 分钟 | `/` |
+  | `refresh_token` | JWT（`sub` + `jti` + `sessionVersion`），刷新时原子轮换 | 7 天 | `/api/v1/auth` |
 - **成功响应**：直接返回业务数据体（对象或数组），不包裹 `code/message/data`。
 - **失败响应**（全局 `AllExceptionsFilter` 统一产出）：
   ```json
@@ -129,14 +129,14 @@ AttachmentView = {
 ### 1.3 刷新令牌 `POST /api/v1/auth/refresh`
 
 - 权限：🌐 公开（依赖 `refresh_token` Cookie）
-- 说明：轮换 token —— 旧 `jti` 立即作废并签发新对；旧 `jti` 复用视为窃取，清除该用户全部 refresh 并强制重登
+- 说明：轮换 token —— 旧 `jti` 立即作废并签发新对；旧 `jti` 复用视为窃取，递增会话版本并清除该用户全部 refresh，使旧 access / refresh 同时失效
 - 成功：`201`，返回 `UserSelf`，写入新双 token Cookie
 - 失败：`401` refresh 缺失/无效/已作废
 
 ### 1.4 登出 `POST /api/v1/auth/logout`
 
 - 权限：🌐 公开
-- 成功：`204`，清除双 token Cookie 并作废 refresh
+- 成功：`204`，清除双 token Cookie 并使该用户旧 access / refresh 同时失效
 
 ### 1.5 修改密码 `POST /api/v1/auth/password`
 
@@ -145,7 +145,7 @@ AttachmentView = {
   ```json
   { "currentPassword": "当前密码", "newPassword": "新密码（8~128 位）" }
   ```
-- 成功：`204`；修改后清除该用户全部 refresh（其它端需重新登录）
+- 成功：`204`；修改后递增会话版本并清除全部 refresh，包含当前端在内的旧会话均需重新登录
 - 失败：`400` 当前密码错误
 
 ### 1.6 获取当前用户 `GET /api/v1/auth/me`
@@ -301,7 +301,7 @@ AttachmentView = {
 
 ### 4.4 编辑作业 `PATCH /api/v1/assignments/:id`
 
-- 权限：👤 仅发布者本人，或 🛡️ `ADMIN`
+- 权限：👤 仅仍具备 `ALUMNI` / `WHEEL` 发布权限的发布者本人，或 🛡️ `ADMIN`
 - 请求体（字段可选）：`{ "title"?, "description"?, "startAt"?, "deadlineAt"? }`
 - 成功：`200`，返回 `AssignmentItem`
 - 失败：`403` 非发布者且非管理员
@@ -329,7 +329,7 @@ AttachmentView = {
 
 ### 4.6 查看作业提交列表 `GET /api/v1/assignments/:id/submissions`
 
-- 权限：👤 仅发布者本人，或 🛡️ `ADMIN`（提交者本人可经 `mySubmission` 字段看到自己的提交）
+- 权限：👤 仅仍具备 `ALUMNI` / `WHEEL` 发布权限的发布者本人，或 🛡️ `ADMIN`（提交者本人可经 `mySubmission` 字段看到自己的提交）
 - 查询参数：`page`、`pageSize`
 - 成功：`200`，返回 `Page<SubmissionView>`
 - 失败：`403` 非发布者且非管理员
@@ -388,12 +388,19 @@ AttachmentView = {
 
 ## 6. 文件 `/api/v1/storage`
 
-### 6.1 读取文件 `GET /api/v1/storage/files/:key`
+### 6.1 读取头像 `GET /api/v1/storage/files/:key`
 
 - 权限：🔐 登录
-- 路径参数：`key` = 存储 key（UUID + 扩展名，如 `0f8fad5b-d9cb-469f-a165-70867728950e.pdf`）；非法 key 格式返回 404
+- 路径参数：`key` = 头像 key（UUID + 图片扩展名，如 `0f8fad5b-d9cb-469f-a165-70867728950e.png`）；非法 key 格式返回 404
 - 成功：`200`，返回文件二进制（`Content-Type` 按扩展名推断，`Content-Disposition: inline`）
-- 说明：上传接口（头像、作业提交）返回的 `AttachmentView.url` 即指向该接口
+- 说明：仅用于头像。旧作业附件 key 和新 `assignment-` 私有前缀均返回 403。
+
+### 6.2 下载作业附件 `GET /api/v1/assignments/files/:attachmentId`
+
+- 权限：提交者本人、仍具备发布权限的该作业发布者、ADMIN；VISITOR 和无关用户返回 403。
+- `AttachmentView.url` 指向该接口，local / R2 均通过服务端鉴权后读取。
+- 成功：`200`，返回原始文件字节，`Content-Disposition: attachment`、`Cache-Control: private, no-store`。
+- R2 bucket 必须关闭公共访问，历史公开链接需在存储侧关闭；`R2_PUBLIC_BASE_URL` 已停用，可留空。
 
 ---
 
@@ -497,7 +504,7 @@ InviteCode = {
 | 创建 issue / 变更 issue 状态 | ❌ | ✅ / ❌ | ✅ | ✅ | ✅ |
 | 浏览作业 | ❌ | ✅ | ✅ | ✅ | ✅ |
 | 创建文章 | ❌ | ❌ | ✅ | ✅ | ✅ |
-| 编辑文章 | ❌ | ❌ | 仅本人 | 仅本人 | 任意 |
+| 编辑文章 | ❌ | ❌ | 仅本人 | 仅本人 | 仅本人 |
 | 删除文章 | ❌ | ❌ | 仅本人 | 仅本人 | 任意 |
 | 发布 / 编辑作业 | ❌ | ❌ | ✅ / 仅本人 | ✅ / 仅本人 | ✅ / 任意 |
 | 提交作业 | ❌ | ✅（仅 OPEN 窗口） | ✅（仅 OPEN 窗口） | ❌ | ❌ |
@@ -506,3 +513,11 @@ InviteCode = {
 | 剔除学员（删 MEMBER/VISITOR） | ❌ | ❌ | ❌ | ✅ | ✅ |
 | 提前提拔 MEMBER→ALUMNI | ❌ | ❌ | ❌ | ✅ | ✅ |
 | 改角色 / 封禁 / 解封账号 | ❌ | ❌ | ❌ | ❌ | ✅ |
+
+
+## 版本切换说明
+
+- 五角色及 ADMIN 的保管/任免方式保持不变。管理操作在 controller 守卫之外，service 也校验操作者；ADMIN 不可改角色、删除、封禁或解封。
+- 前端普通请求、上传、下载共用续期机制。同页合并并发刷新，同源多标签页在支持 Web Locks 时串行刷新，401 最多重试一次，403 不重试。
+- 更新文章、作业、资料时，未传字段表示不修改；显式 null 返回 400。邀请码 `expiresAt` 必须为真实存在的 ISO 8601 UTC 日期。
+- 上线此版本前先执行新增迁移 `0003_add_user_session_version.sql`。该迁移仅增加 `users.session_version` 字段，不删除已有数据。旧版无会话版本的 JWT 需重新登录。

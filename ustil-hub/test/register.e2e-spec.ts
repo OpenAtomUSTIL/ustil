@@ -73,8 +73,7 @@ describe('注册流程（邀请码分支 e2e）', () => {
   };
   const refreshStore = {
     register: jest.fn(),
-    has: jest.fn(),
-    revoke: jest.fn(),
+    rotate: jest.fn(),
     revokeAll: jest.fn(),
   };
 
@@ -137,6 +136,7 @@ describe('注册流程（邀请码分支 e2e）', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    usersService.getAuthUser.mockResolvedValue({ id: selfFixture.id, role: selfFixture.role, status: UserStatus.ACTIVE, sessionVersion: 0 });
   });
 
   it('无码注册：创建 VISITOR 账号', async () => {

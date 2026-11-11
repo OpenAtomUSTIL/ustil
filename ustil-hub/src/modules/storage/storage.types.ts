@@ -23,8 +23,8 @@ export type FileStorage = StorageService & StorageContentReader;
 
 export const STORAGE_SERVICE = 'STORAGE_SERVICE';
 
-// 合法存储 key：uuid 主干 + 扩展名（防目录穿越）
-export const STORAGE_KEY_PATTERN = /^[0-9a-fA-F-]{36}\.[a-zA-Z0-9]+$/;
+// 新作业文件带私有标记；兼容已有 UUID key，禁止路径分隔符。
+export const STORAGE_KEY_PATTERN = /^(?:assignment-)?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\.[a-zA-Z0-9]+$/;
 
 export function isValidStorageKey(key: string): boolean {
   return STORAGE_KEY_PATTERN.test(key);

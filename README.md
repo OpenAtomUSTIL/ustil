@@ -18,7 +18,7 @@ ustil/
 
 | 层 | 选型 |
 |---|---|
-| 运行时 | Node.js 20 LTS（`.nvmrc` 锁定）+ pnpm |
+| 运行时 | Node.js 24 LTS（`.nvmrc` 锁定）+ pnpm |
 | 后端 | NestJS（CJS + TS strict）、Drizzle ORM、Argon2id、JWT 双 token（httpOnly cookie） |
 | 数据库 | PostgreSQL 16（迁移由部署 job 幂等执行） |
 | 缓存 / 限流 | Redis 7（登录限流、refresh token 白名单） |
@@ -27,7 +27,7 @@ ustil/
 
 ## 本地开发
 
-前置：Node 20、pnpm；数据库与 Redis 可用 `docker compose up -d pg redis`（见 `deploy/`）。
+前置：Node 24、pnpm；数据库与 Redis 可用 `docker compose up -d pg redis`（见 `deploy/`）。
 
 ```bash
 # 后端

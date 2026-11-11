@@ -210,7 +210,7 @@ async function bindIdentifier(): Promise<void> {
           <RouterLink class="pd-link" :to="{ name: 'articles' }" @click="close">
             我的文章<span>查看与管理已发布文章</span>
           </RouterLink>
-          <RouterLink class="pd-link" :to="{ name: 'assignments' }" @click="close">
+          <RouterLink v-if="auth.canViewAssignments" class="pd-link" :to="{ name: 'assignments' }" @click="close">
             我的作业提交<span>查看提交记录与截止时间</span>
           </RouterLink>
         </div>

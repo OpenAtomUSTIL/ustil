@@ -1,3 +1,5 @@
+import type { UserSelf } from './types'
+
 /* ============================================================
    统一错误类与错误判定（错误相关唯一出口）
    - ErrorBody：与后端 AllExceptionsFilter 约定的错误体结构
@@ -68,4 +70,15 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
 
 export function triggerUnauthorized(): void {
   onUnauthorized?.()
+}
+
+// 请求层只发送事件，避免引入 auth store 导致循环依赖。
+let onSessionRestored: ((user: UserSelf) => void) | null = null
+
+export function setSessionRestoredHandler(handler: (user: UserSelf) => void): void {
+  onSessionRestored = handler
+}
+
+export function triggerSessionRestored(user: UserSelf): void {
+  onSessionRestored?.(user)
 }

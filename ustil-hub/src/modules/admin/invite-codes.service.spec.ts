@@ -1,4 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { Role } from '../../common/decorators/roles.decorator';
 import { Test } from '@nestjs/testing';
 import { InviteCodesRepository } from './invite-codes.repository';
 import { InviteCodesService } from './invite-codes.service';
@@ -42,7 +43,7 @@ describe('InviteCodesService', () => {
   it('批量生成成功：返回码列表且含 remaining', async () => {
     repository.insertMany.mockResolvedValue([rowFixture, { ...rowFixture, id: 'id-2', code: 'FFFF2345GG' }]);
 
-    const result = await service.generate('actor-1', { count: 2, maxUses: 3 });
+    const result = await service.generate({ id: 'actor-1', role: Role.ADMIN }, { count: 2, maxUses: 3 });
 
     expect(result.items).toHaveLength(2);
     expect(result.items[0].remaining).toBe(2);
@@ -84,6 +85,6 @@ describe('InviteCodesService', () => {
 
   it('作废失败：码不存在 404', async () => {
     repository.revoke.mockResolvedValue(null);
-    await expect(service.revoke('missing-id')).rejects.toThrow(NotFoundException);
+    await expect(service.revoke('missing-id', { id: 'actor-1', role: Role.ADMIN })).rejects.toThrow(NotFoundException);
   });
 });

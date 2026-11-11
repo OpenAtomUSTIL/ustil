@@ -23,6 +23,11 @@ export class AttachmentsRepository {
     return rows[0] ?? null;
   }
 
+  async findByKey(key: string): Promise<AttachmentRow | null> {
+    const rows = await db.select().from(attachments).where(eq(attachments.key, key)).limit(1);
+    return rows[0] ?? null;
+  }
+
   async findByIds(ids: string[]): Promise<AttachmentRow[]> {
     if (ids.length === 0) {
       return [];

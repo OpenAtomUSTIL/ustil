@@ -37,6 +37,7 @@ export interface AuthUser {
   id: string;
   role: Role;
   status: UserStatus;
+  sessionVersion: number;
 }
 
 /** 管理后台用户视图（联系方式脱敏） */

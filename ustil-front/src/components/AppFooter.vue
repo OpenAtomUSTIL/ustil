@@ -37,14 +37,14 @@ function openProfile(): void {
           <h4>社区</h4>
           <RouterLink :to="{ name: 'home' }">首页</RouterLink>
           <RouterLink :to="{ name: 'articles' }">文章</RouterLink>
-          <RouterLink :to="{ name: 'assignments' }">作业</RouterLink>
+          <RouterLink v-if="auth.canViewAssignments" :to="{ name: 'assignments' }">作业</RouterLink>
           <RouterLink :to="{ name: 'issues' }">讨论区</RouterLink>
         </div>
-        <div class="footer-col">
+        <div v-if="auth.canCreateIssue" class="footer-col">
           <h4>参与</h4>
           <RouterLink :to="{ name: 'issue-new' }">发起讨论</RouterLink>
-          <RouterLink :to="{ name: 'article-new' }">发布文章</RouterLink>
-          <RouterLink :to="{ name: 'assignment-new' }">发布作业</RouterLink>
+          <RouterLink v-if="auth.canManageContent" :to="{ name: 'article-new' }">发布文章</RouterLink>
+          <RouterLink v-if="auth.canManageContent" :to="{ name: 'assignment-new' }">发布作业</RouterLink>
         </div>
         <div class="footer-col">
           <h4>账号</h4>

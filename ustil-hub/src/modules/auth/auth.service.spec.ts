@@ -56,6 +56,7 @@ describe('AuthService', () => {
     getSelf: jest.fn(),
     getAuthUser: jest.fn(),
     applyInviteCode: jest.fn(),
+    invalidateSessions: jest.fn(),
   };
   const inviteCodesService = {
     consume: jest.fn(),
@@ -74,8 +75,7 @@ describe('AuthService', () => {
   };
   const refreshStore = {
     register: jest.fn(),
-    has: jest.fn(),
-    revoke: jest.fn(),
+    rotate: jest.fn(),
     revokeAll: jest.fn(),
   };
 
@@ -94,6 +94,7 @@ describe('AuthService', () => {
     }).compile();
     service = moduleRef.get(AuthService);
     jwtService = moduleRef.get(JwtService);
+    usersService.getAuthUser.mockResolvedValue({ id: selfFixture.id, role: Role.MEMBER, status: UserStatus.ACTIVE, sessionVersion: 0 });
   });
 
   it('注册成功：邮箱标识落库并签发双 token', async () => {
@@ -185,6 +186,7 @@ describe('AuthService', () => {
       id: selfFixture.id,
       role: Role.VISITOR,
       status: UserStatus.ACTIVE,
+      sessionVersion: 0,
     });
     inviteCodesService.consume.mockResolvedValue({ id: 'invite-1' });
     usersService.applyInviteCode.mockResolvedValue(selfFixture);
@@ -202,6 +204,7 @@ describe('AuthService', () => {
       id: selfFixture.id,
       role: Role.MEMBER,
       status: UserStatus.ACTIVE,
+      sessionVersion: 0,
     });
 
     await expect(
@@ -215,6 +218,7 @@ describe('AuthService', () => {
       id: selfFixture.id,
       role: Role.VISITOR,
       status: UserStatus.ACTIVE,
+      sessionVersion: 0,
     });
     inviteCodesService.consume.mockRejectedValue(new ConflictException('邀请码已被用尽'));
 
@@ -259,13 +263,13 @@ describe('AuthService', () => {
 
   it('refresh jti 复用：清空该用户全部 refresh 并拒绝', async () => {
     const token = jwtService.sign(
-      { sub: selfFixture.id, jti: 'jti-old' },
+      { sub: selfFixture.id, jti: 'jti-old', sessionVersion: 0 },
       { secret: testConfig.jwtRefreshSecret, expiresIn: 60 },
     );
-    refreshStore.has.mockResolvedValue(false);
+    refreshStore.rotate.mockResolvedValue(false);
 
     await expect(service.refresh(token)).rejects.toThrow(UnauthorizedException);
-    expect(refreshStore.revokeAll).toHaveBeenCalledWith(selfFixture.id);
+    expect(usersService.invalidateSessions).toHaveBeenCalledWith(selfFixture.id, 0);
     expect(refreshStore.register).not.toHaveBeenCalled();
   });
 

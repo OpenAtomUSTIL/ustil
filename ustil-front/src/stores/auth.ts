@@ -14,6 +14,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => user.value !== null)
   const role = computed(() => user.value?.role ?? null)
   const isAdmin = computed(() => user.value?.role === 'ADMIN')
+  const canViewAssignments = computed(() => isLoggedIn.value && role.value !== 'VISITOR')
+  const canCreateIssue = computed(() => isLoggedIn.value && role.value !== 'VISITOR')
   /** 内容创作入口显隐（体验优化，权限以后端为准） */
   const canManageContent = computed(
     () => user.value?.role === 'ADMIN' || user.value?.role === 'ALUMNI' || user.value?.role === 'WHEEL',
@@ -31,16 +33,22 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
   }
 
+  let readyPromise: Promise<void> | null = null
+
   /** 首次进入 / 刷新后恢复登录态（/auth/me 401 视为未登录，不跳转） */
   async function ensureReady(): Promise<void> {
     if (ready.value) return
-    try {
-      user.value = await authApi.me()
-    } catch {
-      user.value = null
-    } finally {
-      ready.value = true
+    if (!readyPromise) {
+      readyPromise = authApi.me().then((restored) => {
+        user.value = restored
+      }).catch(() => {
+        user.value = null
+      }).finally(() => {
+        ready.value = true
+        readyPromise = null
+      })
     }
+    await readyPromise
   }
 
   async function login(payload: LoginRequest): Promise<void> {
@@ -65,6 +73,8 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     role,
     isAdmin,
+    canViewAssignments,
+    canCreateIssue,
     canManageContent,
     canAccessAdmin,
     setUser,

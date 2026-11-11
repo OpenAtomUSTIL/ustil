@@ -47,8 +47,7 @@ export class R2StorageService implements FileStorage {
   }
 
   getUrl(key: string): string {
-    const base = this.config.publicBaseUrl.replace(/\/$/, '');
-    return `${base}/${key}`;
+    return `/api/v1/storage/files/${this.assertKey(key)}`;
   }
 
   async remove(key: string): Promise<void> {
