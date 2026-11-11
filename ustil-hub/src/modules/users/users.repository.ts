@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, desc, eq, ilike, inArray, lt, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, inArray, isNotNull, like, lt, ne, or, sql } from 'drizzle-orm';
 import { db } from '../../db';
 import { UserStatus, users } from '../../db/schema';
 
@@ -179,5 +179,120 @@ export class UsersRepository {
       .where(and(eq(users.id, id), eq(users.role, 'VISITOR')))
       .returning();
     return rows[0] ?? null;
+  }
+
+  async listActiveUserIds(): Promise<string[]> {
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.status, 'ACTIVE'));
+    return rows.map((row) => row.id);
+  }
+
+  async listIdsByRoles(roles: UserRow['role'][]): Promise<string[]> {
+    if (roles.length === 0) {
+      return [];
+    }
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(inArray(users.role, roles));
+    return rows.map((row) => row.id);
+  }
+
+  // 在线状态：原生参数化 SQL 更新，避免触发 updatedAt 的 $onUpdateFn
+  async touchLastSeen(userId: string): Promise<void> {
+    await db.execute(sql`update users set last_seen_at = now() where id = ${userId}`);
+  }
+
+  async listLastSeenSince(since: Date): Promise<UserRow[]> {
+    return db
+      .select()
+      .from(users)
+      .where(gte(users.lastSeenAt, since))
+      .orderBy(desc(users.lastSeenAt));
+  }
+
+  // 头像文件盘点：仅统计指向受控存储文件的 avatar_url
+  async listAvatarFiles(params: { keyword?: string; limit: number }): Promise<UserRow[]> {
+    const conditions = [like(users.avatarUrl, '/api/v1/storage/files/%')];
+    const trimmed = params.keyword?.trim();
+    if (trimmed) {
+      conditions.push(ilike(users.avatarUrl, `%${trimmed}%`));
+    }
+    return db
+      .select()
+      .from(users)
+      .where(and(...conditions))
+      .orderBy(desc(users.updatedAt))
+      .limit(params.limit);
+  }
+
+  async countAvatarFiles(keyword?: string): Promise<number> {
+    const conditions = [like(users.avatarUrl, '/api/v1/storage/files/%')];
+    const trimmed = keyword?.trim();
+    if (trimmed) {
+      conditions.push(ilike(users.avatarUrl, `%${trimmed}%`));
+    }
+    const rows = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(and(...conditions));
+    return rows[0]?.count ?? 0;
+  }
+
+  async clearAvatar(userId: string): Promise<UserRow | null> {
+    const rows = await db
+      .update(users)
+      .set({ avatarUrl: null })
+      .where(and(eq(users.id, userId), isNotNull(users.avatarUrl)))
+      .returning();
+    return rows[0] ?? null;
+  }
+
+  // 哪些存储 key 正被 users.avatar_url 引用（文件删除前的占用检查）
+  async findAvatarReferencedKeys(keys: string[]): Promise<Set<string>> {
+    if (keys.length === 0) {
+      return new Set();
+    }
+    const rows = await db
+      .select({ avatarUrl: users.avatarUrl })
+      .from(users)
+      .where(
+        or(
+          ...keys.map((key) =>
+            or(eq(users.avatarUrl, `/api/v1/storage/files/${key}`), eq(users.avatarUrl, key)),
+          ),
+        ),
+      );
+    const referenced = new Set<string>();
+    for (const row of rows) {
+      for (const key of keys) {
+        if (row.avatarUrl === `/api/v1/storage/files/${key}` || row.avatarUrl === key) {
+          referenced.add(key);
+        }
+      }
+    }
+    return referenced;
+  }
+
+  // 关键字模糊搜用户 id（管理端评论按作者搜索用），上限 100
+  async searchIdsByKeyword(keyword: string): Promise<string[]> {
+    const pattern = `%${keyword.trim()}%`;
+    const rows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(or(ilike(users.nickname, pattern), ilike(users.email, pattern)))
+      .limit(100);
+    return rows.map((row) => row.id);
+  }
+
+  // 管理端展示上传者邮箱用（快照场景）
+  async findEmailsByIds(ids: string[]): Promise<Map<string, string | null>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+    const rows = await db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, ids));
+    return new Map(rows.map((row) => [row.id, row.email]));
   }
 }

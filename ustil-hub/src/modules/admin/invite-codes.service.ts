@@ -5,6 +5,7 @@ import { Role } from '../../common/decorators/roles.decorator';
 import { requireRole } from '../../common/permissions';
 import { isISO8601 } from 'class-validator';
 import { InviteCodeStatus } from '../../db/schema';
+import { AuditLogService } from '../audit/audit-log.service';
 import { GenerateInviteCodesDto } from './dto/generate-invite-codes.dto';
 import { ListInviteCodesDto } from './dto/list-invite-codes.dto';
 import { InviteCodesRepository, InviteCodeRow } from './invite-codes.repository';
@@ -30,7 +31,10 @@ function generateCode(): string {
 
 @Injectable()
 export class InviteCodesService {
-  constructor(private readonly inviteCodesRepository: InviteCodesRepository) {}
+  constructor(
+    private readonly inviteCodesRepository: InviteCodesRepository,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   private toView(row: InviteCodeRow): InviteCodeView {
     return {
@@ -68,6 +72,13 @@ export class InviteCodesService {
             expiresAt,
           })),
         );
+        await this.auditLogService.record({
+          actor,
+          action: 'invite.create',
+          targetType: 'INVITE_CODE',
+          targetId: null,
+          detail: { count: dto.count, maxUses: dto.maxUses },
+        });
         return { items: rows.map((row) => this.toView(row)) };
       } catch (error) {
         // 码碰撞（概率极低）：整批重试
@@ -100,6 +111,13 @@ export class InviteCodesService {
     if (!row) {
       throw new NotFoundException('邀请码不存在');
     }
+    await this.auditLogService.record({
+      actor,
+      action: 'invite.revoke',
+      targetType: 'INVITE_CODE',
+      targetId: id,
+      detail: { code: row.code },
+    });
   }
 
   /** 注册核销：有效则原子 +1 并返回码 id；无效/作废/过期/用尽统一 409 */

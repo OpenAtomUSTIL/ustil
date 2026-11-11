@@ -4,9 +4,8 @@ import { AppConfig, configuration } from '../../config/configuration';
 import { AttachmentsRepository, AttachmentRow } from './attachments.repository';
 import {
   AttachmentView,
+  FileStorage,
   STORAGE_SERVICE,
-  StorageContentReader,
-  StorageService,
   isValidStorageKey,
 } from './storage.types';
 
@@ -39,7 +38,7 @@ const AVATAR_ALLOWED: Record<string, string[]> = {
 export class UploadsService {
   constructor(
     @Inject(STORAGE_SERVICE)
-    private readonly storage: StorageService & StorageContentReader,
+    private readonly storage: FileStorage,
     private readonly attachmentsRepository: AttachmentsRepository,
     @Inject(configuration.KEY) private readonly cfg: AppConfig,
   ) {}
@@ -129,6 +128,36 @@ export class UploadsService {
     }
     await this.storage.remove(row.key).catch(() => undefined);
     await this.attachmentsRepository.deleteById(id);
+  }
+
+  // ===== 管理后台：文件管理 =====
+
+  /** 附件窗口查询（合并分页用）：createdAt desc 前 limit 行 + 总数 */
+  async listForAdminWindow(params: {
+    keyword?: string;
+    limit: number;
+  }): Promise<{ rows: AttachmentRow[]; total: number }> {
+    return this.attachmentsRepository.listWindowForAdmin(params);
+  }
+
+  async getAttachmentRow(id: string): Promise<AttachmentRow | null> {
+    return this.attachmentsRepository.findById(id);
+  }
+
+  /** 存储对象字节数；key 非法或对象不存在返回 null */
+  async statSize(key: string): Promise<number | null> {
+    if (!isValidStorageKey(key)) {
+      return null;
+    }
+    return this.storage.stat(key);
+  }
+
+  /** 直接按 key 删除存储对象（头像文件清理用） */
+  async removeStoredObject(key: string): Promise<void> {
+    if (!isValidStorageKey(key)) {
+      return;
+    }
+    await this.storage.remove(key);
   }
 
   async resolveFile(key: string): Promise<{ data: Buffer; contentType: string }> {

@@ -6,11 +6,22 @@ import { CurrentAuthUser } from '../../common/decorators/current-user.decorator'
 import { requireRole } from '../../common/permissions';
 import { REFRESH_TOKEN_STORE, RefreshTokenStore } from '../../db/redis';
 import { UserStatus } from '../../db/schema';
+import { AuditLogService } from '../audit/audit-log.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { TagsService } from '../tags/tags.service';
 import { UploadsService, UploadedFileInput } from '../storage/uploads.service';
 import { ChangeIdentifierDto } from './dto/change-identifier.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersRepository, UserRow } from './users.repository';
-import { AdminUserPage, AdminUserView, AuthUser, UserAuthRecord, UserPublic, UserSelf } from './users.views';
+import {
+  AdminUserPage,
+  AdminUserView,
+  AuthUser,
+  AvatarFileRef,
+  UserAuthRecord,
+  UserPublic,
+  UserSelf,
+} from './users.views';
 
 function isUniqueViolation(error: unknown): boolean {
   const err = error as { code?: string; cause?: { code?: string } };
@@ -27,6 +38,9 @@ export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly uploadsService: UploadsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly auditLogService: AuditLogService,
+    private readonly tagsService: TagsService,
     @Inject(REFRESH_TOKEN_STORE) private readonly refreshStore: RefreshTokenStore,
   ) {}
 
@@ -104,6 +118,7 @@ export class UsersService {
       avatarUrl: row.avatarUrl,
       role: row.role as Role,
       status: row.status,
+      sessionVersion: row.sessionVersion,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -119,7 +134,15 @@ export class UsersService {
 
   async getAuthUser(id: string): Promise<AuthUser | null> {
     const row = await this.usersRepository.findById(id);
-    return row ? { id: row.id, role: row.role as Role, status: row.status, sessionVersion: row.sessionVersion } : null;
+    return row
+      ? {
+          id: row.id,
+          role: row.role as Role,
+          status: row.status,
+          sessionVersion: row.sessionVersion,
+          email: row.email,
+        }
+      : null;
   }
 
   async getPublic(id: string): Promise<UserPublic> {
@@ -150,6 +173,9 @@ export class UsersService {
     const row = await this.usersRepository.findById(id);
     if (!row) {
       throw new NotFoundException('用户不存在');
+    }
+    if (row.role === Role.ADMIN) {
+      throw new ForbiddenException('管理员账号初始化后不可修改');
     }
     const ok = await verify(row.passwordHash, dto.password);
     if (!ok) {
@@ -215,6 +241,13 @@ export class UsersService {
     }
     // 封禁立即吊销全部 refresh token
     await this.refreshStore.revokeAll(id);
+    await this.auditLogService.record({
+      actor,
+      action: 'user.ban',
+      targetType: 'USER',
+      targetId: id,
+      detail: { from: 'ACTIVE', to: 'BANNED' },
+    });
     return { id: row.id, status: row.status };
   }
 
@@ -225,6 +258,13 @@ export class UsersService {
     if (!row) {
       throw new NotFoundException('用户不存在');
     }
+    await this.auditLogService.record({
+      actor,
+      action: 'user.unban',
+      targetType: 'USER',
+      targetId: id,
+      detail: { from: 'BANNED', to: 'ACTIVE' },
+    });
     return { id: row.id, status: row.status };
   }
 
@@ -286,6 +326,18 @@ export class UsersService {
     }
     // 角色变更后强制重登（旧 token 内含旧角色）
     await this.refreshStore.revokeAll(id);
+    await this.notificationsService.notifyUser(id, {
+      type: 'ROLE',
+      title: '角色变更',
+      body: `你的角色已从 ${row.role} 变更为 ${role}`,
+    });
+    await this.auditLogService.record({
+      actor,
+      action: 'user.role.change',
+      targetType: 'USER',
+      targetId: id,
+      detail: { from: row.role, to: role },
+    });
     return this.toAdminView(updated);
   }
 
@@ -303,6 +355,18 @@ export class UsersService {
       throw new ConflictException('用户角色已变化，请刷新后重试');
     }
     await this.refreshStore.revokeAll(id);
+    await this.notificationsService.notifyUser(id, {
+      type: 'ROLE',
+      title: '角色变更',
+      body: '你的角色已从 MEMBER 变更为 ALUMNI',
+    });
+    await this.auditLogService.record({
+      actor,
+      action: 'user.promote',
+      targetType: 'USER',
+      targetId: id,
+      detail: { from: 'MEMBER', to: 'ALUMNI' },
+    });
     return this.toAdminView(updated);
   }
 
@@ -316,12 +380,99 @@ export class UsersService {
       throw new ForbiddenException('仅可剔除学习成员或临时访客');
     }
     await this.refreshStore.revokeAll(id);
+    // 级联删除其 issues 前显式清理对应 taggings（无多态 FK）
+    await this.tagsService.cleanupIssuesOfAuthor(id);
     const deleted = await this.usersRepository.deleteById(id);
     if (!deleted) throw new ConflictException('用户角色已变化，请刷新后重试');
+    await this.auditLogService.record({
+      actor,
+      action: 'user.remove',
+      targetType: 'USER',
+      targetId: id,
+      detail: { role: row.role },
+    });
   }
 
   async countByRole(): Promise<Record<string, number>> {
     return this.usersRepository.countByRole();
+  }
+
+  // ===== 管理后台：头像文件引用（文件管理合成 kind=AVATAR 条目用） =====
+
+  private avatarKeyOf(avatarUrl: string | null): string | null {
+    const match = avatarUrl?.match(/^\/api\/v1\/storage\/files\/(.+)$/);
+    return match ? match[1] : null;
+  }
+
+  async listAvatarFilesForAdmin(params: {
+    keyword?: string;
+    limit: number;
+  }): Promise<{ rows: AvatarFileRef[]; total: number }> {
+    const [rows, total] = await Promise.all([
+      this.usersRepository.listAvatarFiles(params),
+      this.usersRepository.countAvatarFiles(params.keyword),
+    ]);
+    return {
+      rows: rows
+        .map((row) => ({
+          userId: row.id,
+          email: row.email,
+          nickname: row.nickname,
+          key: this.avatarKeyOf(row.avatarUrl) ?? '',
+          updatedAt: row.updatedAt,
+        }))
+        .filter((ref) => ref.key.length > 0),
+      total,
+    };
+  }
+
+  /** 清空头像引用并返回存储 key；用户不存在或头像非受控存储文件时返回 null */
+  async deleteAvatarFileForAdmin(userId: string): Promise<{ key: string } | null> {
+    const row = await this.usersRepository.findById(userId);
+    if (!row) {
+      return null;
+    }
+    const key = this.avatarKeyOf(row.avatarUrl);
+    if (!key) {
+      return null;
+    }
+    await this.usersRepository.clearAvatar(userId);
+    return { key };
+  }
+
+  /** 只读取头像存储 key；用户不存在或头像非受控存储文件时返回 null */
+  async getAvatarFileForAdmin(userId: string): Promise<{ key: string } | null> {
+    const row = await this.usersRepository.findById(userId);
+    if (!row) {
+      return null;
+    }
+    const key = this.avatarKeyOf(row.avatarUrl);
+    return key ? { key } : null;
+  }
+
+  /** 哪些存储 key 正被用户头像引用 */
+  async findAvatarReferencedKeys(keys: string[]): Promise<Set<string>> {
+    return this.usersRepository.findAvatarReferencedKeys(keys);
+  }
+
+  /** 管理端上传者邮箱展示 */
+  async getEmailsByIds(ids: string[]): Promise<Map<string, string | null>> {
+    return this.usersRepository.findEmailsByIds(ids);
+  }
+
+  /** 按昵称/邮箱模糊搜用户 id（管理端评论按作者搜索用） */
+  async searchIdsByKeyword(keyword: string): Promise<string[]> {
+    return this.usersRepository.searchIdsByKeyword(keyword);
+  }
+
+  /** 全部 ACTIVE 用户 id（公告 notify 用） */
+  async listActiveUserIds(): Promise<string[]> {
+    return this.usersRepository.listActiveUserIds();
+  }
+
+  /** 指定角色全体用户 id（发布作业通知用） */
+  async listUserIdsByRoles(roles: Role[]): Promise<string[]> {
+    return this.usersRepository.listIdsByRoles(roles as UserRow['role'][]);
   }
 
   async countVisitorsCreatedBefore(before: Date): Promise<number> {

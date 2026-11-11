@@ -6,6 +6,7 @@ import { Role } from '../../common/decorators/roles.decorator';
 import { REDIS_CLIENT, REFRESH_TOKEN_STORE } from '../../db/redis';
 import { UserStatus } from '../../db/schema';
 import { InviteCodesService } from '../admin/invite-codes.service';
+import { LoginLogsService } from '../audit/login-logs.service';
 import { UsersService } from '../users/users.service';
 import { UserSelf } from '../users/users.views';
 import { AuthService } from './auth.service';
@@ -78,6 +79,9 @@ describe('AuthService', () => {
     rotate: jest.fn(),
     revokeAll: jest.fn(),
   };
+  const loginLogsService = {
+    record: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -86,6 +90,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: UsersService, useValue: usersService },
         { provide: InviteCodesService, useValue: inviteCodesService },
+        { provide: LoginLogsService, useValue: loginLogsService },
         { provide: JwtService, useValue: new JwtService({ secret: 'unit-test-secret' }) },
         { provide: REDIS_CLIENT, useValue: redis },
         { provide: REFRESH_TOKEN_STORE, useValue: refreshStore },
@@ -293,5 +298,107 @@ describe('AuthService', () => {
         newPassword: 'newpassword123',
       }),
     ).rejects.toThrow(HttpException);
+  });
+
+  it('登录成功写登录日志（含 user_id，不落密码）', async () => {
+    usersService.findByIdentifier.mockResolvedValue({
+      id: selfFixture.id,
+      email: 'a@example.com',
+      phone: null,
+      passwordHash: await hashPassword('password123'),
+      nickname: '测试用户',
+      avatarUrl: null,
+      role: Role.MEMBER,
+      status: UserStatus.ACTIVE,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    usersService.getSelf.mockResolvedValue(selfFixture);
+    redis.get.mockResolvedValue('0');
+
+    await service.login(
+      { identifier: 'a@example.com', password: 'password123' },
+      '127.0.0.1',
+      'jest-agent',
+    );
+
+    expect(loginLogsService.record).toHaveBeenCalledWith({
+      userId: selfFixture.id,
+      email: 'a@example.com',
+      ip: '127.0.0.1',
+      userAgent: 'jest-agent',
+      success: true,
+      failReason: null,
+    });
+  });
+
+  it('登录失败写登录日志：密码错误 / 用户不存在，user_id 为空', async () => {
+    usersService.findByIdentifier.mockResolvedValue({
+      id: selfFixture.id,
+      email: 'a@example.com',
+      phone: null,
+      passwordHash: await hashPassword('password123'),
+      nickname: '测试用户',
+      avatarUrl: null,
+      role: Role.MEMBER,
+      status: UserStatus.ACTIVE,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    redis.get.mockResolvedValue('0');
+    redis.incr.mockResolvedValue(1);
+
+    await expect(
+      service.login({ identifier: 'a@example.com', password: 'wrong-password' }, '127.0.0.1'),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(loginLogsService.record).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: null, success: false, failReason: '密码错误' }),
+    );
+
+    usersService.findByIdentifier.mockResolvedValue(null);
+    await expect(
+      service.login({ identifier: 'nobody@example.com', password: 'whatever' }, '127.0.0.1'),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(loginLogsService.record).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: null, success: false, failReason: '用户不存在' }),
+    );
+  });
+
+  it('登录限流也写登录日志', async () => {
+    redis.get.mockResolvedValue('5');
+
+    await expect(
+      service.login({ identifier: 'a@example.com', password: 'whatever' }, '127.0.0.1'),
+    ).rejects.toMatchObject({ status: HttpStatus.TOO_MANY_REQUESTS });
+    expect(loginLogsService.record).toHaveBeenCalledWith(
+      expect.objectContaining({ success: false, failReason: '登录尝试过于频繁' }),
+    );
+  });
+
+  it('登出成功写登录日志', async () => {
+    const token = jwtService.sign(
+      { sub: selfFixture.id, jti: 'jti-logout', sessionVersion: 0 },
+      { secret: testConfig.jwtRefreshSecret, expiresIn: 60 },
+    );
+    usersService.getAuthRecordById.mockResolvedValue({
+      id: selfFixture.id,
+      email: 'a@example.com',
+      phone: null,
+      passwordHash: 'x',
+      nickname: '测试用户',
+      avatarUrl: null,
+      role: Role.MEMBER,
+      status: UserStatus.ACTIVE,
+      sessionVersion: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await service.logout(token, '127.0.0.1', 'jest-agent');
+
+    expect(usersService.invalidateSessions).toHaveBeenCalledWith(selfFixture.id, 0);
+    expect(loginLogsService.record).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: selfFixture.id, email: 'a@example.com', success: true }),
+    );
   });
 });

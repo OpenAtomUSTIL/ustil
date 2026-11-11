@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useNotificationsStore } from '@/stores/notifications'
 import { useToastStore } from '@/stores/toast'
 import { useUiStore } from '@/stores/ui'
 import AppAvatar from '@/components/AppAvatar.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
+const notifications = useNotificationsStore()
 const toast = useToastStore()
 const ui = useUiStore()
 
@@ -19,6 +21,9 @@ const publishItem = ref<HTMLElement | null>(null)
 const nickname = computed(() => auth.user?.nickname ?? '')
 const avatarUrl = computed(() => auth.user?.avatarUrl ?? '')
 const userId = computed(() => auth.user?.id ?? '')
+const unreadLabel = computed(() =>
+  notifications.unreadCount > 99 ? '99+' : String(notifications.unreadCount),
+)
 
 function onScroll(): void {
   scrolled.value = window.scrollY > 8
@@ -35,6 +40,16 @@ onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true })
   document.addEventListener('click', onDocClick)
 })
+
+// 进入布局时拉一次未读数；登录/退出时同步
+watch(
+  () => auth.isLoggedIn,
+  (loggedIn) => {
+    if (loggedIn) void notifications.refresh()
+    else notifications.reset()
+  },
+  { immediate: true },
+)
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', onScroll)
@@ -108,12 +123,25 @@ async function logout(): Promise<void> {
               </RouterLink>
             </div>
           </div>
+          <div class="nav-footer">
+            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">辽ICP备2026004720号</a>
+          </div>
         </nav>
 
         <div class="nav-actions">
           <template v-if="auth.isLoggedIn">
             <RouterLink v-if="auth.canAccessAdmin" class="btn btn-ghost" :to="{ name: 'admin-dashboard' }">
               管理后台
+            </RouterLink>
+            <RouterLink class="btn btn-ghost bell-btn" :to="{ name: 'notifications' }" aria-label="通知">
+              <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 3a6 6 0 0 0-6 6v3.6l-1.5 2.9a.8.8 0 0 0 .7 1.2h13.6a.8.8 0 0 0 .7-1.2L18 12.6V9a6 6 0 0 0-6-6Z"
+                  fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"
+                />
+                <path d="M9.8 19a2.3 2.3 0 0 0 4.4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+              <span v-if="notifications.unreadCount > 0" class="bell-badge">{{ unreadLabel }}</span>
             </RouterLink>
             <button class="btn btn-ghost" type="button" title="个人中心" @click="ui.openProfile()">
               <AppAvatar :nickname="nickname" :avatar-url="avatarUrl" :user-id="userId" />
@@ -130,3 +158,56 @@ async function logout(): Promise<void> {
     </div>
   </header>
 </template>
+
+<style scoped>
+.bell-btn {
+  position: relative;
+}
+
+.bell-btn .ic {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.bell-badge {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--br-pill);
+  background: var(--clay);
+  color: var(--gray-000);
+  font-size: 0.62rem;
+  font-weight: var(--fw-semibold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-footer {
+  display: none;
+  padding: 0.65rem 0 0.15rem;
+  border-top: 1px solid var(--border);
+  margin-top: 0.55rem;
+}
+
+.nav-footer a {
+  font-size: var(--fs-meta);
+  color: var(--ink-faint);
+  text-decoration: none;
+}
+
+.nav-footer a:hover {
+  color: var(--clay-soft);
+}
+
+@media (max-width: 820px) {
+  .nav-footer {
+    display: block;
+  }
+}
+</style>

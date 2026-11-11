@@ -7,6 +7,8 @@ import type { AssignmentItem, AttachmentView, SubmissionView } from '@/api/types
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatCountdown, formatDateTime, formatSize, roleLabel, timeAgo } from '@/utils/format'
+import { downloadAttachmentFile } from '@/utils/download'
+import { NOTE_MAX } from '@/utils/limits'
 import { SUBMIT_EXTENSIONS } from '@/utils/upload'
 import AppAvatar from '@/components/AppAvatar.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -40,16 +42,12 @@ const isPublisher = computed(
 )
 /** 入口显隐仅为体验优化，权限以后端为准 */
 const canViewSubmissions = computed(() => auth.isAdmin || (auth.canManageContent && isPublisher.value))
+/** 编辑入口：发布者或 ADMIN 且角色属于 ALUMNI / WHEEL / ADMIN（与后端 PATCH 权限一致） */
+const canEdit = computed(() => (isPublisher.value || auth.isAdmin) && auth.canManageContent)
 
 async function download(attachment: AttachmentView): Promise<void> {
   try {
-    const blob = await assignmentsApi.downloadAttachment(attachment.id)
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = attachment.originalName
-    link.click()
-    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    await downloadAttachmentFile(attachment.id, attachment.originalName)
   } catch (err) {
     toast.show(describeError(err))
   }
@@ -164,6 +162,11 @@ onBeforeUnmount(() => {
 
       <div class="post-block">
         <MarkdownBody class="pb-body" :content="assignment.description" />
+        <div v-if="canEdit" class="pb-actions">
+          <RouterLink class="btn btn-secondary" :to="{ name: 'assignment-edit', params: { id: assignment.id } }">
+            编辑
+          </RouterLink>
+        </div>
       </div>
 
       <section class="composer">
@@ -182,6 +185,7 @@ onBeforeUnmount(() => {
               id="submit-note"
               v-model="note"
               style="min-height: 5.5rem"
+              :maxlength="NOTE_MAX"
               placeholder="想让发布者了解的内容，例如运行方式、未完成的部分"
             />
           </div>

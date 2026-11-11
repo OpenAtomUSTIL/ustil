@@ -123,6 +123,12 @@ src/
     assignments/
     issues/
     storage/
+    admin/             # 邀请码 + 用户管理 + 统计（/admin/*，WHEEL,ADMIN）
+    audit/             # 请求日志拦截器 + 操作审计（request_logs / audit_logs）
+    announcements/     # 公告（可 notify 全员）
+    notifications/     # 站内通知
+    resources/         # 资源库（外链）
+    tags/              # 统一标签（taggings 覆盖 ARTICLE/ISSUE/RESOURCE）
   migrations/          # drizzle-kit 产出，必须提交到 git
 drizzle.config.ts
 .env.example
@@ -339,5 +345,5 @@ pnpm db:migrate         # drizzle-kit migrate（部署 job / 本地手动）
 - 文章是否支持富文本 / Markdown 渲染（影响存储与 XSS 过滤）
 - 作业是否需要"评分"字段（当前只做提交，不做评分）
 - 邮件通知的发送时机与模板（后续阶段）
-- 软删除 vs 硬删除策略（当前默认硬删除，封禁用 `status` 字段）
+- ~~软删除 vs 硬删除策略（当前默认硬删除，封禁用 `status` 字段）~~ → **已拍板（2026-11-11）**：内容类（articles / announcements / resources / issue_replies）的业务 DELETE = 软删除（`deleted_at`），后台回收站可恢复（真回滚）；用户剔除仍为硬删 FK 级联；封禁继续用 `status` 字段。
 - 前端仓库最终位置（当前前端约定见 `web/AGENTS.md`，若改为 monorepo 需 `git mv`）

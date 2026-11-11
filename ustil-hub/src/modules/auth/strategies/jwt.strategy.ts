@@ -50,6 +50,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (payload.sessionVersion !== user.sessionVersion || payload.role !== user.role) {
       throw new UnauthorizedException('登录状态已失效，请重新登录');
     }
-    return { id: user.id, role: user.role };
+    return { id: user.id, role: user.role, email: user.email };
   }
 }

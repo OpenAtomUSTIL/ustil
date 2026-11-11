@@ -1,4 +1,5 @@
 import { IsNotEmpty, ValidateIf, IsString, MaxLength } from 'class-validator';
+import { TagsField } from '../../../common/dto/tags-field';
 
 export class UpdateArticleDto {
   @ValidateIf((_object, value: unknown) => value !== undefined)
@@ -11,4 +12,7 @@ export class UpdateArticleDto {
   @IsString({ message: '正文必须是字符串' })
   @IsNotEmpty({ message: '正文不能为空' })
   content?: string;
+
+  @TagsField()
+  tags?: string[];
 }

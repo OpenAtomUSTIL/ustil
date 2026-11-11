@@ -12,6 +12,13 @@ export function formatDateTime(iso: string): string {
   })
 }
 
+/** ISO 8601 UTC 字符串 → datetime-local 输入值（本地时区，YYYY-MM-DDTHH:mm） */
+export function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 /** 仅日期（本地时区） */
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('zh-CN', {

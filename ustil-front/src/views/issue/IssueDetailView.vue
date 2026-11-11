@@ -11,6 +11,7 @@ import AppAvatar from '@/components/AppAvatar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import TagsChips from '@/components/TagsChips.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -116,6 +117,7 @@ onMounted(load)
           </span>
         </div>
         <h1>{{ issue.title }}</h1>
+        <TagsChips v-if="issue.tags.length > 0" class="head-tags" :tags="issue.tags" target="issues" />
         <div class="tc-meta">
           <span class="who">
             <AppAvatar
@@ -203,3 +205,9 @@ onMounted(load)
     <EmptyState v-else title="讨论不存在" hint="它可能已被删除。" />
   </div>
 </template>
+
+<style scoped>
+.head-tags {
+  margin-top: 1rem;
+}
+</style>

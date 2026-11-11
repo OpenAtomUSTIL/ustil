@@ -10,6 +10,7 @@ import { formatDateTime, roleLabel, timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
+import TagsChips from '@/components/TagsChips.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,7 +51,7 @@ async function remove(): Promise<void> {
   deleting.value = true
   try {
     await articlesApi.remove(article.value.id)
-    toast.show('文章已删除')
+    toast.show('已移入回收站')
     await router.push({ name: 'articles' })
   } catch (err) {
     confirmDelete.value = false
@@ -76,6 +77,7 @@ onMounted(load)
 
       <div class="thread-head">
         <h1>{{ article.title }}</h1>
+        <TagsChips v-if="article.tags.length > 0" class="head-tags" :tags="article.tags" target="articles" />
         <div class="tc-meta">
           <span class="who">
             <AppAvatar
@@ -119,6 +121,7 @@ onMounted(load)
             >
               {{ deleting ? '删除中…' : '确认删除？' }}
             </button>
+            <span v-if="confirmDelete" class="rm-hint">删除后可在后台回收站恢复</span>
             <button
               v-if="confirmDelete"
               class="btn btn-ghost"
@@ -138,3 +141,9 @@ onMounted(load)
     <EmptyState v-else title="文章不存在" hint="它可能已被删除。" />
   </div>
 </template>
+
+<style scoped>
+.head-tags {
+  margin-top: 1rem;
+}
+</style>

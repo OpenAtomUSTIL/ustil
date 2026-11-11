@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { describeError } from '@/api/error'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
+import { PASSWORD_MAX, PASSWORD_MIN, checkPassword } from '@/utils/limits'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +19,11 @@ const submitting = ref(false)
 async function submit(): Promise<void> {
   if (submitting.value) return
   error.value = ''
+  const passwordProblem = checkPassword(password.value)
+  if (passwordProblem) {
+    error.value = passwordProblem
+    return
+  }
   submitting.value = true
   try {
     await auth.login({ identifier: identifier.value.trim(), password: password.value })
@@ -47,7 +53,7 @@ async function submit(): Promise<void> {
         </div>
         <div class="field">
           <label for="login-password">密码</label>
-          <input id="login-password" v-model="password" type="password" autocomplete="current-password" required>
+          <input id="login-password" v-model="password" type="password" autocomplete="current-password" required :minlength="PASSWORD_MIN" :maxlength="PASSWORD_MAX">
         </div>
         <button class="btn btn-primary btn-lg" type="submit" :disabled="submitting">
           {{ submitting ? '登录中…' : '登录' }}

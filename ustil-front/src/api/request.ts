@@ -11,25 +11,43 @@
 import type {
   AdminStats,
   AdminUser,
+  AnnouncementCreateRequest,
+  AnnouncementItem,
+  AnnouncementUpdateRequest,
+  ApiRegistryItem,
   ArticleDetail,
   ArticleListItem,
   ArticleWriteRequest,
   AssignmentItem,
   AssignmentWriteRequest,
+  AuditLogItem,
   BanResult,
+  CommentItem,
   CreateIssueRequest,
   CreateReplyRequest,
+  FileItem,
+  FileKind,
   GenerateInviteCodesRequest,
   InviteCode,
   IssueDetail,
   IssueListItem,
   IssueStatus,
+  LoginLogItem,
   LoginRequest,
+  MySubmissionItem,
+  NotificationItem,
+  OnlineUsersResult,
   Page,
   PageQuery,
   PasswordChangeRequest,
   RegisterRequest,
+  RequestLogItem,
+  ResourceItem,
+  ResourceWriteRequest,
   SubmissionView,
+  TagItem,
+  TrashItem,
+  TrashType,
   UpdateIdentifierRequest,
   UpdateIssueStatusRequest,
   UpdateProfileRequest,
@@ -237,7 +255,8 @@ export const usersApi = {
 }
 
 export const articlesApi = {
-  list: (query: PageQuery & { keyword?: string }) =>
+  /** authorId 可选：按作者过滤（「我的文章」）；tag 可选：按标签过滤 */
+  list: (query: PageQuery & { keyword?: string; authorId?: string; tag?: string }) =>
     request<Page<ArticleListItem>>('/articles', { query }),
   get: (id: string) => request<ArticleDetail>(`/articles/${id}`),
   create: (payload: ArticleWriteRequest) =>
@@ -275,10 +294,14 @@ export const assignmentsApi = {
   },
   submissions: (id: string, query: PageQuery) =>
     request<Page<SubmissionView>>(`/assignments/${id}/submissions`, { query }),
+  /** 我的作业提交（updatedAt 倒序），VISITOR 403 */
+  mySubmissions: (query: PageQuery) =>
+    request<Page<MySubmissionItem>>('/assignments/submissions/mine', { query }),
 }
 
 export const issuesApi = {
-  list: (query: PageQuery & { status?: IssueStatus; keyword?: string }) =>
+  /** tag 可选：按标签过滤 */
+  list: (query: PageQuery & { status?: IssueStatus; keyword?: string; tag?: string }) =>
     request<Page<IssueListItem>>('/issues', { query }),
   get: (id: string) => request<IssueDetail>(`/issues/${id}`),
   create: (payload: CreateIssueRequest) => request<void>('/issues', { method: 'POST', body: payload }),
@@ -302,6 +325,76 @@ export const adminApi = {
     request<AdminUser>(`/admin/users/${id}/role`, { method: 'PATCH', body: payload }),
   promoteUser: (id: string) => request<AdminUser>(`/admin/users/${id}/promote`, { method: 'POST' }),
   deleteUser: (id: string) => request<void>(`/admin/users/${id}`, { method: 'DELETE' }),
+  /** 接口请求日志（createdAt desc） */
+  listRequestLogs: (query: PageQuery & { userId?: string; method?: string }) =>
+    request<Page<RequestLogItem>>('/admin/request-logs', { query }),
+  /** 操作审计日志（createdAt desc） */
+  listAuditLogs: (query: PageQuery & { action?: string; targetType?: string; actorId?: string }) =>
+    request<Page<AuditLogItem>>('/admin/audit-logs', { query }),
+  /** 登录日志（success 可选 true/false 过滤） */
+  listLoginLogs: (query: PageQuery & { email?: string; success?: boolean }) =>
+    request<Page<LoginLogItem>>('/admin/login-logs', { query }),
+  /** 在线用户（minutes 1-1440，最近活跃窗口） */
+  getOnlineUsers: (minutes: number) =>
+    request<OnlineUsersResult>('/admin/online-users', { query: { minutes } }),
+  /** 文件列表（kind 过滤 ATTACHMENT/AVATAR + keyword） */
+  listFiles: (query: PageQuery & { kind?: FileKind; keyword?: string }) =>
+    request<Page<FileItem>>('/admin/files', { query }),
+  /** 删除孤儿文件（referenced=true 时后端 409「文件使用中，不可删除」） */
+  deleteFile: (id: string) => request<void>(`/admin/files/${id}`, { method: 'DELETE' }),
+  /** 评论列表（含已软删除） */
+  listComments: (query: PageQuery & { keyword?: string }) =>
+    request<Page<CommentItem>>('/admin/comments', { query }),
+  /** 软删除评论（移入回收站） */
+  deleteComment: (id: string) => request<void>(`/admin/comments/${id}`, { method: 'DELETE' }),
+  /** 回收站（type 过滤，deletedAt desc） */
+  listTrash: (query: PageQuery & { type?: TrashType }) =>
+    request<Page<TrashItem>>('/admin/trash', { query }),
+  /** 从回收站恢复 */
+  restoreTrash: (type: TrashType, id: string) =>
+    request<void>(`/admin/trash/${type}/${id}/restore`, { method: 'POST' }),
+  /** 全站接口 + 权限总览 */
+  apiRegistry: () => request<ApiRegistryItem[]>('/admin/api-registry'),
+}
+
+/** 文件内容预览地址（同源 <img> 直接加载，带 cookie，不经 JS 读写）
+    走管理端统一出口 /admin/files/:id/content（WHEEL/ADMIN，附件与头像皆可读） */
+export function fileContentUrl(id: string): string {
+  return `${API_BASE}/admin/files/${encodeURIComponent(id)}/content`
+}
+
+export const announcementsApi = {
+  list: (query: PageQuery & { keyword?: string }) =>
+    request<Page<AnnouncementItem>>('/announcements', { query }),
+  get: (id: string) => request<AnnouncementItem>(`/announcements/${id}`),
+  create: (payload: AnnouncementCreateRequest) =>
+    request<void>('/announcements', { method: 'POST', body: payload }),
+  update: (id: string, payload: AnnouncementUpdateRequest) =>
+    request<void>(`/announcements/${id}`, { method: 'PATCH', body: payload }),
+  remove: (id: string) => request<void>(`/announcements/${id}`, { method: 'DELETE' }),
+}
+
+export const notificationsApi = {
+  list: (query: PageQuery & { unreadOnly?: boolean }) =>
+    request<Page<NotificationItem>>('/notifications', { query }),
+  unreadCount: () => request<{ count: number }>('/notifications/unread-count'),
+  markRead: (id: string) => request<void>(`/notifications/${id}/read`, { method: 'PATCH' }),
+  readAll: () => request<void>('/notifications/read-all', { method: 'POST' }),
+}
+
+export const resourcesApi = {
+  list: (query: PageQuery & { category?: string; keyword?: string; tag?: string }) =>
+    request<Page<ResourceItem>>('/resources', { query }),
+  get: (id: string) => request<ResourceItem>(`/resources/${id}`),
+  create: (payload: ResourceWriteRequest) =>
+    request<void>('/resources', { method: 'POST', body: payload }),
+  update: (id: string, payload: ResourceWriteRequest) =>
+    request<void>(`/resources/${id}`, { method: 'PATCH', body: payload }),
+  remove: (id: string) => request<void>(`/resources/${id}`, { method: 'DELETE' }),
+}
+
+export const tagsApi = {
+  list: () => request<TagItem[]>('/tags'),
 }
 
 /* 文件下载/预览直接使用 AttachmentView.url（GET /assignments/files/:attachmentId，同源带 cookie），不经 JS 读写 */

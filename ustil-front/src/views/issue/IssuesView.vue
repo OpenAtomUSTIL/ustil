@@ -7,6 +7,7 @@ import type { IssueListItem, IssueStatus } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IssueCard from '@/components/IssueCard.vue'
+import { KEYWORD_MAX } from '@/utils/limits'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,7 @@ const page = ref(1)
 const pageSize = 20
 const keyword = ref('')
 const status = ref<IssueStatus | ''>('')
+const tag = ref('')
 const loading = ref(true)
 const error = ref('')
 
@@ -41,6 +43,10 @@ function queryStatus(): IssueStatus | '' {
   return raw === 'OPEN' || raw === 'ANSWERED' || raw === 'ON_HOLD' ? raw : ''
 }
 
+function queryTag(): string {
+  return typeof route.query.tag === 'string' ? route.query.tag : ''
+}
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
@@ -50,12 +56,14 @@ async function load(): Promise<void> {
       pageSize,
       keyword: queryKeyword() || undefined,
       status: queryStatus() || undefined,
+      tag: queryTag() || undefined,
     })
     items.value = result.items
     total.value = result.total
     page.value = result.page
     keyword.value = queryKeyword()
     status.value = queryStatus()
+    tag.value = queryTag()
   } catch (err) {
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
@@ -67,12 +75,13 @@ async function load(): Promise<void> {
   }
 }
 
-function applyQuery(nextStatus: IssueStatus | '', nextPage = 1): void {
+function applyQuery(nextStatus: IssueStatus | '', nextPage = 1, nextTag = queryTag()): void {
   void router.push({
     name: 'issues',
     query: {
       keyword: keyword.value.trim() || undefined,
       status: nextStatus || undefined,
+      tag: nextTag || undefined,
       page: nextPage,
     },
   })
@@ -80,6 +89,10 @@ function applyQuery(nextStatus: IssueStatus | '', nextPage = 1): void {
 
 function search(): void {
   applyQuery(status.value)
+}
+
+function clearTag(): void {
+  applyQuery(status.value, 1, '')
 }
 
 function changePage(next: number): void {
@@ -100,7 +113,7 @@ onMounted(load)
         </div>
 
         <form class="search-box" role="search" @submit.prevent="search">
-          <input v-model="keyword" type="search" placeholder="搜索讨论标题…" aria-label="搜索讨论">
+          <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索讨论标题…" aria-label="搜索讨论">
           <button class="btn btn-secondary" type="submit">搜索</button>
         </form>
 
@@ -117,6 +130,13 @@ onMounted(load)
           >
             {{ filter.label }}
           </button>
+        </div>
+
+        <div v-if="tag" class="filter-bar">
+          <span class="tag-filter">
+            标签：# {{ tag }}
+            <button type="button" class="tag-clear" aria-label="清除标签筛选" @click="clearTag">×</button>
+          </span>
         </div>
 
         <div v-if="loading" class="empty">加载中…</div>

@@ -8,6 +8,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatDate, roleLabel } from '@/utils/format'
+import { KEYWORD_MAX } from '@/utils/limits'
 
 const auth = useAuthStore()
 const toast = useToastStore()
@@ -113,7 +114,7 @@ onMounted(load)
 
     <form class="filter-bar" role="search" @submit.prevent="search">
       <div class="field">
-        <input v-model="keyword" type="search" placeholder="搜索昵称 / 邮箱 / 手机号">
+        <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索昵称 / 邮箱 / 手机号">
       </div>
       <div class="field">
         <select v-model="roleFilter">

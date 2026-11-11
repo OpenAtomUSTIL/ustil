@@ -2,6 +2,7 @@
 import type { ArticleListItem } from '@/api/types'
 import { timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
+import TagsChips from '@/components/TagsChips.vue'
 
 defineProps<{ article: ArticleListItem }>()
 </script>
@@ -13,6 +14,7 @@ defineProps<{ article: ArticleListItem }>()
     </div>
     <h3>{{ article.title }}</h3>
     <p class="tc-excerpt">{{ article.excerpt }}</p>
+    <TagsChips v-if="article.tags.length > 0" class="card-tags" :tags="article.tags" target="articles" />
     <div class="tc-meta">
       <span class="who">
         <AppAvatar :nickname="article.author.nickname" :avatar-url="article.author.avatarUrl" :user-id="article.author.id" />
@@ -22,3 +24,9 @@ defineProps<{ article: ArticleListItem }>()
     </div>
   </RouterLink>
 </template>
+
+<style scoped>
+.card-tags {
+  margin-top: 0.75rem;
+}
+</style>

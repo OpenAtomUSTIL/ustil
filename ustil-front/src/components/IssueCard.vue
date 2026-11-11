@@ -3,6 +3,7 @@ import type { IssueListItem } from '@/api/types'
 import { timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import TagsChips from '@/components/TagsChips.vue'
 
 defineProps<{ issue: IssueListItem }>()
 </script>
@@ -16,6 +17,7 @@ defineProps<{ issue: IssueListItem }>()
       </span>
     </div>
     <h3>{{ issue.title }}</h3>
+    <TagsChips v-if="issue.tags.length > 0" class="card-tags" :tags="issue.tags" target="issues" />
     <div class="tc-meta">
       <span class="who">
         <AppAvatar :nickname="issue.author.nickname" :avatar-url="issue.author.avatarUrl" :user-id="issue.author.id" />
@@ -26,3 +28,9 @@ defineProps<{ issue: IssueListItem }>()
     </div>
   </RouterLink>
 </template>
+
+<style scoped>
+.card-tags {
+  margin-top: 0.75rem;
+}
+</style>

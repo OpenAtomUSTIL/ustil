@@ -3,18 +3,22 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { describeError, isForbidden } from '@/api/error'
-import { articlesApi, assignmentsApi, issuesApi } from '@/api/request'
-import type { ArticleListItem, IssueListItem } from '@/api/types'
+import { announcementsApi, articlesApi, assignmentsApi, issuesApi } from '@/api/request'
+import type { AnnouncementItem, ArticleListItem, IssueListItem } from '@/api/types'
 import ArticleCard from '@/components/ArticleCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IssueCard from '@/components/IssueCard.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { timeAgo } from '@/utils/format'
 
 const router = useRouter()
 const auth = useAuthStore()
 
 const articles = ref<ArticleListItem[]>([])
 const issues = ref<IssueListItem[]>([])
+const announcements = ref<AnnouncementItem[]>([])
+const announcementLoading = ref(true)
+const announcementError = ref(false)
 const articleTotal = ref(0)
 const issueTotal = ref(0)
 const assignmentTotal = ref(0)
@@ -22,6 +26,18 @@ const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
+  // 公告栏独立加载，失败不拖垮整页
+  void announcementsApi.list({ page: 1, pageSize: 5 })
+    .then((result) => {
+      announcements.value = result.items
+    })
+    .catch(() => {
+      announcementError.value = true
+    })
+    .finally(() => {
+      announcementLoading.value = false
+    })
+
   try {
     const [articlePage, issuePage, assignmentPage] = await Promise.all([
       articlesApi.list({ page: 1, pageSize: 5 }),
@@ -101,6 +117,28 @@ onMounted(async () => {
       </RouterLink>
     </div>
 
+    <section class="announce-block" aria-label="公告栏">
+      <div class="feed-head">
+        <h2>公告栏</h2>
+        <RouterLink :to="{ name: 'announcements' }">更多</RouterLink>
+      </div>
+      <div v-if="announcementLoading" class="empty">加载中…</div>
+      <EmptyState v-else-if="announcementError" title="公告加载失败" hint="稍后刷新重试。" />
+      <EmptyState v-else-if="announcements.length === 0" title="暂无公告" hint="有新公告会在这里展示。" />
+      <div v-else class="announce-list">
+        <RouterLink
+          v-for="item in announcements"
+          :key="item.id"
+          class="announce-row"
+          :to="{ name: 'announcement-detail', params: { id: item.id } }"
+        >
+          <span v-if="item.pinned" class="tag tag-cat" data-tone="clay">置顶</span>
+          <span class="an-title">{{ item.title }}</span>
+          <span class="an-meta">{{ item.authorName }} · {{ timeAgo(item.createdAt) }}</span>
+        </RouterLink>
+      </div>
+    </section>
+
     <div class="feeds">
       <section>
         <div class="feed-head">
@@ -130,3 +168,46 @@ onMounted(async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.announce-block {
+  padding-top: clamp(1.5rem, 3vw, 2.25rem);
+}
+
+.announce-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.announce-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1.15rem;
+  background: var(--bg-raised);
+  border: var(--bw-sm) solid var(--border);
+  border-radius: var(--br-12);
+  transition: border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.announce-row:hover {
+  border-color: var(--gray-400);
+  transform: translateX(3px);
+}
+
+.an-title {
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.an-meta {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--fs-small);
+  color: var(--ink-faint);
+}
+</style>

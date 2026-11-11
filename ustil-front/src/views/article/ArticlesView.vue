@@ -7,6 +7,7 @@ import type { ArticleListItem } from '@/api/types'
 import ArticleCard from '@/components/ArticleCard.vue'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import { KEYWORD_MAX } from '@/utils/limits'
 
 const route = useRoute()
 const router = useRouter()
@@ -16,6 +17,7 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 const keyword = ref('')
+const tag = ref('')
 const loading = ref(true)
 const error = ref('')
 
@@ -28,6 +30,10 @@ function queryKeyword(): string {
   return typeof route.query.keyword === 'string' ? route.query.keyword : ''
 }
 
+function queryTag(): string {
+  return typeof route.query.tag === 'string' ? route.query.tag : ''
+}
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
@@ -36,11 +42,13 @@ async function load(): Promise<void> {
       page: queryPage(),
       pageSize,
       keyword: queryKeyword() || undefined,
+      tag: queryTag() || undefined,
     })
     items.value = result.items
     total.value = result.total
     page.value = result.page
     keyword.value = queryKeyword()
+    tag.value = queryTag()
   } catch (err) {
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
@@ -55,14 +63,26 @@ async function load(): Promise<void> {
 function search(): void {
   void router.push({
     name: 'articles',
-    query: { keyword: keyword.value.trim() || undefined, page: 1 },
+    query: { keyword: keyword.value.trim() || undefined, tag: queryTag() || undefined, page: 1 },
   })
+}
+
+function clearTag(): void {
+  void router.push({
+    name: 'articles',
+    query: { keyword: queryKeyword() || undefined, tag: undefined, page: 1 },
+  })
+}
+
+function clearAll(): void {
+  keyword.value = ''
+  void router.push({ name: 'articles', query: { page: 1 } })
 }
 
 function changePage(next: number): void {
   void router.push({
     name: 'articles',
-    query: { keyword: queryKeyword() || undefined, page: next },
+    query: { keyword: queryKeyword() || undefined, tag: queryTag() || undefined, page: next },
   })
 }
 
@@ -80,17 +100,24 @@ onMounted(load)
         </div>
 
         <form class="search-box" role="search" @submit.prevent="search">
-          <input v-model="keyword" type="search" placeholder="搜索文章标题或内容…" aria-label="搜索文章">
+          <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索文章标题或内容…" aria-label="搜索文章">
           <button class="btn btn-secondary" type="submit">搜索</button>
         </form>
+
+        <div v-if="tag" class="filter-bar">
+          <span class="tag-filter">
+            标签：# {{ tag }}
+            <button type="button" class="tag-clear" aria-label="清除标签筛选" @click="clearTag">×</button>
+          </span>
+        </div>
 
         <div style="height: 1.5rem" />
 
         <div v-if="loading" class="empty">加载中…</div>
         <EmptyState v-else-if="error" title="加载失败" :hint="error" />
         <EmptyState v-else-if="items.length === 0" title="没有找到匹配的文章" hint="换个关键词，或者稍后再来。">
-          <p v-if="keyword" style="margin-top: 1.15rem">
-            <button class="btn btn-secondary" type="button" @click="keyword = ''; search()">清除筛选</button>
+          <p v-if="keyword || tag" style="margin-top: 1.15rem">
+            <button class="btn btn-secondary" type="button" @click="clearAll">清除筛选</button>
           </p>
         </EmptyState>
         <div v-else class="topic-list">

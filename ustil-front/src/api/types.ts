@@ -58,6 +58,7 @@ export interface ArticleListItem {
   title: string
   excerpt: string
   author: UserPublic
+  tags: string[]
   createdAt: string
   updatedAt: string
 }
@@ -68,6 +69,7 @@ export interface ArticleDetail {
   title: string
   content: string
   author: UserPublic
+  tags: string[]
   createdAt: string
   updatedAt: string
 }
@@ -93,8 +95,23 @@ export interface SubmissionView {
   id: string
   assignmentId: string
   submitter: UserPublic
-  note: string
+  note: string | null
   attachment: AttachmentView
+  createdAt: string
+  updatedAt: string
+}
+
+/** 我的作业提交列表项（GET /assignments/submissions/mine，updatedAt 倒序） */
+export interface MySubmissionItem {
+  id: string
+  assignmentId: string
+  assignmentTitle: string
+  startAt: string
+  deadlineAt: string
+  /** 作业窗口状态（与 AssignmentItem.state 同源，由服务端时间派生） */
+  state: AssignmentState
+  note: string | null
+  attachment: { id: string; fileName: string } | null
   createdAt: string
   updatedAt: string
 }
@@ -108,6 +125,7 @@ export interface IssueListItem {
   replyCount: number
   answeredBy: UserPublic | null
   answeredAt: string | null
+  tags: string[]
   createdAt: string
   updatedAt: string
 }
@@ -160,6 +178,7 @@ export interface UpdateIdentifierRequest {
 export interface ArticleWriteRequest {
   title: string
   content: string
+  tags?: string[]
 }
 
 export interface AssignmentWriteRequest {
@@ -172,6 +191,7 @@ export interface AssignmentWriteRequest {
 export interface CreateIssueRequest {
   title: string
   content: string
+  tags?: string[]
 }
 
 export interface CreateReplyRequest {
@@ -233,4 +253,192 @@ export interface GenerateInviteCodesRequest {
 
 export interface UpdateUserRoleRequest {
   role: 'VISITOR' | 'MEMBER' | 'ALUMNI' | 'WHEEL'
+}
+
+/* ============ 管理日志 ============ */
+
+/** 接口请求日志（GET /admin/request-logs，createdAt desc） */
+export interface RequestLogItem {
+  id: string
+  method: string
+  path: string
+  statusCode: number
+  userId: string | null
+  userEmail: string | null
+  ip: string
+  durationMs: number
+  createdAt: string
+}
+
+/** 操作审计日志（GET /admin/audit-logs，createdAt desc） */
+export interface AuditLogItem {
+  id: string
+  actorId: string
+  actorEmail: string | null
+  action: string
+  targetType: string
+  targetId: string | null
+  detail: Record<string, unknown> | null
+  createdAt: string
+}
+
+/* ============ 公告 ============ */
+
+export interface AnnouncementItem {
+  id: string
+  title: string
+  content: string
+  pinned: boolean
+  authorId: string
+  authorName: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AnnouncementCreateRequest {
+  title: string
+  content: string
+  pinned?: boolean
+  /** 通知全体成员 */
+  notify?: boolean
+}
+
+export interface AnnouncementUpdateRequest {
+  title?: string
+  content?: string
+  pinned?: boolean
+}
+
+/* ============ 通知 ============ */
+
+export type NotificationType = 'ANNOUNCEMENT' | 'ASSIGNMENT' | 'ISSUE_REPLY' | 'ROLE' | 'SYSTEM'
+
+export interface NotificationItem {
+  id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  link: string | null
+  readAt: string | null
+  createdAt: string
+}
+
+/* ============ 资源库 ============ */
+
+export type ResourceCategory = 'GITHUB' | 'EXAM' | 'EBOOK' | 'DOCUMENT' | 'OTHER'
+
+export interface ResourceItem {
+  id: string
+  title: string
+  description: string | null
+  url: string
+  category: ResourceCategory
+  tags: string[]
+  creatorId: string
+  creatorName: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ResourceWriteRequest {
+  title: string
+  description?: string
+  url: string
+  category: ResourceCategory
+  tags?: string[]
+}
+
+/* ============ 标签 ============ */
+
+export interface TagItem {
+  id: string
+  name: string
+  count: number
+}
+
+/* ============ 管理后台 · 登录日志 / 在线用户 ============ */
+
+/** 登录日志（GET /admin/login-logs，可按 email、success 过滤） */
+export interface LoginLogItem {
+  id: string
+  /** 未命中账号的失败登录可能没有用户 ID */
+  userId: string | null
+  /** 仅邮箱标识的登录有值；手机号标识登录为 null */
+  email: string | null
+  ip: string
+  userAgent: string
+  success: boolean
+  /** 失败原因，成功登录为 null */
+  failReason: string | null
+  createdAt: string
+}
+
+/** 在线用户（GET /admin/online-users） */
+export interface OnlineUserItem {
+  userId: string
+  email: string | null
+  nickname: string
+  role: Role
+  lastSeenAt: string
+}
+
+export interface OnlineUsersResult {
+  minutes: number
+  total: number
+  items: OnlineUserItem[]
+}
+
+/* ============ 管理后台 · 文件 / 评论 / 回收站 / 接口总览 ============ */
+
+export type FileKind = 'ATTACHMENT' | 'AVATAR'
+
+/** 文件（GET /admin/files） */
+export interface FileItem {
+  id: string
+  fileName: string
+  sizeBytes: number
+  kind: FileKind
+  uploaderId: string
+  uploaderEmail: string | null
+  isImage: boolean
+  /** 是否被内容引用；仅孤立文件可删（referenced=false） */
+  referenced: boolean
+  createdAt: string
+}
+
+/** 评论（GET /admin/comments，含已软删除） */
+export interface CommentItem {
+  id: string
+  issueId: string
+  issueTitle: string
+  authorId: string
+  authorName: string
+  content: string
+  createdAt: string
+  /** 软删除时间，未删除为 null */
+  deletedAt: string | null
+}
+
+export type TrashType = 'ARTICLE' | 'ANNOUNCEMENT' | 'RESOURCE' | 'COMMENT'
+
+/** 回收站项（GET /admin/trash；restore 按 type + id 恢复） */
+export interface TrashItem {
+  id: string
+  type: TrashType
+  title: string
+  summary: string | null
+  deletedAt: string
+  /** 被软删除记录的原始快照（结构随类型不同，不展开） */
+  original: Record<string, unknown>
+}
+
+/** 接口权限总览（GET /admin/api-registry） */
+export interface ApiRegistryItem {
+  method: string
+  path: string
+  isPublic: boolean
+  /** 有值表示限定角色；空数组表示登录即可 */
+  roles: Role[]
+  controller: string
+  handler: string
 }

@@ -32,6 +32,11 @@ export class AssignmentsController {
     return this.assignmentsService.list(query, user);
   }
 
+  @Get('submissions/mine')
+  listMySubmissions(@Query() query: PaginationQueryDto, @CurrentUser() user: CurrentAuthUser) {
+    return this.assignmentsService.listMySubmissions(user, query);
+  }
+
   @Get(':id')
   detail(@Param('id', uuidParamPipe) id: string, @CurrentUser() user: CurrentAuthUser) {
     return this.assignmentsService.getDetail(id, user);

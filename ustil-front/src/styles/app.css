@@ -353,6 +353,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   background: rgba(191, 77, 67, 0.10); border: var(--bw-sm) solid rgba(191, 77, 67, 0.35);
   color: var(--error); font-size: var(--fs-meta);
 }
+.rm-hint { font-size: var(--fs-small); color: var(--ink-faint); }
 
 /* ============ 页脚 ============ */
 .site-footer { background: var(--bg-inverse); color: var(--ink-inverse); padding: 4rem 0 2.25rem; }
@@ -626,6 +627,22 @@ ul { margin: 0; padding: 0; list-style: none; }
 .search-box input:focus {
   outline: 0; border-color: var(--clay); box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.16);
 }
+
+/* ============ 标签筛选 chip（列表页 ?tag= 激活态） ============ */
+.tag-filter {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.32rem 0.55rem 0.32rem 0.85rem;
+  border-radius: var(--br-pill);
+  border: var(--bw-sm) solid rgba(102, 153, 135, 0.35);
+  background: rgba(102, 153, 135, 0.12);
+  color: var(--mineral); font-size: var(--fs-small); font-weight: var(--fw-medium);
+}
+.tag-clear {
+  width: 1.25rem; height: 1.25rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; color: var(--mineral); font-size: 1rem; line-height: 1;
+}
+.tag-clear:hover { background: rgba(102, 153, 135, 0.22); color: var(--ink); }
 
 @media (max-width: 1080px) {
   .entry-grid { grid-template-columns: 1fr; }

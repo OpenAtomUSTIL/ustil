@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { NotFoundException } from '@nestjs/common';
 import {
   FileStorage,
@@ -74,6 +74,17 @@ export class R2StorageService implements FileStorage {
         throw error;
       }
       throw new NotFoundException('文件不存在');
+    }
+  }
+
+  async stat(key: string): Promise<number | null> {
+    try {
+      const result = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.config.bucket, Key: this.assertKey(key) }),
+      );
+      return result.ContentLength ?? null;
+    } catch {
+      return null;
     }
   }
 }

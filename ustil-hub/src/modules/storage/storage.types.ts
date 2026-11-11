@@ -19,7 +19,13 @@ export interface StorageContentReader {
   get(key: string): Promise<{ data: Buffer; contentType: string }>;
 }
 
-export type FileStorage = StorageService & StorageContentReader;
+// 文件大小探测（管理端文件管理用；仅 storage 模块内部服务接口使用）
+export interface StorageStatReader {
+  /** 返回对象字节数；对象不存在返回 null */
+  stat(key: string): Promise<number | null>;
+}
+
+export type FileStorage = StorageService & StorageContentReader & StorageStatReader;
 
 export const STORAGE_SERVICE = 'STORAGE_SERVICE';
 

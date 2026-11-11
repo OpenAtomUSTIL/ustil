@@ -20,6 +20,7 @@ import {
 } from '../../db/redis';
 import { UserStatus } from '../../db/schema';
 import { InviteCodesService } from '../admin/invite-codes.service';
+import { LoginLogsService } from '../audit/login-logs.service';
 import { UsersService, normalizeIdentifier } from '../users/users.service';
 import { AuthUser, UserSelf } from '../users/users.views';
 import {
@@ -47,6 +48,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly inviteCodesService: InviteCodesService,
+    private readonly loginLogsService: LoginLogsService,
     private readonly jwtService: JwtService,
     @Inject(REDIS_CLIENT) private readonly redis: RedisClient,
     @Inject(REFRESH_TOKEN_STORE) private readonly refreshStore: RefreshTokenStore,
@@ -55,6 +57,30 @@ export class AuthService {
 
   private loginFailKey(identifier: string, ip: string): string {
     return `login_fail:${identifier}:${ip}`;
+  }
+
+  private normalizeUserAgent(userAgent: string | null | undefined): string | null {
+    const trimmed = userAgent?.trim();
+    return trimmed ? trimmed.slice(0, 500) : null;
+  }
+
+  // 登录日志：只写标识与结果，不写密码等敏感信息
+  private async logLogin(input: {
+    userId: string | null;
+    email: string;
+    ip: string;
+    userAgent: string | null | undefined;
+    success: boolean;
+    failReason?: string;
+  }): Promise<void> {
+    await this.loginLogsService.record({
+      userId: input.userId,
+      email: input.email,
+      ip: input.ip,
+      userAgent: this.normalizeUserAgent(input.userAgent),
+      success: input.success,
+      failReason: input.failReason ?? null,
+    });
   }
 
   private signTokens(user: AuthUser, jti: string): AuthTokens {
@@ -136,11 +162,20 @@ export class AuthService {
   async login(
     dto: LoginDto,
     ip: string,
+    userAgent?: string | null,
   ): Promise<{ user: UserSelf; tokens: AuthTokens }> {
     const identifier = normalizeIdentifier(dto.identifier);
     const failKey = this.loginFailKey(identifier, ip);
     const failCount = Number((await this.redis.get(failKey)) ?? '0');
     if (failCount >= LOGIN_FAIL_LIMIT) {
+      await this.logLogin({
+        userId: null,
+        email: identifier,
+        ip,
+        userAgent,
+        success: false,
+        failReason: '登录尝试过于频繁',
+      });
       throw new HttpException('登录尝试过于频繁，请稍后再试', HttpStatus.TOO_MANY_REQUESTS);
     }
 
@@ -152,6 +187,14 @@ export class AuthService {
       if (failures === 1) {
         await this.redis.expire(failKey, LOGIN_FAIL_TTL_SECONDS);
       }
+      await this.logLogin({
+        userId: null,
+        email: identifier,
+        ip,
+        userAgent,
+        success: false,
+        failReason: record ? '密码错误' : '用户不存在',
+      });
       if (failures >= LOGIN_FAIL_LIMIT) {
         throw new HttpException('登录尝试过于频繁，请稍后再试', HttpStatus.TOO_MANY_REQUESTS);
       }
@@ -161,8 +204,23 @@ export class AuthService {
 
     await this.redis.del(failKey);
     if (record.status === UserStatus.BANNED) {
+      await this.logLogin({
+        userId: null,
+        email: identifier,
+        ip,
+        userAgent,
+        success: false,
+        failReason: '账号已封禁',
+      });
       throw new ForbiddenException('账号已被封禁');
     }
+    await this.logLogin({
+      userId: record.id,
+      email: identifier,
+      ip,
+      userAgent,
+      success: true,
+    });
     const user = await this.usersService.getSelf(record.id);
     const tokens = await this.issueTokens(record.id);
     return { user, tokens };
@@ -206,7 +264,11 @@ export class AuthService {
     return { user, tokens };
   }
 
-  async logout(refreshToken: string | undefined): Promise<void> {
+  async logout(
+    refreshToken: string | undefined,
+    ip = '',
+    userAgent?: string | null,
+  ): Promise<void> {
     if (!refreshToken) {
       return;
     }
@@ -220,10 +282,17 @@ export class AuthService {
       return;
     }
     if (payload && typeof payload.sub === 'string') {
-      const user = await this.usersService.getAuthUser(payload.sub);
+      const user = await this.usersService.getAuthRecordById(payload.sub);
       // 已失效的旧凭据不能用来反复踢掉用户新登录的会话。
       if (user && user.sessionVersion === payload.sessionVersion) {
         await this.usersService.invalidateSessions(payload.sub, user.sessionVersion);
+        await this.logLogin({
+          userId: user.id,
+          email: user.email ?? user.phone ?? '',
+          ip,
+          userAgent,
+          success: true,
+        });
       }
     }
   }

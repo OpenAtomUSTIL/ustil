@@ -12,19 +12,30 @@ import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-import home from './_public.home'
+import home from './_authenticated.home'
 import login from './_guest.login'
 import register from './_guest.register'
 import articles from './_public.articles'
 import articleNew from './_authenticated.article-new'
 import articleEdit from './_authenticated.article-edit'
+import myArticles from './_authenticated.my-articles'
 import articleDetail from './_public.article-detail'
 import assignments from './_public.assignments'
 import assignmentNew from './_authenticated.assignment-new'
+import assignmentEdit from './_authenticated.assignment-edit'
 import assignmentDetail from './_public.assignment-detail'
+import mySubmissions from './_authenticated.my-submissions'
 import issues from './_public.issues'
 import issueNew from './_authenticated.issue-new'
 import issueDetail from './_public.issue-detail'
+import announcements from './_public.announcements'
+import announcementNew from './_authenticated.announcement-new'
+import announcementEdit from './_authenticated.announcement-edit'
+import announcementDetail from './_public.announcement-detail'
+import resources from './_public.resources'
+import resourceNew from './_authenticated.resources-new'
+import resourceEdit from './_authenticated.resources-edit'
+import notifications from './_authenticated.notifications'
 import profile from './_authenticated.profile'
 import admin from './_admin'
 import forbidden from './_public.forbidden'
@@ -37,13 +48,24 @@ const routes: RouteRecordRaw[] = [
   articles,
   articleNew,
   articleEdit,
+  myArticles,
   articleDetail,
   assignments,
   assignmentNew,
+  assignmentEdit,
   assignmentDetail,
+  mySubmissions,
   issues,
   issueNew,
   issueDetail,
+  announcements,
+  announcementNew,
+  announcementEdit,
+  announcementDetail,
+  resources,
+  resourceNew,
+  resourceEdit,
+  notifications,
   profile,
   admin,
   forbidden,

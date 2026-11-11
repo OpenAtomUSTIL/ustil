@@ -54,10 +54,11 @@ function openProfile(): void {
         </div>
       </div>
       <div class="footer-bottom">
-        <span>© {{ year }} 开放原子 USTIL 学生开源社区 · 内容以 CC BY 4.0 共享</span>
+        <span>© {{ year }} 开放原子 USTIL 学生开源社区 </span>
         <span class="links">
           <RouterLink :to="{ name: 'issues' }">社区公约</RouterLink>
           <RouterLink :to="{ name: 'home' }">无障碍</RouterLink>
+          <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">辽ICP备2026004720号</a>
         </span>
       </div>
     </div>

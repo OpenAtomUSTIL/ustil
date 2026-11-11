@@ -1,17 +1,26 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { describeError } from '@/api/error'
 import { authApi, usersApi } from '@/api/request'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { useUiStore } from '@/stores/ui'
 import { formatDate, roleLabel } from '@/utils/format'
+import {
+  INVITE_CODE_MAX,
+  NICKNAME_MAX,
+  PASSWORD_MAX,
+  PASSWORD_MIN,
+  checkNickname,
+  checkPassword,
+} from '@/utils/limits'
 import { AVATAR_EXTENSIONS } from '@/utils/upload'
 import AppAvatar from '@/components/AppAvatar.vue'
 import FileUploader from '@/components/FileUploader.vue'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
 const ui = useUiStore()
@@ -89,6 +98,11 @@ async function redeem(): Promise<void> {
 async function saveProfile(): Promise<void> {
   if (savingProfile.value) return
   profileError.value = ''
+  const nicknameProblem = checkNickname(nickname.value)
+  if (nicknameProblem) {
+    profileError.value = nicknameProblem
+    return
+  }
   savingProfile.value = true
   try {
     const updated = await usersApi.updateMe({ nickname: nickname.value.trim() })
@@ -111,6 +125,11 @@ async function uploadAvatar(file: File, onProgress: (percent: number) => void): 
 async function changePassword(): Promise<void> {
   if (savingPassword.value) return
   passwordError.value = ''
+  const passwordProblem = checkPassword(newPassword.value)
+  if (passwordProblem) {
+    passwordError.value = passwordProblem
+    return
+  }
   if (newPassword.value !== newPassword2.value) {
     passwordError.value = '两次输入的新密码不一致'
     return
@@ -121,10 +140,11 @@ async function changePassword(): Promise<void> {
       currentPassword: currentPassword.value,
       newPassword: newPassword.value,
     })
-    currentPassword.value = ''
-    newPassword.value = ''
-    newPassword2.value = ''
-    toast.show('密码已修改')
+    // 改密成功后旧 token 全部失效：清理登录态并回登录页，避免假在线
+    toast.show('密码已修改，请重新登录')
+    auth.clear()
+    ui.closeProfile()
+    await router.push({ name: 'login' })
   } catch (err) {
     passwordError.value = describeError(err)
   } finally {
@@ -198,7 +218,7 @@ async function bindIdentifier(): Promise<void> {
           <form class="form-grid" @submit.prevent="redeem">
             <div class="field">
               <label for="pd-invite">邀请码</label>
-              <input id="pd-invite" v-model="inviteCode" type="text" maxlength="64" required placeholder="输入邀请码">
+              <input id="pd-invite" v-model="inviteCode" type="text" :maxlength="INVITE_CODE_MAX" required placeholder="输入邀请码">
             </div>
             <button class="btn btn-clay" type="submit" :disabled="savingRedeem">
               {{ savingRedeem ? '提交中…' : '转正为学习成员' }}
@@ -207,10 +227,10 @@ async function bindIdentifier(): Promise<void> {
         </section>
 
         <div class="pd-links">
-          <RouterLink class="pd-link" :to="{ name: 'articles' }" @click="close">
+          <RouterLink class="pd-link" :to="{ name: 'my-articles' }" @click="close">
             我的文章<span>查看与管理已发布文章</span>
           </RouterLink>
-          <RouterLink v-if="auth.canViewAssignments" class="pd-link" :to="{ name: 'assignments' }" @click="close">
+          <RouterLink v-if="auth.canViewAssignments" class="pd-link" :to="{ name: 'my-submissions' }" @click="close">
             我的作业提交<span>查看提交记录与截止时间</span>
           </RouterLink>
         </div>
@@ -221,7 +241,7 @@ async function bindIdentifier(): Promise<void> {
           <form class="form-grid" @submit.prevent="saveProfile">
             <div class="field">
               <label for="profile-nickname">昵称</label>
-              <input id="profile-nickname" v-model="nickname" type="text" required maxlength="30">
+              <input id="profile-nickname" v-model="nickname" type="text" required :maxlength="NICKNAME_MAX">
             </div>
             <button class="btn btn-primary" type="submit" :disabled="savingProfile">
               {{ savingProfile ? '保存中…' : '保存资料' }}
@@ -242,15 +262,15 @@ async function bindIdentifier(): Promise<void> {
           <form class="form-grid" @submit.prevent="changePassword">
             <div class="field">
               <label for="pw-current">当前密码</label>
-              <input id="pw-current" v-model="currentPassword" type="password" autocomplete="current-password" required>
+              <input id="pw-current" v-model="currentPassword" type="password" autocomplete="current-password" required :minlength="PASSWORD_MIN" :maxlength="PASSWORD_MAX">
             </div>
             <div class="field">
               <label for="pw-new">新密码</label>
-              <input id="pw-new" v-model="newPassword" type="password" autocomplete="new-password" required>
+              <input id="pw-new" v-model="newPassword" type="password" autocomplete="new-password" required :minlength="PASSWORD_MIN" :maxlength="PASSWORD_MAX">
             </div>
             <div class="field">
               <label for="pw-new2">确认新密码</label>
-              <input id="pw-new2" v-model="newPassword2" type="password" autocomplete="new-password" required>
+              <input id="pw-new2" v-model="newPassword2" type="password" autocomplete="new-password" required :minlength="PASSWORD_MIN" :maxlength="PASSWORD_MAX">
             </div>
             <button class="btn btn-primary" type="submit" :disabled="savingPassword">
               {{ savingPassword ? '提交中…' : '修改密码' }}

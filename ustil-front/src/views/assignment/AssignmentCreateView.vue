@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
 import { assignmentsApi } from '@/api/request'
 import { useToastStore } from '@/stores/toast'
+import { TITLE_MAX, checkTitle } from '@/utils/limits'
 
 const router = useRouter()
 const toast = useToastStore()
@@ -18,6 +19,12 @@ const submitting = ref(false)
 async function submit(): Promise<void> {
   if (submitting.value) return
   error.value = ''
+
+  const titleProblem = checkTitle(title.value)
+  if (titleProblem) {
+    error.value = titleProblem
+    return
+  }
 
   const start = new Date(startAt.value)
   const deadline = new Date(deadlineAt.value)
@@ -63,7 +70,7 @@ async function submit(): Promise<void> {
     <form class="form-grid" @submit.prevent="submit">
       <div class="field">
         <label for="assignment-title">标题</label>
-        <input id="assignment-title" v-model="title" type="text" required maxlength="120" placeholder="例如：第三周练习 —— 实现一个简易词法分析器">
+        <input id="assignment-title" v-model="title" type="text" required :maxlength="TITLE_MAX" placeholder="例如：第三周练习 —— 实现一个简易词法分析器">
       </div>
       <div class="field">
         <label for="assignment-description">任务说明（Markdown）</label>

@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
 import { articlesApi } from '@/api/request'
 import { useToastStore } from '@/stores/toast'
+import TagInput from '@/components/TagInput.vue'
+import { TITLE_MAX, checkTags, checkTitle } from '@/utils/limits'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +16,7 @@ const articleId = computed(() => String(route.params.id ?? ''))
 
 const title = ref('')
 const content = ref('')
+const tags = ref<string[]>([])
 const error = ref('')
 const loading = ref(false)
 const submitting = ref(false)
@@ -25,6 +28,7 @@ onMounted(async () => {
     const article = await articlesApi.get(articleId.value)
     title.value = article.title
     content.value = article.content
+    tags.value = [...(article.tags ?? [])]
   } catch (err) {
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
@@ -39,9 +43,23 @@ onMounted(async () => {
 async function submit(): Promise<void> {
   if (submitting.value) return
   error.value = ''
+  const titleProblem = checkTitle(title.value)
+  if (titleProblem) {
+    error.value = titleProblem
+    return
+  }
+  const tagsProblem = checkTags(tags.value)
+  if (tagsProblem) {
+    error.value = tagsProblem
+    return
+  }
   submitting.value = true
   try {
-    const payload = { title: title.value.trim(), content: content.value }
+    const payload = {
+      title: title.value.trim(),
+      content: content.value,
+      tags: tags.value.length > 0 ? tags.value : undefined,
+    }
     if (isEdit.value) {
       await articlesApi.update(articleId.value, payload)
       toast.show('文章已更新')
@@ -74,7 +92,7 @@ async function submit(): Promise<void> {
     <form v-else class="form-grid" @submit.prevent="submit">
       <div class="field">
         <label for="article-title">标题</label>
-        <input id="article-title" v-model="title" type="text" required maxlength="120" placeholder="一句话说清这篇文章讲什么">
+        <input id="article-title" v-model="title" type="text" required :maxlength="TITLE_MAX" placeholder="一句话说清这篇文章讲什么">
       </div>
       <div class="field">
         <label for="article-content">正文（Markdown）</label>
@@ -85,6 +103,10 @@ async function submit(): Promise<void> {
           placeholder="支持 **粗体**、`代码`、> 引用、列表与链接。空行分段。"
         />
       </div>
+      <div class="field">
+        <span class="field-legend">标签</span>
+        <TagInput v-model="tags" />
+      </div>
       <div class="form-actions">
         <button class="btn btn-primary btn-lg" type="submit" :disabled="submitting">
           {{ submitting ? '提交中…' : isEdit ? '保存修改' : '发布' }}
@@ -94,3 +116,12 @@ async function submit(): Promise<void> {
     </form>
   </div>
 </template>
+
+<style scoped>
+.field-legend {
+  display: block;
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-semibold);
+  margin-bottom: 0.45rem;
+}
+</style>
