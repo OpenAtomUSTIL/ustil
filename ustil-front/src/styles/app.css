@@ -617,6 +617,15 @@ ul { margin: 0; padding: 0; list-style: none; }
 .md-body th, .md-body td { border: var(--bw-sm) solid var(--border); padding: 0.45rem 0.75rem; text-align: left; }
 .md-body th { background: var(--gray-100); }
 
+/* ============ 代码高亮 token 调色板（暖纸色） ============ */
+code.hljs { color: var(--ink); }
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in { color: var(--clay); }
+.hljs-string, .hljs-attr { color: var(--mineral); }
+.hljs-comment, .hljs-quote { color: var(--ink-faint); font-style: italic; }
+.hljs-number, .hljs-literal { color: var(--plum); }
+.hljs-title, .hljs-function { color: var(--sky); }
+.hljs-type, .hljs-class { color: color-mix(in srgb, var(--heather) 55%, var(--ink)); }
+
 /* ============ 搜索框 ============ */
 .search-box { display: flex; gap: 0.55rem; max-width: 26rem; }
 .search-box input {

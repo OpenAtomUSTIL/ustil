@@ -47,4 +47,35 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<math')
     expect(html).toContain('annotation')
   })
+
+  it('代码块按语言高亮并解析别名', () => {
+    const html = renderMarkdown('```ts\nconst x: number = 1\n```')
+    expect(html).toContain('class="hljs language-typescript"')
+    expect(html).toContain('data-lang="ts"')
+    expect(html).toContain('hljs-keyword')
+  })
+
+  it('代码块每行包行号 span', () => {
+    const html = renderMarkdown('```\na\nb\nc\n```')
+    expect(html.match(/md-code-line/g)).toHaveLength(3)
+  })
+
+  it('未知语言降级纯文本转义且不崩', () => {
+    const html = renderMarkdown('```foobar\na < b & c\n```')
+    expect(html).toContain('class="hljs language-foobar"')
+    expect(html).toContain('md-code-line')
+    expect(html).toContain('a &lt; b &amp; c')
+  })
+
+  it('代码内 HTML 转义', () => {
+    const html = renderMarkdown('```\n<script>alert(1)</script>\n```')
+    expect(html).not.toContain('<script')
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  })
+
+  it('代码块注入复制按钮', () => {
+    const html = renderMarkdown('```\nx\n```')
+    expect(html).toContain('md-copy')
+    expect(html).toContain('复制')
+  })
 })

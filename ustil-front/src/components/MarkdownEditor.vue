@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, drawSelection, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
-import { renderMarkdown } from '@/utils/markdown'
+import MarkdownBody from '@/components/MarkdownBody.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -22,8 +22,6 @@ type Mode = 'edit' | 'preview' | 'split'
 const mode = ref<Mode>('split')
 const syncScroll = ref(true)
 const previewEl = ref<HTMLElement | null>(null)
-
-const previewHtml = computed(() => renderMarkdown(props.modelValue))
 
 function syncFrom(src: HTMLElement, dest: HTMLElement): void {
   if (syncing || !syncScroll.value || mode.value !== 'split') return
@@ -147,7 +145,7 @@ const toolGroups = [
       { label: 'I', title: '斜体 Ctrl/⌘+I', run: () => wrapSelection('*', '*') },
       { label: 'S', title: '删除线', run: () => wrapSelection('~~', '~~') },
       { label: '<>', title: '行内代码', run: () => wrapSelection('`', '`') },
-      { label: '链接', title: '链接 Ctrl/⌘+K', run: () => insertLink() },
+      { label: '链', title: '链接 Ctrl/⌘+K', run: () => insertLink() },
     ],
   },
   {
@@ -155,22 +153,23 @@ const toolGroups = [
     items: [
       { label: 'H2', title: '二级标题', run: () => prefixLines('## ') },
       { label: 'H3', title: '三级标题', run: () => prefixLines('### ') },
-      { label: '列表', title: '无序列表', run: () => prefixLines('- ') },
+      { label: '•', title: '无序列表', run: () => prefixLines('- ') },
       { label: '1.', title: '有序列表', run: () => prefixLines('1. ') },
-      { label: '引用', title: '引用', run: () => prefixLines('> ') },
+      { label: '❝', title: '引用', run: () => prefixLines('> ') },
       {
-        label: '表格',
+        label: '表',
         title: '插入表格',
         run: () => insertBlock('\n| 列1 | 列2 |\n| --- | --- |\n|     |     |\n'),
       },
-      { label: '分割线', title: '分割线', run: () => insertBlock('\n---\n') },
+      { label: '线', title: '分割线', run: () => insertBlock('\n---\n') },
+      { label: '块', title: '代码块', run: () => insertBlock('```\n\n```\n', 4) },
     ],
   },
   {
     key: 'math',
     items: [
-      { label: '∑ 行内', title: '行内公式', run: () => wrapSelection('$', '$') },
-      { label: '∑∑ 块级', title: '块级公式', run: () => insertBlock('$$\n\n$$\n', 3) },
+      { label: '∑', title: '行内公式', run: () => wrapSelection('$', '$') },
+      { label: '∑∑', title: '块级公式', run: () => insertBlock('$$\n\n$$\n', 3) },
     ],
   },
 ]
@@ -263,21 +262,22 @@ onBeforeUnmount(() => {
         >
           分栏
         </button>
-        <label v-if="mode === 'split'" class="md-sync">
-          <input v-model="syncScroll" type="checkbox">
-          同步滚动
-        </label>
       </div>
+      <label v-if="mode === 'split'" class="md-sync">
+        <input v-model="syncScroll" type="checkbox">
+        同步滚动
+      </label>
     </div>
     <div class="md-panes" :class="`mode-${mode}`">
       <div v-show="mode !== 'preview'" ref="host" class="md-pane md-edit" />
       <div
         v-show="mode !== 'edit'"
         ref="previewEl"
-        class="md-pane md-preview md-body"
+        class="md-pane md-preview"
         @scroll="onPreviewScroll"
-        v-html="previewHtml"
-      />
+      >
+        <MarkdownBody :content="props.modelValue" />
+      </div>
     </div>
   </div>
 </template>
@@ -303,26 +303,29 @@ onBeforeUnmount(() => {
 .md-toolbar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   background: var(--gray-050);
-  padding: 0.55rem 0.75rem;
+  padding: 0.45rem 0.65rem;
   border-bottom: var(--bw-hair) solid var(--gray-150);
   margin-bottom: 0;
 }
 
 .md-tools {
   display: flex;
-  gap: 3px;
+  gap: 2px;
+  flex-shrink: 0;
   background: var(--gray-150);
   padding: 3px;
   border-radius: var(--br-8);
 }
 
 .md-tool {
-  padding: 0.25rem 0.55rem;
-  font-size: 0.8125rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.75rem;
   line-height: 1.4;
+  white-space: nowrap;
   color: var(--ink);
   background: transparent;
   border: none;
@@ -343,16 +346,18 @@ onBeforeUnmount(() => {
 .md-modes {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   margin-left: auto;
+  flex-shrink: 0;
   background: var(--gray-150);
   padding: 3px;
   border-radius: var(--br-8);
 }
 
 .md-mode {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8125rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
   color: var(--ink-muted);
   background: transparent;
   border: none;
@@ -369,14 +374,16 @@ onBeforeUnmount(() => {
 .md-sync {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   margin-left: 0.35rem;
-  font-size: 0.8125rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.75rem;
   color: var(--ink-muted);
   background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
   border-radius: var(--br-8);
-  padding: 0.25rem 0.65rem;
+  padding: 0.2rem 0.55rem;
 }
 
 .md-panes {
