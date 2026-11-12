@@ -37,6 +37,9 @@ describe('renderMarkdown', () => {
     const html = renderMarkdown('<script>alert(1)</script><img src=x onerror=alert(1)>')
     expect(html).not.toContain('<script')
     expect(html).not.toContain('onerror')
+
+    const linkHtml = renderMarkdown('[click](javascript:alert(1))')
+    expect(linkHtml).not.toContain('javascript:')
   })
 
   it('KaTeX 的 MathML 产物不被剥离', () => {
