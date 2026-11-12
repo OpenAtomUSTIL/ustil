@@ -52,6 +52,7 @@ function wrapSelection(before: string, after: string): void {
     range: EditorSelection.range(range.from + before.length, range.to + before.length),
   }))
   view.dispatch(changes, { scrollIntoView: true })
+  view.focus()
 }
 
 function prefixLines(prefix: string): void {
@@ -74,6 +75,7 @@ function prefixLines(prefix: string): void {
     }
   })
   view.dispatch(changes, { scrollIntoView: true })
+  view.focus()
 }
 
 function insertBlock(text: string, caretOffset = text.length): void {
@@ -84,17 +86,39 @@ function insertBlock(text: string, caretOffset = text.length): void {
     selection: EditorSelection.cursor(range.from + caretOffset),
     scrollIntoView: true,
   })
+  view.focus()
+}
+
+function insertLink(): void {
+  if (!view) return
+  const { state } = view
+  const changes = state.changeByRange((range) => {
+    const selected = state.sliceDoc(range.from, range.to)
+    const urlStart = range.from + 1 + selected.length + 2
+    return {
+      changes: [
+        {
+          from: range.from,
+          to: range.to,
+          insert: `[${selected}](https://)`,
+        },
+      ],
+      range: EditorSelection.range(urlStart, urlStart + 'https://'.length),
+    }
+  })
+  view.dispatch(changes, { scrollIntoView: true })
+  view.focus()
 }
 
 const toolGroups = [
   {
     key: 'basic',
     items: [
-      { label: 'B', title: '粗体 ⌘B', run: () => wrapSelection('**', '**') },
-      { label: 'I', title: '斜体 ⌘I', run: () => wrapSelection('*', '*') },
+      { label: 'B', title: '粗体 Ctrl/⌘+B', run: () => wrapSelection('**', '**') },
+      { label: 'I', title: '斜体 Ctrl/⌘+I', run: () => wrapSelection('*', '*') },
       { label: 'S', title: '删除线', run: () => wrapSelection('~~', '~~') },
       { label: '<>', title: '行内代码', run: () => wrapSelection('`', '`') },
-      { label: '链接', title: '链接 ⌘K', run: () => wrapSelection('[', '](https://)') },
+      { label: '链接', title: '链接 Ctrl/⌘+K', run: () => insertLink() },
     ],
   },
   {
@@ -134,7 +158,7 @@ onMounted(() => {
     keymap.of([
       { key: 'Mod-b', run: () => (wrapSelection('**', '**'), true) },
       { key: 'Mod-i', run: () => (wrapSelection('*', '*'), true) },
-      { key: 'Mod-k', run: () => (wrapSelection('[', '](https://)'), true) },
+      { key: 'Mod-k', run: () => (insertLink(), true) },
       indentWithTab,
       ...defaultKeymap,
       ...historyKeymap,
@@ -169,7 +193,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="md-editor">
     <div class="md-toolbar">
-      <template v-for="group in toolGroups" :key="group.key">
+      <template v-for="(group, groupIndex) in toolGroups" :key="group.key">
         <div class="md-tools">
           <button
             v-for="tool in group.items"
@@ -182,7 +206,11 @@ onBeforeUnmount(() => {
             {{ tool.label }}
           </button>
         </div>
-        <span class="md-divider" aria-hidden="true" />
+        <span
+          v-if="groupIndex < toolGroups.length - 1"
+          class="md-divider"
+          aria-hidden="true"
+        />
       </template>
     </div>
     <div ref="host" class="md-pane md-edit" />
