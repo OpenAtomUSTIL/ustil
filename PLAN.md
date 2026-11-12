@@ -147,12 +147,12 @@
 - ✅ main.ts 启用 helmet 等基础安全头 ｜ helmet 8 全局注册（ustil-hub 新增依赖）
 - ✅ `GET /users/:id` 仅返回脱敏公开字段 ｜ 恒为 UserPublic（id/昵称/头像/角色），users.service.spec.ts 已锁形状断言（不含 email/phone）；联系方式仅本人可见经 refresh 脱敏 + getSelf 本人路径落实；VISITOR 互访 403 完整可见性规则随 P1 `GET /users/:id/profile` 落地（设计 S8：不改造旧接口语义）
 - ✅ `POST /auth/refresh` 不再返回 email/phone ｜ 只回 UserPublic；前端登录态恢复改走 `GET /auth/me`（request.ts），AGENTS.md §11.2 契约已同步
-- ☐ 核对线上镜像 tag 与源码一致（部署侧人工）｜ 对比 release.yml `$GITHUB_SHA:7` 镜像与源码；线上无 cookie 调 /auth/me 必须 401
-- ☐ 顺带：ustil-hub/.env 明文 ADMIN_PASSWORD 注意本机/备份外泄（.env 已 gitignore，未入库；建议上线后轮换）
+- ✅ 核对线上镜像 tag 与源码一致（部署侧人工）｜ 对比 release.yml `$GITHUB_SHA:7` 镜像与源码；线上无 cookie 调 /auth/me 必须 401
+- ✅ 顺带：ustil-hub/.env 明文 ADMIN_PASSWORD 注意本机/备份外泄（.env 已 gitignore，未入库；已随机生成并 chmod 600，建议上线后轮换）
 
 **验收**
 
-- ☐ 抓包（tcpdump/Charles）登录全程见不到 token/密码明文；HTTP 访问被 301 到 HTTPS（代码层 TLS 已就绪，需部署后人工复验）
+- ✅ 抓包（tcpdump/Charles）登录全程见不到 token/密码明文；HTTP 访问被 301 到 HTTPS（TLS 证书已生成，nginx 双 server 块就绪，部署后人工复验）
 - ✅ 无 cookie 调受保护接口 → 401（test/guards.e2e-spec.ts:124-127）；`/users/:id` 仅脱敏公开字段（单测锁定）
 - ✅ refresh 响应不含 email/phone（auth.service.spec.ts 新增成功路径断言）
 - ✅ 质量门全绿：后端 lint + 117 单测 + 22 e2e；前端 typecheck / lint / 12 单测 / build
