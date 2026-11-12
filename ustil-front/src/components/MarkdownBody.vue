@@ -6,18 +6,52 @@ const props = defineProps<{ content: string }>()
 
 const html = computed(() => renderMarkdown(props.content))
 
+const resetTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>()
+
+function flash(button: Element, message: string): void {
+  button.textContent = message
+  const pending = resetTimers.get(button)
+  if (pending !== undefined) clearTimeout(pending)
+  resetTimers.set(
+    button,
+    setTimeout(() => {
+      button.textContent = '复制'
+      resetTimers.delete(button)
+    }, 1500),
+  )
+}
+
+function legacyCopy(text: string): boolean {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  try {
+    return document.execCommand('copy')
+  } catch {
+    return false
+  } finally {
+    textarea.remove()
+  }
+}
+
 function onClick(event: MouseEvent): void {
   const target = event.target
   if (!(target instanceof Element)) return
   const button = target.closest('.md-copy')
   if (!button) return
   const text = button.closest('pre')?.querySelector('code')?.textContent ?? ''
-  navigator.clipboard.writeText(text).then(() => {
-    button.textContent = '已复制'
-    setTimeout(() => {
-      button.textContent = '复制'
-    }, 1500)
-  })
+  const write = navigator.clipboard?.writeText(text)
+  if (write === undefined) {
+    flash(button, legacyCopy(text) ? '已复制' : '复制失败')
+    return
+  }
+  write
+    .then(() => flash(button, '已复制'))
+    .catch(() => flash(button, legacyCopy(text) ? '已复制' : '复制失败'))
 }
 </script>
 
@@ -32,7 +66,6 @@ function onClick(event: MouseEvent): void {
   border: var(--bw-sm) solid var(--border);
   border-radius: var(--br-8);
   padding: 0.75rem 1rem 0.75rem 0.25rem;
-  overflow-x: auto;
   position: relative;
   counter-reset: line;
   margin: 0.85rem 0;
@@ -40,6 +73,7 @@ function onClick(event: MouseEvent): void {
 
 .md-body :deep(pre code) {
   display: block;
+  overflow-x: auto;
   white-space: normal;
   background: transparent;
 }
@@ -48,15 +82,20 @@ function onClick(event: MouseEvent): void {
   display: block;
   white-space: pre;
   counter-increment: line;
+  width: max-content;
+  min-width: 100%;
 }
 
 .md-body :deep(.md-code-line::before) {
   content: counter(line);
   display: inline-block;
+  position: sticky;
+  left: 0;
   width: 2.5em;
   padding-right: 0.5em;
   text-align: right;
   color: var(--ink-faint);
+  background: var(--gray-100);
   user-select: none;
 }
 

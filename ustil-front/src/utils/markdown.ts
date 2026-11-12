@@ -110,6 +110,7 @@ function withLineNumbers(html: string): string {
     }
   }
   lines.push(current)
+  if (lines.length === 1 && lines[0].trim() === '') return ''
   return lines.map((line) => `<span class="md-code-line">${line}</span>`).join('\n')
 }
 

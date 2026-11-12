@@ -78,4 +78,23 @@ describe('renderMarkdown', () => {
     expect(html).toContain('md-copy')
     expect(html).toContain('复制')
   })
+
+  it('跨行 token 切分后标签平衡、类名与换行保留', () => {
+    const html = renderMarkdown('```ts\n/* 多行注释\n   第二行 */\nconst x = 1\n```')
+    const opens = (html.match(/<span\b/g) ?? []).length
+    const closes = (html.match(/<\/span>/g) ?? []).length
+    expect(opens).toBeGreaterThan(0)
+    expect(opens).toBe(closes)
+
+    const doc = new DOMParser().parseFromString(html, 'text/html')
+    const lines = Array.from(doc.querySelectorAll('pre code .md-code-line'))
+    expect(lines).toHaveLength(3)
+    const firstHalf = lines[0].querySelector('.hljs-comment')
+    const secondHalf = lines[1].querySelector('.hljs-comment')
+    expect(firstHalf).not.toBeNull()
+    expect(secondHalf).not.toBeNull()
+    expect(firstHalf?.textContent).toBe('/* 多行注释')
+    expect(secondHalf?.textContent).toBe('   第二行 */')
+    expect(doc.querySelector('pre code')?.textContent).toBe('/* 多行注释\n   第二行 */\nconst x = 1')
+  })
 })
