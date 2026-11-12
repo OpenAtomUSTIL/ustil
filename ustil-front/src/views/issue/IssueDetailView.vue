@@ -10,6 +10,7 @@ import { formatDateTime, roleLabel, timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import TagsChips from '@/components/TagsChips.vue'
 
@@ -177,11 +178,10 @@ onMounted(load)
 
       <form v-if="auth.isLoggedIn" class="composer" @submit.prevent="submitReply">
         <label class="sr-only" for="reply-input">写下你的回复</label>
-        <textarea
-          id="reply-input"
+        <MarkdownEditor
           v-model="replyContent"
+          min-height="8rem"
           placeholder="写下你的回复…… 支持 **粗体**、`代码` 与 > 引用"
-          required
         />
         <div class="cmp-foot">
           <span class="hint">友善、具体、可复现 —— 社区公约</span>

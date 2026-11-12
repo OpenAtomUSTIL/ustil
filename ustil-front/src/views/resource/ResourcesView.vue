@@ -7,6 +7,7 @@ import { resourcesApi } from '@/api/request'
 import type { ResourceCategory, ResourceItem } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import MarkdownBody from '@/components/MarkdownBody.vue'
 import TagsChips from '@/components/TagsChips.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -224,7 +225,7 @@ onMounted(load)
               <TagsChips :tags="item.tags" target="resources" />
             </div>
             <h3>{{ item.title }}</h3>
-            <p v-if="item.description" class="tc-excerpt">{{ item.description }}</p>
+            <MarkdownBody v-if="item.description" class="tc-excerpt" :content="item.description" />
             <div class="tc-meta">
               <span class="num">{{ item.creatorName }}</span>
               <span class="num">{{ timeAgo(item.createdAt) }}</span>

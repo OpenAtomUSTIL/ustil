@@ -3,6 +3,7 @@
    提交由父级调接口；失败原因经 error 传入展示，输入天然保留 */
 import { ref, watch } from 'vue'
 import type { AnnouncementCreateRequest, AnnouncementUpdateRequest } from '@/api/types'
+import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import { TITLE_MAX, checkTitle } from '@/utils/limits'
 
 const props = defineProps<{
@@ -77,10 +78,9 @@ function submit(): void {
     </div>
     <div class="field">
       <label for="announcement-content">内容（Markdown）</label>
-      <textarea
-        id="announcement-content"
+      <MarkdownEditor
         v-model="content"
-        required
+        min-height="12rem"
         placeholder="支持 **粗体**、`代码`、> 引用、列表与链接。空行分段。"
       />
       <div class="hint">支持 Markdown 语法，发布后按 Markdown 渲染。</div>
