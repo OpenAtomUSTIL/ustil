@@ -16,6 +16,7 @@ import { uuidParamPipe } from '../../common/pipes/uuid-param.pipe';
 import { UploadedFileInput } from '../storage/uploads.service';
 import { ChangeIdentifierDto } from './dto/change-identifier.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateProfilePageDto } from './dto/update-profile-page.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -59,5 +60,29 @@ export class UsersController {
   @Get(':id')
   getPublic(@Param('id', uuidParamPipe) id: string) {
     return this.usersService.getPublic(id);
+  }
+
+  @Get(':id/profile')
+  getProfile(
+    @Param('id', uuidParamPipe) id: string,
+    @CurrentUser() user: CurrentAuthUser,
+  ) {
+    return this.usersService.getProfile(id, user);
+  }
+
+  @Put('me/profile-page')
+  updateProfilePage(
+    @CurrentUser() user: CurrentAuthUser,
+    @Body() dto: UpdateProfilePageDto,
+  ) {
+    return this.usersService.updateProfilePage(user.id, dto);
+  }
+
+  @Get(':id/activity')
+  getActivity(
+    @Param('id', uuidParamPipe) id: string,
+    @CurrentUser() user: CurrentAuthUser,
+  ) {
+    return this.usersService.getActivity(id, user);
   }
 }

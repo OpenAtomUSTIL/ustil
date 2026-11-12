@@ -26,9 +26,24 @@ const deleting = ref(false)
 const articleId = computed(() => String(route.params.id))
 
 const isAuthor = computed(() => auth.user !== null && article.value?.author.id === auth.user.id)
+const isMember = computed(() => auth.role === 'MEMBER')
+const isPendingOrRejected = computed(() => article.value?.status === 'PENDING' || article.value?.status === 'REJECTED')
 /** 入口显隐仅为体验优化，权限以后端为准 */
-const canEdit = computed(() => auth.canManageContent && isAuthor.value)
-const canDelete = computed(() => auth.isAdmin || (auth.canManageContent && isAuthor.value))
+const canEdit = computed(() => {
+  if (!isAuthor.value) return false
+  if (isMember.value) return isPendingOrRejected.value
+  return auth.canManageContent
+})
+const canDelete = computed(() => {
+  if (auth.isAdmin) return true
+  if (!isAuthor.value) return false
+  if (isMember.value) return isPendingOrRejected.value
+  return auth.canManageContent
+})
+const statusLabel = computed(() => {
+  const map: Record<string, string> = { PENDING: '待审核', PUBLISHED: '已发布', REJECTED: '已拒绝', HIDDEN: '已隐藏' }
+  return article.value ? map[article.value.status] ?? article.value.status : ''
+})
 
 async function load(): Promise<void> {
   loading.value = true
@@ -78,6 +93,12 @@ onMounted(load)
       <div class="thread-head">
         <h1>{{ article.title }}</h1>
         <TagsChips v-if="article.tags.length > 0" class="head-tags" :tags="article.tags" target="articles" />
+        <div v-if="article.status !== 'PUBLISHED'" class="status-banner" :class="`st-${article.status.toLowerCase()}`">
+          <span class="st-badge">{{ statusLabel }}</span>
+          <span v-if="article.status === 'PENDING'" class="st-hint">文章已提交，等待管理员审核后发布</span>
+          <span v-else-if="article.status === 'REJECTED'" class="st-hint">文章未通过审核<span v-if="article.reviewNote">：{{ article.reviewNote }}</span></span>
+          <span v-else-if="article.status === 'HIDDEN'" class="st-hint">文章已被管理员隐藏</span>
+        </div>
         <div class="tc-meta">
           <span class="who">
             <AppAvatar
@@ -145,5 +166,32 @@ onMounted(load)
 <style scoped>
 .head-tags {
   margin-top: 1rem;
+}
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+.st-pending {
+  background: #fef3cd;
+  color: #856404;
+}
+.st-rejected {
+  background: #f8d7da;
+  color: #721c24;
+}
+.st-hidden {
+  background: #e2e3e5;
+  color: #383d41;
+}
+.st-badge {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.st-hint {
+  font-size: 0.85rem;
 }
 </style>

@@ -20,6 +20,9 @@
             </RouterLink>
 
             <div class="nav-group-label">内容管理</div>
+            <RouterLink class="admin-nav-link" :to="{ name: 'admin-article-review' }">
+              <span class="nav-ic" aria-hidden="true">✔</span>文章审核
+            </RouterLink>
             <RouterLink class="admin-nav-link" :to="{ name: 'admin-announcements' }">
               <span class="nav-ic" aria-hidden="true">✉</span>公告管理
             </RouterLink>

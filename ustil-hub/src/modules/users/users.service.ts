@@ -22,6 +22,8 @@ import {
   UserAuthRecord,
   UserPublic,
   UserSelf,
+  UserProfileView,
+  ActivityView,
 } from './users.views';
 
 function isUniqueViolation(error: unknown): boolean {
@@ -510,5 +512,114 @@ export class UsersService {
     const cutoff = new Date();
     cutoff.setFullYear(cutoff.getFullYear() - 4);
     return this.usersRepository.promoteMembersCreatedBefore(cutoff);
+  }
+
+  // ===== 个人主页 =====
+
+  async getProfile(id: string, viewer: CurrentAuthUser): Promise<UserProfileView> {
+    const row = await this.usersRepository.findById(id);
+    if (!row) {
+      throw new NotFoundException('用户不存在');
+    }
+    const isSelf = viewer.id === id;
+    if (viewer.role === Role.VISITOR && !isSelf) {
+      throw new ForbiddenException('无权访问该资源');
+    }
+
+    const [stats, topTags, pinnedItems] = await Promise.all([
+      this.usersRepository.getProfileStats(id),
+      this.usersRepository.getProfileTopTags(id, 10),
+      this.resolvePinnedItems(row.pinnedItems ?? []),
+    ]);
+
+    const profile: UserProfileView = {
+      id: row.id,
+      nickname: row.nickname,
+      avatarUrl: row.avatarUrl,
+      role: row.role as Role,
+      bio: row.bio,
+      profileReadme: row.profileReadme,
+      createdAt: row.createdAt.toISOString(),
+      stats,
+      topTags,
+      pinnedItems,
+      isSelf,
+    };
+    if (isSelf) {
+      if (row.email) profile.email = row.email;
+      if (row.phone) profile.phone = row.phone;
+    }
+    return profile;
+  }
+
+  private async resolvePinnedItems(
+    items: { type: string; id: string }[],
+  ): Promise<{ type: string; id: string; title: string }[]> {
+    const result: { type: string; id: string; title: string }[] = [];
+    for (const item of items) {
+      if (item.type === 'ARTICLE') {
+        const { articles } = await import('../../db/schema/articles');
+        const { eq, isNull, and } = await import('drizzle-orm');
+        const { db } = await import('../../db');
+        const rows = await db.select({ title: articles.title }).from(articles)
+          .where(and(eq(articles.id, item.id), isNull(articles.deletedAt))).limit(1);
+        if (rows[0]) result.push({ ...item, title: rows[0].title });
+      } else if (item.type === 'ISSUE') {
+        const { issues } = await import('../../db/schema/issues');
+        const { eq } = await import('drizzle-orm');
+        const { db } = await import('../../db');
+        const rows = await db.select({ title: issues.title }).from(issues)
+          .where(eq(issues.id, item.id)).limit(1);
+        if (rows[0]) result.push({ ...item, title: rows[0].title });
+      } else if (item.type === 'RESOURCE') {
+        const { resources } = await import('../../db/schema/resources');
+        const { eq, isNull, and } = await import('drizzle-orm');
+        const { db } = await import('../../db');
+        const rows = await db.select({ title: resources.title }).from(resources)
+          .where(and(eq(resources.id, item.id), isNull(resources.deletedAt))).limit(1);
+        if (rows[0]) result.push({ ...item, title: rows[0].title });
+      }
+    }
+    return result;
+  }
+
+  async updateProfilePage(
+    userId: string,
+    dto: {
+      bio?: string | null;
+      profileReadme?: string | null;
+      pinnedItems?: { type: string; id: string }[];
+    },
+  ): Promise<void> {
+    if (dto.bio !== undefined && dto.bio !== null && dto.bio.length > 100) {
+      throw new BadRequestException('bio 不能超过 100 个字符');
+    }
+    if (dto.profileReadme !== undefined && dto.profileReadme !== null && dto.profileReadme.length > 10000) {
+      throw new BadRequestException('个人介绍不能超过 10000 个字符');
+    }
+    if (dto.pinnedItems !== undefined) {
+      if (dto.pinnedItems.length > 6) {
+        throw new BadRequestException('置顶内容不能超过 6 项');
+      }
+      const keys = new Set(dto.pinnedItems.map((i) => `${i.type}:${i.id}`));
+      if (keys.size !== dto.pinnedItems.length) {
+        throw new BadRequestException('置顶内容不能重复');
+      }
+    }
+    const row = await this.usersRepository.updateProfilePage(userId, dto);
+    if (!row) {
+      throw new NotFoundException('用户不存在');
+    }
+  }
+
+  async getActivity(id: string, viewer: CurrentAuthUser): Promise<ActivityView> {
+    const isSelf = viewer.id === id;
+    if (viewer.role === Role.VISITOR && !isSelf) {
+      throw new ForbiddenException('无权访问该资源');
+    }
+    const since = new Date();
+    since.setFullYear(since.getFullYear() - 1);
+    const days = await this.usersRepository.getActivityDays(id, since);
+    return { days };
   }
 }

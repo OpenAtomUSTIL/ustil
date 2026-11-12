@@ -23,6 +23,13 @@ const error = ref('')
 const confirmDeleteId = ref<string | null>(null)
 const deleting = ref(false)
 
+const statusLabel: Record<string, string> = {
+  PENDING: '待审核',
+  PUBLISHED: '已发布',
+  REJECTED: '已拒绝',
+  HIDDEN: '已隐藏',
+}
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
@@ -97,6 +104,7 @@ onMounted(load)
           <div v-for="article in items" :key="article.id" class="topic-card">
             <h3>{{ article.title }}</h3>
             <div class="tc-meta">
+              <span class="st-chip" :class="`st-${article.status.toLowerCase()}`">{{ statusLabel[article.status] ?? article.status }}</span>
               <span class="num">创建于 {{ formatDateTime(article.createdAt) }}</span>
               <span class="num">更新于 {{ formatDateTime(article.updatedAt) }}</span>
             </div>
@@ -142,5 +150,28 @@ onMounted(load)
   gap: 0.55rem;
   margin-top: 1rem;
   flex-wrap: wrap;
+}
+.st-chip {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.st-pending {
+  background: #fef3cd;
+  color: #856404;
+}
+.st-published {
+  background: #d4edda;
+  color: #155724;
+}
+.st-rejected {
+  background: #f8d7da;
+  color: #721c24;
+}
+.st-hidden {
+  background: #e2e3e5;
+  color: #383d41;
 }
 </style>

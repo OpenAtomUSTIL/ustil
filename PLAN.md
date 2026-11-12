@@ -111,17 +111,20 @@
 
 ### P0 ｜ 操作权限优化
 
-- [] 允许学员发布文章
-- [] 学员文章先审后发，校友文章先发后审讨论
+> 实现 2026-11-12：articles 加 status/reviewed_by/reviewed_at/review_note（迁移 0012）；MEMBER 创建 → PENDING（先审后发），ALUMNI/WHEEL/ADMIN 创建 → PUBLISHED（先发后审）；WHEEL/ADMIN 审核（approve/reject/hide/unhide）；后台「文章审核」页
+
+- [x] 允许学员发布文章
+- [x] 学员文章先审后发，校友文章先发后审讨论
 
 ### P1 ｜ 个人中心优化
 
 > 设计定稿 2026-11-12（浏览器探讨选定方案 A：GitHub 式双栏）：完整设计见 docs/compose/specs/2026-11-12-profile-homepage-design.md
+> 实现 2026-11-12：users 加 bio/profile_readme/pinned_items（迁移 0013）；GET /users/:id/profile + PUT /users/me/profile-page + GET /users/:id/activity；前端 UserProfileView 双栏（资料卡+README/置顶/热力图/内容Tab）
 
-- [] 个人中心独立界面为个人主页 ｜ /users/:id 独立页取代抽屉（抽屉移除）；/profile 重定向到自己主页；改密/换绑/邀请码转正收进主页「设置」区，行为不变
-- [] 允许查看其他人的个人主页 ｜ MEMBER+ 互访可见公开资料；VISITOR 仅能看自己（访他人 403）；联系方式与编辑/设置区仅本人可见
-- [] 主页参照github主页， ｜ 双栏：左栏（头像/昵称/角色徽章/bio≤100/统计行/加入时间/擅长标签云）+ 右栏（README 个人介绍 md+latex、置顶内容≤6 跨文章讨论资源、活跃热力图近一年、内容 Tab 文章|讨论|回复|资源 分页）
-- 数据与接口：users 加 bio/profile_readme(≤10000)/pinned_items(jsonb≤6)，迁移 0011；新增 GET /users/:id/profile（含统计+标签Top10+置顶+isSelf）、PUT /users/me/profile-page、GET /users/:id/activity（文章/讨论/回复/提交/资源 五类事件按日聚合，软删不计）
+- [x] 个人中心独立界面为个人主页 ｜ /users/:id 独立页取代抽屉（抽屉移除）；/profile 重定向到自己主页；改密/换绑/邀请码转正收进主页「设置」区，行为不变
+- [x] 允许查看其他人的个人主页 ｜ MEMBER+ 互访可见公开资料；VISITOR 仅能看自己（访他人 403）；联系方式与编辑/设置区仅本人可见
+- [x] 主页参照github主页， ｜ 双栏：左栏（头像/昵称/角色徽章/bio≤100/统计行/加入时间/擅长标签云）+ 右栏（README 个人介绍 md+latex、置顶内容≤6 跨文章讨论资源、活跃热力图近一年、内容 Tab 文章|讨论|回复|资源 分页）
+- 数据与接口：users 加 bio/profile_readme(≤10000)/pinned_items(jsonb≤6)，迁移 0013；新增 GET /users/:id/profile（含统计+标签Top10+置顶+isSelf）、PUT /users/me/profile-page、GET /users/:id/activity（文章/讨论/回复/提交/资源 五类事件按日聚合，软删不计）
 - 验收：两成员可互访主页；VISITOR 访他人 403；README/置顶/热力图/Tab 齐全；设置迁移后改密/换绑/邀请码转正行为不变
 
 ### P0 ｜ 安全修复：登录 token 抓包泄露 / 用户信息越权获取

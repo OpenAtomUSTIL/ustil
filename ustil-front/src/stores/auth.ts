@@ -20,6 +20,10 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageContent = computed(
     () => user.value?.role === 'ADMIN' || user.value?.role === 'ALUMNI' || user.value?.role === 'WHEEL',
   )
+  /** 发布文章入口显隐（MEMBER 先审后发，ALUMNI/WHEEL/ADMIN 先发后审） */
+  const canPublishArticle = computed(
+    () => user.value?.role === 'ADMIN' || user.value?.role === 'ALUMNI' || user.value?.role === 'WHEEL' || user.value?.role === 'MEMBER',
+  )
   /** 管理后台入口显隐（体验优化，权限以后端为准） */
   const canAccessAdmin = computed(
     () => user.value?.role === 'ADMIN' || user.value?.role === 'WHEEL',
@@ -76,6 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
     canViewAssignments,
     canCreateIssue,
     canManageContent,
+    canPublishArticle,
     canAccessAdmin,
     setUser,
     clear,

@@ -37,6 +37,7 @@ import resourceNew from './_authenticated.resources-new'
 import resourceEdit from './_authenticated.resources-edit'
 import notifications from './_authenticated.notifications'
 import profile from './_authenticated.profile'
+import userProfile from './_public.user-profile'
 import admin from './_admin'
 import forbidden from './_public.forbidden'
 import notFound from './_public.not-found'
@@ -67,6 +68,7 @@ const routes: RouteRecordRaw[] = [
   resourceEdit,
   notifications,
   profile,
+  userProfile,
   admin,
   forbidden,
   notFound,

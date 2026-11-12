@@ -313,4 +313,168 @@ export class UsersRepository {
     const rows = await db.select({ id: users.id, email: users.email }).from(users).where(inArray(users.id, ids));
     return new Map(rows.map((row) => [row.id, row.email]));
   }
+
+  async updateProfilePage(
+    id: string,
+    patch: {
+      bio?: string | null;
+      profileReadme?: string | null;
+      pinnedItems?: { type: string; id: string }[];
+    },
+  ): Promise<UserRow | null> {
+    const rows = await db
+      .update(users)
+      .set(patch)
+      .where(eq(users.id, id))
+      .returning();
+    return rows[0] ?? null;
+  }
+
+  async getProfileStats(userId: string): Promise<{
+    articles: number;
+    issues: number;
+    replies: number;
+    submissions: number;
+  }> {
+    const { articles } = await import('../../db/schema/articles');
+    const { issues } = await import('../../db/schema/issues');
+    const { issueReplies } = await import('../../db/schema/issue_replies');
+    const { assignmentSubmissions } = await import('../../db/schema/assignment_submissions');
+    const { isNull, and, eq } = await import('drizzle-orm');
+
+    const [articleCount, issueCount, replyCount, submissionCount] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(articles)
+        .where(and(eq(articles.authorId, userId), isNull(articles.deletedAt), eq(articles.status, 'PUBLISHED'))),
+      db.select({ count: sql<number>`count(*)::int` }).from(issues)
+        .where(eq(issues.authorId, userId)),
+      db.select({ count: sql<number>`count(*)::int` }).from(issueReplies)
+        .where(eq(issueReplies.authorId, userId)),
+      db.select({ count: sql<number>`count(*)::int` }).from(assignmentSubmissions)
+        .where(eq(assignmentSubmissions.submitterId, userId)),
+    ]);
+
+    return {
+      articles: articleCount[0]?.count ?? 0,
+      issues: issueCount[0]?.count ?? 0,
+      replies: replyCount[0]?.count ?? 0,
+      submissions: submissionCount[0]?.count ?? 0,
+    };
+  }
+
+  async getProfileTopTags(userId: string, limit = 10): Promise<{ name: string; count: number }[]> {
+    const { taggings, tags } = await import('../../db/schema/tags');
+    const { articles } = await import('../../db/schema/articles');
+    const { issues } = await import('../../db/schema/issues');
+    const { resources } = await import('../../db/schema/resources');
+    const { isNull } = await import('drizzle-orm');
+
+    const articleIds = db.select({ id: articles.id }).from(articles)
+      .where(and(eq(articles.authorId, userId), isNull(articles.deletedAt), eq(articles.status, 'PUBLISHED')));
+    const issueIds = db.select({ id: issues.id }).from(issues).where(eq(issues.authorId, userId));
+    const resourceIds = db.select({ id: resources.id }).from(resources).where(eq(resources.creatorId, userId));
+
+    const rows = await db
+      .select({ name: tags.name, count: sql<number>`count(*)::int` })
+      .from(taggings)
+      .innerJoin(tags, eq(tags.id, taggings.tagId))
+      .where(and(inArray(taggings.targetId, articleIds), eq(taggings.targetType, 'ARTICLE')))
+      .groupBy(tags.name);
+
+    const issueTagRows = await db
+      .select({ name: tags.name, count: sql<number>`count(*)::int` })
+      .from(taggings)
+      .innerJoin(tags, eq(tags.id, taggings.tagId))
+      .where(and(inArray(taggings.targetId, issueIds), eq(taggings.targetType, 'ISSUE')))
+      .groupBy(tags.name);
+
+    const resourceTagRows = await db
+      .select({ name: tags.name, count: sql<number>`count(*)::int` })
+      .from(taggings)
+      .innerJoin(tags, eq(tags.id, taggings.tagId))
+      .where(and(inArray(taggings.targetId, resourceIds), eq(taggings.targetType, 'RESOURCE')))
+      .groupBy(tags.name);
+
+    const merged = new Map<string, number>();
+    for (const r of rows) {
+      const prev = merged.get(r.name) || 0;
+      merged.set(r.name, prev + r.count);
+    }
+    for (const r of issueTagRows) {
+      const prev = merged.get(r.name) || 0;
+      merged.set(r.name, prev + r.count);
+    }
+    for (const r of resourceTagRows) {
+      const prev = merged.get(r.name) || 0;
+      merged.set(r.name, prev + r.count);
+    }
+
+    return [...merged.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .slice(0, limit);
+  }
+
+  async getActivityDays(userId: string, since: Date): Promise<{ date: string; count: number }[]> {
+    const { articles } = await import('../../db/schema/articles');
+    const { issues } = await import('../../db/schema/issues');
+    const { issueReplies } = await import('../../db/schema/issue_replies');
+    const { assignmentSubmissions } = await import('../../db/schema/assignment_submissions');
+    const { resources } = await import('../../db/schema/resources');
+    const { isNull } = await import('drizzle-orm');
+
+    const dateTrunc = sql<string>`to_char(${articles.createdAt}, 'YYYY-MM-DD')`;
+    const dateTruncIssue = sql<string>`to_char(${issues.createdAt}, 'YYYY-MM-DD')`;
+    const dateTruncReply = sql<string>`to_char(${issueReplies.createdAt}, 'YYYY-MM-DD')`;
+    const dateTruncSub = sql<string>`to_char(${assignmentSubmissions.createdAt}, 'YYYY-MM-DD')`;
+    const dateTruncRes = sql<string>`to_char(${resources.createdAt}, 'YYYY-MM-DD')`;
+
+    const [articleDays, issueDays, replyDays, subDays, resDays] = await Promise.all([
+      db.select({ date: dateTrunc, count: sql<number>`count(*)::int` })
+        .from(articles)
+        .where(and(eq(articles.authorId, userId), isNull(articles.deletedAt), gte(articles.createdAt, since)))
+        .groupBy(dateTrunc),
+      db.select({ date: dateTruncIssue, count: sql<number>`count(*)::int` })
+        .from(issues)
+        .where(and(eq(issues.authorId, userId), gte(issues.createdAt, since)))
+        .groupBy(dateTruncIssue),
+      db.select({ date: dateTruncReply, count: sql<number>`count(*)::int` })
+        .from(issueReplies)
+        .where(and(eq(issueReplies.authorId, userId), gte(issueReplies.createdAt, since)))
+        .groupBy(dateTruncReply),
+      db.select({ date: dateTruncSub, count: sql<number>`count(*)::int` })
+        .from(assignmentSubmissions)
+        .where(and(eq(assignmentSubmissions.submitterId, userId), gte(assignmentSubmissions.createdAt, since)))
+        .groupBy(dateTruncSub),
+      db.select({ date: dateTruncRes, count: sql<number>`count(*)::int` })
+        .from(resources)
+        .where(and(eq(resources.creatorId, userId), isNull(resources.deletedAt), gte(resources.createdAt, since)))
+        .groupBy(dateTruncRes),
+    ]);
+
+    const merged = new Map<string, number>();
+    for (const d of articleDays) {
+      const prev = merged.get(d.date) || 0;
+      merged.set(d.date, prev + d.count);
+    }
+    for (const d of issueDays) {
+      const prev = merged.get(d.date) || 0;
+      merged.set(d.date, prev + d.count);
+    }
+    for (const d of replyDays) {
+      const prev = merged.get(d.date) || 0;
+      merged.set(d.date, prev + d.count);
+    }
+    for (const d of subDays) {
+      const prev = merged.get(d.date) || 0;
+      merged.set(d.date, prev + d.count);
+    }
+    for (const d of resDays) {
+      const prev = merged.get(d.date) || 0;
+      merged.set(d.date, prev + d.count);
+    }
+
+    return [...merged.entries()]
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
 }

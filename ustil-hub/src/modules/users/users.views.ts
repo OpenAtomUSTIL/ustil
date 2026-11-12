@@ -81,3 +81,30 @@ export interface AvatarFileRef {
   key: string;
   updatedAt: Date;
 }
+
+/** 个人主页视图 */
+export interface UserProfileView {
+  id: string;
+  nickname: string;
+  avatarUrl: string | null;
+  role: Role;
+  bio: string | null;
+  profileReadme: string | null;
+  createdAt: string;
+  stats: {
+    articles: number;
+    issues: number;
+    replies: number;
+    submissions: number;
+  };
+  topTags: { name: string; count: number }[];
+  pinnedItems: { type: string; id: string; title: string }[];
+  isSelf: boolean;
+  email?: string;
+  phone?: string;
+}
+
+/** 活跃热力图数据 */
+export interface ActivityView {
+  days: { date: string; count: number }[];
+}

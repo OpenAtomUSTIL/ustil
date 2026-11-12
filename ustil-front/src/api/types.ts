@@ -9,6 +9,9 @@ export type Role = 'VISITOR' | 'MEMBER' | 'ALUMNI' | 'WHEEL' | 'ADMIN'
 /** Issue 状态：未解决 / 已解答 / 搁置 */
 export type IssueStatus = 'OPEN' | 'ANSWERED' | 'ON_HOLD'
 
+/** 文章审核状态：待审 / 已发布 / 已拒绝 / 已隐藏 */
+export type ArticleStatus = 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'HIDDEN'
+
 /** 作业状态：未开始 / 进行中 / 已截止（由服务端时间派生） */
 export type AssignmentState = 'NOT_STARTED' | 'OPEN' | 'CLOSED'
 
@@ -59,6 +62,7 @@ export interface ArticleListItem {
   excerpt: string
   author: UserPublic
   tags: string[]
+  status: ArticleStatus
   createdAt: string
   updatedAt: string
 }
@@ -70,6 +74,8 @@ export interface ArticleDetail {
   content: string
   author: UserPublic
   tags: string[]
+  status: ArticleStatus
+  reviewNote: string | null
   createdAt: string
   updatedAt: string
 }
@@ -441,4 +447,36 @@ export interface ApiRegistryItem {
   roles: Role[]
   controller: string
   handler: string
+}
+
+/** 个人主页视图 */
+export interface UserProfile {
+  id: string
+  nickname: string
+  avatarUrl: string | null
+  role: Role
+  bio: string | null
+  profileReadme: string | null
+  createdAt: string
+  stats: {
+    articles: number
+    issues: number
+    replies: number
+    submissions: number
+  }
+  topTags: { name: string; count: number }[]
+  pinnedItems: { type: string; id: string; title: string }[]
+  isSelf: boolean
+  email?: string
+  phone?: string
+}
+
+/** 活跃热力图数据 */
+export interface ActivityDay {
+  date: string
+  count: number
+}
+
+export interface ActivityView {
+  days: ActivityDay[]
 }

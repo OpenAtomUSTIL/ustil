@@ -12,6 +12,7 @@ import adminLoginLogs from './_admin.login-logs'
 import adminOnlineUsers from './_admin.online-users'
 import adminFiles from './_admin.files'
 import adminApiRegistry from './_admin.api-registry'
+import adminArticleReview from './_admin.article-review'
 
 /** 管理后台布局路由：侧边栏 + 子页面；入口仅 WHEEL / ADMIN（显隐为体验优化，权限以后端为准） */
 const route: RouteRecordRaw = {
@@ -33,6 +34,7 @@ const route: RouteRecordRaw = {
     adminOnlineUsers,
     adminFiles,
     adminApiRegistry,
+    adminArticleReview,
   ],
 }
 

@@ -4,14 +4,13 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useToastStore } from '@/stores/toast'
-import { useUiStore } from '@/stores/ui'
 import AppAvatar from '@/components/AppAvatar.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const toast = useToastStore()
-const ui = useUiStore()
+
 
 const scrolled = ref(false)
 const menuOpen = ref(false)
@@ -115,7 +114,7 @@ async function logout(): Promise<void> {
               <RouterLink role="menuitem" :to="{ name: 'issue-new' }" @click="publishOpen = false">
                 发起讨论<span>提出问题、分享进展</span>
               </RouterLink>
-              <RouterLink v-if="auth.canManageContent" role="menuitem" :to="{ name: 'article-new' }" @click="publishOpen = false">
+              <RouterLink v-if="auth.canPublishArticle" role="menuitem" :to="{ name: 'article-new' }" @click="publishOpen = false">
                 发布文章<span>面向社区的技术长文</span>
               </RouterLink>
               <RouterLink v-if="auth.canManageContent" role="menuitem" :to="{ name: 'assignment-new' }" @click="publishOpen = false">
@@ -143,10 +142,10 @@ async function logout(): Promise<void> {
               </svg>
               <span v-if="notifications.unreadCount > 0" class="bell-badge">{{ unreadLabel }}</span>
             </RouterLink>
-            <button class="btn btn-ghost" type="button" title="个人中心" @click="ui.openProfile()">
+            <RouterLink class="btn btn-ghost" title="个人中心" :to="{ name: 'user-profile', params: { id: auth.user?.id } }">
               <AppAvatar :nickname="nickname" :avatar-url="avatarUrl" :user-id="userId" />
               {{ nickname }}
-            </button>
+            </RouterLink>
             <button class="btn btn-ghost" type="button" @click="logout">退出</button>
           </template>
           <template v-else>

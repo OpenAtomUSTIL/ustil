@@ -9,6 +9,8 @@
    ============================================================ */
 
 import type {
+  UserProfile,
+  ActivityView,
   AdminStats,
   AdminUser,
   AnnouncementCreateRequest,
@@ -242,6 +244,13 @@ export const authApi = {
 
 export const usersApi = {
   getUser: (id: string) => request<UserPublic>(`/users/${id}`),
+  /** 个人主页（含统计/标签/置顶） */
+  getProfile: (id: string) => request<UserProfile>(`/users/${id}/profile`),
+  /** 更新个人主页（bio/readme/置顶） */
+  updateProfilePage: (payload: { bio?: string | null; profileReadme?: string | null; pinnedItems?: { type: string; id: string }[] }) =>
+    request<void>('/users/me/profile-page', { method: 'PUT', body: payload }),
+  /** 活跃热力图 */
+  getActivity: (id: string) => request<ActivityView>(`/users/${id}/activity`),
   updateMe: (payload: UpdateProfileRequest) =>
     request<UserSelf>('/users/me', { method: 'PATCH', body: payload }),
   updateIdentifier: (payload: UpdateIdentifierRequest) =>
@@ -266,6 +275,12 @@ export const articlesApi = {
   update: (id: string, payload: ArticleWriteRequest) =>
     request<void>(`/articles/${id}`, { method: 'PATCH', body: payload }),
   remove: (id: string) => request<void>(`/articles/${id}`, { method: 'DELETE' }),
+  /** 审核队列（WHEEL/ADMIN） */
+  listPending: (query: PageQuery) =>
+    request<Page<ArticleListItem>>('/articles/pending', { query }),
+  /** 审核操作：approve/reject/hide/unhide */
+  review: (id: string, payload: { action: 'approve' | 'reject' | 'hide' | 'unhide'; note?: string }) =>
+    request<ArticleDetail>(`/articles/${id}/review`, { method: 'POST', body: payload }),
 }
 
 export const assignmentsApi = {
@@ -357,6 +372,12 @@ export const adminApi = {
     request<void>(`/admin/trash/${type}/${id}/restore`, { method: 'POST' }),
   /** 全站接口 + 权限总览 */
   apiRegistry: () => request<ApiRegistryItem[]>('/admin/api-registry'),
+  /** 文章审核队列 */
+  listPendingArticles: (query: PageQuery) =>
+    request<Page<ArticleListItem>>('/articles/pending', { query }),
+  /** 审核文章 */
+  reviewArticle: (id: string, payload: { action: 'approve' | 'reject' | 'hide' | 'unhide'; note?: string }) =>
+    request<ArticleDetail>(`/articles/${id}/review`, { method: 'POST', body: payload }),
 }
 
 /** 文件内容预览地址（同源 <img> 直接加载，带 cookie，不经 JS 读写）

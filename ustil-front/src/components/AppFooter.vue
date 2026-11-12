@@ -43,7 +43,7 @@ function openProfile(): void {
         <div v-if="auth.canCreateIssue" class="footer-col">
           <h4>参与</h4>
           <RouterLink :to="{ name: 'issue-new' }">发起讨论</RouterLink>
-          <RouterLink v-if="auth.canManageContent" :to="{ name: 'article-new' }">发布文章</RouterLink>
+          <RouterLink v-if="auth.canPublishArticle" :to="{ name: 'article-new' }">发布文章</RouterLink>
           <RouterLink v-if="auth.canManageContent" :to="{ name: 'assignment-new' }">发布作业</RouterLink>
         </div>
         <div class="footer-col">
