@@ -52,15 +52,15 @@ const theme = EditorView.theme({
   '&': {
     fontSize: 'var(--fs-body)',
     color: 'var(--ink)',
-    backgroundColor: 'var(--bg-raised)',
-    border: 'var(--bw-sm) solid var(--border)',
-    borderRadius: 'var(--br-12)',
     lineHeight: '1.8',
   },
-  '&.cm-focused': { outline: 'none', borderColor: 'var(--accent-interactive)' },
+  '&.cm-focused': {
+    outline: 'none',
+    boxShadow: 'inset 0 0 0 2px var(--accent-interactive)',
+  },
   '.cm-content': {
     fontFamily: 'var(--font-mono)',
-    padding: '10px 12px',
+    padding: '0.75rem 1rem',
   },
   '.cm-scroller': { maxHeight: '32rem' },
   '.cm-cursor': { borderLeftColor: 'var(--ink)' },
@@ -225,26 +225,19 @@ onBeforeUnmount(() => {
 <template>
   <div class="md-editor">
     <div class="md-toolbar">
-      <template v-for="(group, groupIndex) in toolGroups" :key="group.key">
-        <div class="md-tools">
-          <button
-            v-for="tool in group.items"
-            :key="tool.title"
-            type="button"
-            class="md-tool"
-            :title="tool.title"
-            :disabled="mode === 'preview'"
-            @click="tool.run"
-          >
-            {{ tool.label }}
-          </button>
-        </div>
-        <span
-          v-if="groupIndex < toolGroups.length - 1"
-          class="md-divider"
-          aria-hidden="true"
-        />
-      </template>
+      <div v-for="group in toolGroups" :key="group.key" class="md-tools">
+        <button
+          v-for="tool in group.items"
+          :key="tool.title"
+          type="button"
+          class="md-tool"
+          :title="tool.title"
+          :disabled="mode === 'preview'"
+          @click="tool.run"
+        >
+          {{ tool.label }}
+        </button>
+      </div>
       <div class="md-modes">
         <button
           type="button"
@@ -292,6 +285,11 @@ onBeforeUnmount(() => {
 <style scoped>
 .md-editor {
   --md-min-height: v-bind(minHeight);
+  background: var(--bg-raised);
+  border: var(--bw-sm) solid var(--border);
+  border-radius: var(--br-12);
+  box-shadow: 0 2px 10px rgba(26, 25, 24, 0.07);
+  overflow: hidden;
 }
 
 .md-pane {
@@ -307,12 +305,18 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 0.5rem;
+  background: var(--gray-050);
+  padding: 0.55rem 0.75rem;
+  border-bottom: var(--bw-hair) solid var(--gray-150);
+  margin-bottom: 0;
 }
 
 .md-tools {
   display: flex;
-  gap: 0.25rem;
+  gap: 3px;
+  background: var(--gray-150);
+  padding: 3px;
+  border-radius: var(--br-8);
 }
 
 .md-tool {
@@ -320,64 +324,67 @@ onBeforeUnmount(() => {
   font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--ink);
-  background: var(--bg-sunken);
-  border: var(--bw-sm) solid var(--border);
+  background: transparent;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
 }
 
-.md-tool:hover {
-  background: var(--gray-200);
+.md-tool:hover:not(:disabled) {
+  background: var(--bg-raised);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
-.md-divider {
-  width: 1px;
-  height: 1.1rem;
-  background: var(--border-strong);
+.md-tool:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .md-modes {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 3px;
   margin-left: auto;
+  background: var(--gray-150);
+  padding: 3px;
+  border-radius: var(--br-8);
 }
 
 .md-mode {
-  padding: 0.25rem 0.65rem;
+  padding: 0.25rem 0.75rem;
   font-size: 0.8125rem;
   color: var(--ink-muted);
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
 }
 
-.md-mode:first-child {
-  border-radius: 6px 0 0 6px;
-}
-
-.md-mode:last-child {
-  border-radius: 0 6px 6px 0;
-}
-
 .md-mode.active {
-  color: var(--ink-inverse);
   background: var(--accent);
-  border-color: var(--accent);
+  color: var(--gray-000);
+  box-shadow: 0 1px 2px rgba(217, 119, 87, 0.4);
 }
 
 .md-sync {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  margin-left: 0.55rem;
+  gap: 0.35rem;
+  margin-left: 0.35rem;
   font-size: 0.8125rem;
   color: var(--ink-muted);
+  background: var(--bg-raised);
+  border: var(--bw-sm) solid var(--border);
+  border-radius: var(--br-8);
+  padding: 0.25rem 0.65rem;
 }
 
 .md-panes {
   display: flex;
-  gap: 0.75rem;
+}
+
+.md-panes.mode-split .md-edit {
+  border-right: var(--bw-hair) solid var(--gray-150);
 }
 
 .md-pane {
@@ -388,12 +395,17 @@ onBeforeUnmount(() => {
 .md-preview {
   max-height: 32rem;
   overflow: auto;
-  padding: 0.25rem 0.5rem;
+  padding: 0.75rem 1rem;
 }
 
 @media (max-width: 768px) {
   .md-panes {
     flex-direction: column;
+  }
+
+  .md-panes.mode-split .md-edit {
+    border-right: none;
+    border-bottom: var(--bw-hair) solid var(--gray-150);
   }
 }
 </style>
