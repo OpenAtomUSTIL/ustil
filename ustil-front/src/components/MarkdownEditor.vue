@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, drawSelection, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
+import { renderMarkdown } from '@/utils/markdown'
 
 const props = withDefaults(
   defineProps<{
@@ -16,8 +17,35 @@ const props = withDefaults(
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
+type Mode = 'edit' | 'preview' | 'split'
+const mode = ref<Mode>('split')
+const syncScroll = ref(true)
+const previewEl = ref<HTMLElement | null>(null)
+
+const previewHtml = computed(() => renderMarkdown(props.modelValue))
+
+function syncFrom(src: HTMLElement, dest: HTMLElement): void {
+  if (syncing || !syncScroll.value || mode.value !== 'split') return
+  syncing = true
+  const max = src.scrollHeight - src.clientHeight
+  const ratio = max > 0 ? src.scrollTop / max : 0
+  dest.scrollTop = ratio * (dest.scrollHeight - dest.clientHeight)
+  requestAnimationFrame(() => {
+    syncing = false
+  })
+}
+
+function onEditorScroll(): void {
+  if (view && previewEl.value) syncFrom(view.scrollDOM, previewEl.value)
+}
+
+function onPreviewScroll(): void {
+  if (view && previewEl.value) syncFrom(previewEl.value, view.scrollDOM)
+}
+
 const host = ref<HTMLElement | null>(null)
 let view: EditorView | null = null
+let syncing = false
 
 const theme = EditorView.theme({
   '&': {
@@ -173,6 +201,7 @@ onMounted(() => {
     state: EditorState.create({ doc: props.modelValue, extensions }),
     parent: host.value,
   })
+  view.scrollDOM.addEventListener('scroll', onEditorScroll)
 })
 
 watch(
@@ -185,6 +214,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  view?.scrollDOM.removeEventListener('scroll', onEditorScroll)
   view?.destroy()
   view = null
 })
@@ -201,6 +231,7 @@ onBeforeUnmount(() => {
             type="button"
             class="md-tool"
             :title="tool.title"
+            :disabled="mode === 'preview'"
             @click="tool.run"
           >
             {{ tool.label }}
@@ -212,8 +243,47 @@ onBeforeUnmount(() => {
           aria-hidden="true"
         />
       </template>
+      <div class="md-modes">
+        <button
+          type="button"
+          class="md-mode"
+          :class="{ active: mode === 'edit' }"
+          @click="mode = 'edit'"
+        >
+          仅编辑
+        </button>
+        <button
+          type="button"
+          class="md-mode"
+          :class="{ active: mode === 'preview' }"
+          @click="mode = 'preview'"
+        >
+          仅预览
+        </button>
+        <button
+          type="button"
+          class="md-mode"
+          :class="{ active: mode === 'split' }"
+          @click="mode = 'split'"
+        >
+          分栏
+        </button>
+        <label v-if="mode === 'split'" class="md-sync">
+          <input v-model="syncScroll" type="checkbox">
+          同步滚动
+        </label>
+      </div>
     </div>
-    <div ref="host" class="md-pane md-edit" />
+    <div class="md-panes" :class="`mode-${mode}`">
+      <div v-show="mode !== 'preview'" ref="host" class="md-pane md-edit" />
+      <div
+        v-show="mode !== 'edit'"
+        ref="previewEl"
+        class="md-pane md-preview md-body"
+        @scroll="onPreviewScroll"
+        v-html="previewHtml"
+      />
+    </div>
   </div>
 </template>
 
@@ -262,5 +332,66 @@ onBeforeUnmount(() => {
   width: 1px;
   height: 1.1rem;
   background: var(--border-strong);
+}
+
+.md-modes {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.md-mode {
+  padding: 0.25rem 0.65rem;
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+  background: var(--bg-raised);
+  border: var(--bw-sm) solid var(--border);
+  cursor: pointer;
+}
+
+.md-mode:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.md-mode:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.md-mode.active {
+  color: var(--ink-inverse);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.md-sync {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: 0.55rem;
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+}
+
+.md-panes {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.md-pane {
+  flex: 1;
+  min-width: 0;
+}
+
+.md-preview {
+  max-height: 32rem;
+  overflow: auto;
+  padding: 0.25rem 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .md-panes {
+    flex-direction: column;
+  }
 }
 </style>
