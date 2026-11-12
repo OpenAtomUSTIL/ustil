@@ -164,3 +164,6 @@ Thumbs.db:encryptable
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# ===== Compose 可视化伴侣产物 =====
+.compose/
