@@ -128,3 +128,50 @@
   --ink-muted: var(--gray-400);
   --border: rgba(227, 218, 204, 0.18);
 }
+
+/* ============ 深色模式（data-theme 由 utils/theme.ts 设置，默认跟随系统） ============
+   只重映射灰阶与强调色：语义别名（bg/ink/border）经 var() 晚绑定自动跟随。
+   暗面灰阶：低号=深色表面（000 raised → 100 sunken），高号=浅色文字（500 faint → 950 ink）。 */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --gray-000: #2c2b28;
+  --gray-050: #232220;
+  --gray-100: #1b1a18;
+  --gray-150: #21201e;
+  --gray-200: #353430;
+  --gray-250: #3d3c38;
+  --gray-300: #474642;
+  --gray-350: #565550;
+  --gray-400: #676662;
+  --gray-450: #7b7a75;
+  --gray-500: #94928c;
+  --gray-550: #a6a49e;
+  --gray-600: #b6b4ae;
+  --gray-700: #c7c5bf;
+  --gray-750: #d4d2cc;
+  --gray-800: #e0ded8;
+  --gray-900: #eceae4;
+  --gray-950: #faf9f5;
+
+  --clay: #e0825f;
+  --clay-hover: #ea9273;
+  --clay-dark: #e08a6c;
+  --clay-soft: #5a4438;
+  --cactus: #7fa89b;
+  --mineral: #7fb8a4;
+  --heather: #8f8db3;
+  --plum: #a49fd8;
+  --sky: #86b0dd;
+  --error: #e0655a;
+  --ok: #6aa5f0;
+  --line-warm: rgba(227, 218, 204, 0.16);
+}
+
+/* 深色下反色区块改为略深于页面的暗带，避免翻白断层 */
+[data-theme='dark'] .theme-inverse {
+  --bg-page: var(--gray-100);
+  --ink: var(--gray-950);
+  --ink-muted: var(--gray-500);
+  --border: rgba(227, 218, 204, 0.14);
+}

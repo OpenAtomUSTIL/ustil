@@ -42,6 +42,8 @@ import type {
   Page,
   PageQuery,
   PasswordChangeRequest,
+  PinnedItem,
+  ProfileReplyItem,
   RegisterRequest,
   RequestLogItem,
   ResourceItem,
@@ -247,10 +249,13 @@ export const usersApi = {
   /** 个人主页（含统计/标签/置顶） */
   getProfile: (id: string) => request<UserProfile>(`/users/${id}/profile`),
   /** 更新个人主页（bio/readme/置顶） */
-  updateProfilePage: (payload: { bio?: string | null; profileReadme?: string | null; pinnedItems?: { type: string; id: string }[] }) =>
+  updateProfilePage: (payload: { bio?: string | null; profileReadme?: string | null; pinnedItems?: Pick<PinnedItem, 'type' | 'id'>[] }) =>
     request<void>('/users/me/profile-page', { method: 'PUT', body: payload }),
   /** 活跃热力图 */
   getActivity: (id: string) => request<ActivityView>(`/users/${id}/activity`),
+  /** 个人主页 · 回复 Tab */
+  getReplies: (id: string, query: PageQuery) =>
+    request<Page<ProfileReplyItem>>(`/users/${id}/replies`, { query }),
   updateMe: (payload: UpdateProfileRequest) =>
     request<UserSelf>('/users/me', { method: 'PATCH', body: payload }),
   updateIdentifier: (payload: UpdateIdentifierRequest) =>
@@ -317,8 +322,8 @@ export const assignmentsApi = {
 }
 
 export const issuesApi = {
-  /** tag 可选：按标签过滤 */
-  list: (query: PageQuery & { status?: IssueStatus; keyword?: string; tag?: string }) =>
+  /** tag 可选：按标签过滤；authorId 可选：按作者过滤（个人主页讨论 Tab） */
+  list: (query: PageQuery & { status?: IssueStatus; keyword?: string; tag?: string; authorId?: string }) =>
     request<Page<IssueListItem>>('/issues', { query }),
   get: (id: string) => request<IssueDetail>(`/issues/${id}`),
   create: (payload: CreateIssueRequest) => request<void>('/issues', { method: 'POST', body: payload }),
@@ -406,7 +411,8 @@ export const notificationsApi = {
 }
 
 export const resourcesApi = {
-  list: (query: PageQuery & { category?: string; keyword?: string; tag?: string }) =>
+  /** creatorId 可选：按创建者过滤（个人主页资源 Tab） */
+  list: (query: PageQuery & { category?: string; keyword?: string; tag?: string; creatorId?: string }) =>
     request<Page<ResourceItem>>('/resources', { query }),
   get: (id: string) => request<ResourceItem>(`/resources/${id}`),
   create: (payload: ResourceWriteRequest) =>

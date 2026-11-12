@@ -97,4 +97,43 @@ describe('renderMarkdown', () => {
     expect(secondHalf?.textContent).toBe('   第二行 */')
     expect(doc.querySelector('pre code')?.textContent).toBe('/* 多行注释\n   第二行 */\nconst x = 1')
   })
+
+  it('纯图段落标记图行，多图行标记 multi 并保留 align', () => {
+    const html = renderMarkdown(
+      '<p align="center"><img src="https://x/a.png" alt="a"> <img src="https://x/b.png" alt="b"></p>',
+    )
+    expect(html).toContain('align="center"')
+    expect(html).toContain('md-img-row')
+    expect(html).toContain('md-img-row-multi')
+  })
+
+  it('单图行只标记图行，图文混排不标记', () => {
+    const single = renderMarkdown('<p><img src="https://x/a.png" alt="a"></p>')
+    expect(single).toContain('md-img-row')
+    expect(single).not.toContain('md-img-row-multi')
+
+    const mixed = renderMarkdown('文字 <img src="https://x/a.png" alt="a"> 文字')
+    expect(mixed).not.toContain('md-img-row')
+  })
+
+  it('包图链接与 md 图片语法同样标记图行', () => {
+    const linked = renderMarkdown(
+      '<p><a href="https://x"><img src="https://x/a.png" alt="a"></a> <a href="https://y"><img src="https://x/b.png" alt="b"></a></p>',
+    )
+    expect(linked).toContain('md-img-row-multi')
+
+    const mdImgs = renderMarkdown('![a](https://x/a.png) ![b](https://x/b.png)')
+    expect(mdImgs).toContain('md-img-row-multi')
+  })
+
+  it('预览模式去掉链接与复制按钮，保留文字与图片', () => {
+    const html = renderMarkdown('[链接](https://example.com) 与 ![](https://x/a.png)', { preview: true })
+    expect(html).toContain('链接')
+    expect(html).toContain('<img')
+    expect(html).not.toContain('example.com')
+    expect(html).not.toMatch(/<a\b/)
+
+    const code = renderMarkdown('```\nx\n```', { preview: true })
+    expect(code).not.toContain('md-copy')
+  })
 })

@@ -1,9 +1,50 @@
 import { Injectable } from '@nestjs/common';
-import { and, desc, eq, gte, ilike, inArray, like, lt, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, inArray, isNull, like, lt, ne, or, sql } from 'drizzle-orm';
 import { db, Database } from '../../db';
-import { UserStatus, users } from '../../db/schema';
+import {
+  articles,
+  assignmentSubmissions,
+  issueReplies,
+  issues,
+  resources,
+  taggings,
+  tags,
+  UserStatus,
+  users,
+} from '../../db/schema';
 
 export type UserRow = typeof users.$inferSelect;
+
+export type PinnedItemType = 'ARTICLE' | 'ISSUE' | 'RESOURCE';
+
+export interface PinnedTarget {
+  type: PinnedItemType;
+  id: string;
+  title: string;
+  url?: string;
+  ownerId: string;
+}
+
+export interface ActivityDayCount {
+  date: string;
+  count: number;
+}
+
+export interface ActivityParts {
+  articles: ActivityDayCount[];
+  issues: ActivityDayCount[];
+  replies: ActivityDayCount[];
+  submissions: ActivityDayCount[];
+  resources: ActivityDayCount[];
+}
+
+export interface ProfileReplyRow {
+  id: string;
+  issueId: string;
+  issueTitle: string;
+  content: string;
+  createdAt: Date;
+}
 
 @Injectable()
 export class UsersRepository {
@@ -336,19 +377,13 @@ export class UsersRepository {
     replies: number;
     submissions: number;
   }> {
-    const { articles } = await import('../../db/schema/articles');
-    const { issues } = await import('../../db/schema/issues');
-    const { issueReplies } = await import('../../db/schema/issue_replies');
-    const { assignmentSubmissions } = await import('../../db/schema/assignment_submissions');
-    const { isNull, and, eq } = await import('drizzle-orm');
-
     const [articleCount, issueCount, replyCount, submissionCount] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(articles)
         .where(and(eq(articles.authorId, userId), isNull(articles.deletedAt), eq(articles.status, 'PUBLISHED'))),
       db.select({ count: sql<number>`count(*)::int` }).from(issues)
         .where(eq(issues.authorId, userId)),
       db.select({ count: sql<number>`count(*)::int` }).from(issueReplies)
-        .where(eq(issueReplies.authorId, userId)),
+        .where(and(eq(issueReplies.authorId, userId), isNull(issueReplies.deletedAt))),
       db.select({ count: sql<number>`count(*)::int` }).from(assignmentSubmissions)
         .where(eq(assignmentSubmissions.submitterId, userId)),
     ]);
@@ -362,12 +397,6 @@ export class UsersRepository {
   }
 
   async getProfileTopTags(userId: string, limit = 10): Promise<{ name: string; count: number }[]> {
-    const { taggings, tags } = await import('../../db/schema/tags');
-    const { articles } = await import('../../db/schema/articles');
-    const { issues } = await import('../../db/schema/issues');
-    const { resources } = await import('../../db/schema/resources');
-    const { isNull } = await import('drizzle-orm');
-
     const articleIds = db.select({ id: articles.id }).from(articles)
       .where(and(eq(articles.authorId, userId), isNull(articles.deletedAt), eq(articles.status, 'PUBLISHED')));
     const issueIds = db.select({ id: issues.id }).from(issues).where(eq(issues.authorId, userId));
@@ -414,67 +443,115 @@ export class UsersRepository {
       .slice(0, limit);
   }
 
-  async getActivityDays(userId: string, since: Date): Promise<{ date: string; count: number }[]> {
-    const { articles } = await import('../../db/schema/articles');
-    const { issues } = await import('../../db/schema/issues');
-    const { issueReplies } = await import('../../db/schema/issue_replies');
-    const { assignmentSubmissions } = await import('../../db/schema/assignment_submissions');
-    const { resources } = await import('../../db/schema/resources');
-    const { isNull } = await import('drizzle-orm');
-
-    const dateTrunc = sql<string>`to_char(${articles.createdAt}, 'YYYY-MM-DD')`;
-    const dateTruncIssue = sql<string>`to_char(${issues.createdAt}, 'YYYY-MM-DD')`;
-    const dateTruncReply = sql<string>`to_char(${issueReplies.createdAt}, 'YYYY-MM-DD')`;
-    const dateTruncSub = sql<string>`to_char(${assignmentSubmissions.createdAt}, 'YYYY-MM-DD')`;
-    const dateTruncRes = sql<string>`to_char(${resources.createdAt}, 'YYYY-MM-DD')`;
+  /** 五类事件按 UTC 日聚合（软删不计），按类型分开返回，合并口径在 service 层 */
+  async getActivityParts(userId: string, since: Date): Promise<ActivityParts> {
+    const articleDay = sql<string>`to_char(${articles.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
+    const issueDay = sql<string>`to_char(${issues.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
+    const replyDay = sql<string>`to_char(${issueReplies.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
+    const subDay = sql<string>`to_char(${assignmentSubmissions.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
+    const resDay = sql<string>`to_char(${resources.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`;
 
     const [articleDays, issueDays, replyDays, subDays, resDays] = await Promise.all([
-      db.select({ date: dateTrunc, count: sql<number>`count(*)::int` })
+      db.select({ date: articleDay, count: sql<number>`count(*)::int` })
         .from(articles)
         .where(and(eq(articles.authorId, userId), isNull(articles.deletedAt), gte(articles.createdAt, since)))
-        .groupBy(dateTrunc),
-      db.select({ date: dateTruncIssue, count: sql<number>`count(*)::int` })
+        .groupBy(articleDay),
+      db.select({ date: issueDay, count: sql<number>`count(*)::int` })
         .from(issues)
         .where(and(eq(issues.authorId, userId), gte(issues.createdAt, since)))
-        .groupBy(dateTruncIssue),
-      db.select({ date: dateTruncReply, count: sql<number>`count(*)::int` })
+        .groupBy(issueDay),
+      db.select({ date: replyDay, count: sql<number>`count(*)::int` })
         .from(issueReplies)
-        .where(and(eq(issueReplies.authorId, userId), gte(issueReplies.createdAt, since)))
-        .groupBy(dateTruncReply),
-      db.select({ date: dateTruncSub, count: sql<number>`count(*)::int` })
+        .where(and(eq(issueReplies.authorId, userId), isNull(issueReplies.deletedAt), gte(issueReplies.createdAt, since)))
+        .groupBy(replyDay),
+      db.select({ date: subDay, count: sql<number>`count(*)::int` })
         .from(assignmentSubmissions)
         .where(and(eq(assignmentSubmissions.submitterId, userId), gte(assignmentSubmissions.createdAt, since)))
-        .groupBy(dateTruncSub),
-      db.select({ date: dateTruncRes, count: sql<number>`count(*)::int` })
+        .groupBy(subDay),
+      db.select({ date: resDay, count: sql<number>`count(*)::int` })
         .from(resources)
         .where(and(eq(resources.creatorId, userId), isNull(resources.deletedAt), gte(resources.createdAt, since)))
-        .groupBy(dateTruncRes),
+        .groupBy(resDay),
     ]);
 
-    const merged = new Map<string, number>();
-    for (const d of articleDays) {
-      const prev = merged.get(d.date) || 0;
-      merged.set(d.date, prev + d.count);
-    }
-    for (const d of issueDays) {
-      const prev = merged.get(d.date) || 0;
-      merged.set(d.date, prev + d.count);
-    }
-    for (const d of replyDays) {
-      const prev = merged.get(d.date) || 0;
-      merged.set(d.date, prev + d.count);
-    }
-    for (const d of subDays) {
-      const prev = merged.get(d.date) || 0;
-      merged.set(d.date, prev + d.count);
-    }
-    for (const d of resDays) {
-      const prev = merged.get(d.date) || 0;
-      merged.set(d.date, prev + d.count);
+    return {
+      articles: articleDays,
+      issues: issueDays,
+      replies: replyDays,
+      submissions: subDays,
+      resources: resDays,
+    };
+  }
+
+  /** 置顶目标解析：仅返回存在且未软删的目标（含归属），软删目标静默跳过 */
+  async findPinnedTargets(items: { type: string; id: string }[]): Promise<PinnedTarget[]> {
+    const result: PinnedTarget[] = [];
+    const idsByType = new Map<PinnedItemType, string[]>();
+    for (const item of items) {
+      if (item.type !== 'ARTICLE' && item.type !== 'ISSUE' && item.type !== 'RESOURCE') continue;
+      const list = idsByType.get(item.type) ?? [];
+      list.push(item.id);
+      idsByType.set(item.type, list);
     }
 
-    return [...merged.entries()]
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const articleIds = idsByType.get('ARTICLE') ?? [];
+    if (articleIds.length > 0) {
+      const rows = await db
+        .select({ id: articles.id, title: articles.title, ownerId: articles.authorId })
+        .from(articles)
+        .where(and(inArray(articles.id, articleIds), isNull(articles.deletedAt)));
+      for (const r of rows) {
+        result.push({ type: 'ARTICLE', id: r.id, title: r.title, ownerId: r.ownerId });
+      }
+    }
+
+    const issueIds = idsByType.get('ISSUE') ?? [];
+    if (issueIds.length > 0) {
+      const rows = await db
+        .select({ id: issues.id, title: issues.title, ownerId: issues.authorId })
+        .from(issues)
+        .where(inArray(issues.id, issueIds));
+      for (const r of rows) {
+        result.push({ type: 'ISSUE', id: r.id, title: r.title, ownerId: r.ownerId });
+      }
+    }
+
+    const resourceIds = idsByType.get('RESOURCE') ?? [];
+    if (resourceIds.length > 0) {
+      const rows = await db
+        .select({ id: resources.id, title: resources.title, url: resources.url, ownerId: resources.creatorId })
+        .from(resources)
+        .where(and(inArray(resources.id, resourceIds), isNull(resources.deletedAt)));
+      for (const r of rows) {
+        result.push({ type: 'RESOURCE', id: r.id, title: r.title, url: r.url, ownerId: r.ownerId });
+      }
+    }
+
+    return result;
+  }
+
+  /** 某用户的讨论回复（软删不计），带所属讨论标题，按创建时间倒序 */
+  async listRepliesByAuthor(
+    userId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ rows: ProfileReplyRow[]; total: number }> {
+    const where = and(eq(issueReplies.authorId, userId), isNull(issueReplies.deletedAt));
+    const rows = await db
+      .select({
+        id: issueReplies.id,
+        issueId: issueReplies.issueId,
+        issueTitle: issues.title,
+        content: issueReplies.content,
+        createdAt: issueReplies.createdAt,
+      })
+      .from(issueReplies)
+      .innerJoin(issues, eq(issues.id, issueReplies.issueId))
+      .where(where)
+      .orderBy(desc(issueReplies.createdAt))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    const totalRows = await db.select({ count: sql<number>`count(*)::int` }).from(issueReplies).where(where);
+    return { rows, total: totalRows[0]?.count ?? 0 };
   }
 }

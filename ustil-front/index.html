@@ -3,8 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
   <title>USTIL 开放论坛 · 开放原子校园开源社区</title>
   <meta name="description" content="开放原子 USTIL 学生开源社区的开放讨论区：提问、协作、复盘、招新。">
+  <script>
+    /* 首屏前设定主题，避免深浅色闪烁（逻辑与 utils/theme.ts 一致） */
+    (function () {
+      var theme = null
+      try { theme = localStorage.getItem('theme') } catch (e) { /* 存储不可用则跟随系统 */ }
+      document.documentElement.dataset.theme =
+        theme === 'light' || theme === 'dark'
+          ? theme
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    })()
+  </script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

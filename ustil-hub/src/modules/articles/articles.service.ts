@@ -15,6 +15,7 @@ import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 
 const EXCERPT_LENGTH = 120;
+const EXCERPT_HARD_LENGTH = 600;
 
 @Injectable()
 export class ArticlesService {
@@ -25,10 +26,40 @@ export class ArticlesService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
+  /** 列表卡片渲染预览：按块截取；HTML/代码块保整避免截断半个标签；残缺尾标签剔除 */
   private excerpt(content: string): string {
-    return content.length > EXCERPT_LENGTH
-      ? `${content.slice(0, EXCERPT_LENGTH)}…`
-      : content;
+    const full = content.trim();
+    const blocks = full.split(/\n{2,}/);
+    const picked: string[] = [];
+    let textLength = 0;
+    let truncated = false;
+    for (const block of blocks) {
+      const trimmed = block.trim();
+      if (!trimmed) continue;
+      if (trimmed.startsWith('<') || trimmed.startsWith('```')) {
+        picked.push(trimmed);
+        continue;
+      }
+      const room = EXCERPT_LENGTH - textLength;
+      if (room <= 0) {
+        truncated = true;
+        break;
+      }
+      if (trimmed.length > room) {
+        picked.push(trimmed.slice(0, room));
+        truncated = true;
+        break;
+      }
+      picked.push(trimmed);
+      textLength += trimmed.length;
+    }
+    let text = picked.join('\n\n');
+    if (text.length > EXCERPT_HARD_LENGTH) {
+      text = text.slice(0, EXCERPT_HARD_LENGTH);
+      truncated = true;
+    }
+    text = text.replace(/<\/?[a-zA-Z][^>]*$/, '');
+    return truncated ? `${text}…` : text;
   }
 
   private toListItem(row: ArticleRow, author: UserPublic, tags: string[]): ArticleListItem {

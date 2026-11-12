@@ -4,6 +4,7 @@ const route: RouteRecordRaw = {
   path: '/articles',
   name: 'articles',
   component: () => import('@/views/article/ArticlesView.vue'),
+  meta: { requiresAuth: true },
 }
 
 export default route

@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { useUiStore } from '@/stores/ui'
 
 const year = new Date().getFullYear()
 const router = useRouter()
 const auth = useAuthStore()
-const ui = useUiStore()
 
 function openProfile(): void {
   if (auth.isLoggedIn) {
-    ui.openProfile()
+    void router.push({ name: 'user-profile', params: { id: auth.user?.id } })
     return
   }
   void router.push({ name: 'login', query: { redirect: '/profile' } })
@@ -33,7 +31,7 @@ function openProfile(): void {
           </RouterLink>
           <p>由学生自主运营的开源社区。所有讨论公开可溯，所有代码开源可复用 —— 包括你正在看的这个页面。</p>
         </div>
-        <div class="footer-col">
+        <div v-if="auth.isLoggedIn" class="footer-col">
           <h4>社区</h4>
           <RouterLink :to="{ name: 'home' }">首页</RouterLink>
           <RouterLink :to="{ name: 'articles' }">文章</RouterLink>

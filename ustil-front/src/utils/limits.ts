@@ -2,6 +2,8 @@
    全站表单的 maxlength / minlength 与提交前 JS 校验共用这些常量。 */
 
 export const NICKNAME_MAX = 50
+export const BIO_MAX = 100
+export const README_MAX = 10000
 export const TITLE_MAX = 200
 export const PASSWORD_MIN = 8
 export const PASSWORD_MAX = 128

@@ -72,7 +72,7 @@ const PURIFY_CONFIG = {
   ADD_ATTR: [
     'encoding', 'displaystyle', 'mathvariant', 'stretchy', 'fence', 'separator',
     'accent', 'accentunder', 'scriptlevel', 'display', 'linethickness', 'lspace',
-    'rspace', 'voffset', 'width', 'height', 'depth',
+    'rspace', 'voffset', 'width', 'height', 'depth', 'align',
   ],
 }
 
@@ -130,10 +130,57 @@ function enhanceCodeBlocks(html: string): string {
   })
 }
 
-export function renderMarkdown(source: string): string {
+/** 预览模式去掉链接与复制按钮（列表卡片可嵌在 RouterLink 内），纯图段落标记为图行便于并排布局 */
+function processHtml(html: string, preview: boolean): string {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+  if (preview) {
+    for (const anchor of Array.from(doc.body.querySelectorAll('a'))) {
+      const parent = anchor.parentNode
+      if (!parent) continue
+      while (anchor.firstChild) parent.insertBefore(anchor.firstChild, anchor)
+      parent.removeChild(anchor)
+    }
+    for (const button of Array.from(doc.body.querySelectorAll('button.md-copy'))) {
+      button.remove()
+    }
+  }
+  for (const el of Array.from(doc.body.querySelectorAll('p, div'))) {
+    let imageCount = 0
+    let onlyImages = true
+    for (const node of Array.from(el.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        if (node.textContent?.trim()) {
+          onlyImages = false
+          break
+        }
+        continue
+      }
+      const element = node as Element
+      const isImage = element.nodeName === 'IMG'
+      const isImageLink =
+        element.nodeName === 'A' &&
+        element.children.length === 1 &&
+        element.children[0].nodeName === 'IMG'
+      if (!isImage && !isImageLink) {
+        onlyImages = false
+        break
+      }
+      imageCount += 1
+    }
+    if (!onlyImages || imageCount === 0) continue
+    el.classList.add('md-img-row')
+    if (imageCount >= 2) el.classList.add('md-img-row-multi')
+  }
+  return doc.body.innerHTML
+}
+
+export function renderMarkdown(source: string, options: { preview?: boolean } = {}): string {
   try {
     const raw = marked.parse(source, { async: false })
-    return DOMPurify.sanitize(enhanceCodeBlocks(raw), PURIFY_CONFIG)
+    return processHtml(
+      DOMPurify.sanitize(enhanceCodeBlocks(raw), PURIFY_CONFIG),
+      options.preview ?? false,
+    )
   } catch {
     return source
       .replace(/&/g, '&amp;')

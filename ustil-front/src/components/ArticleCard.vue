@@ -2,6 +2,7 @@
 import type { ArticleListItem } from '@/api/types'
 import { timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
+import MarkdownBody from '@/components/MarkdownBody.vue'
 import TagsChips from '@/components/TagsChips.vue'
 
 defineProps<{ article: ArticleListItem }>()
@@ -13,7 +14,7 @@ defineProps<{ article: ArticleListItem }>()
       <span class="tag tag-cat" data-tone="clay">文章</span>
     </div>
     <h3>{{ article.title }}</h3>
-    <p class="tc-excerpt">{{ article.excerpt }}</p>
+    <MarkdownBody class="tc-preview" :content="article.excerpt" preview />
     <TagsChips v-if="article.tags.length > 0" class="card-tags" :tags="article.tags" target="articles" />
     <div class="tc-meta">
       <span class="who">

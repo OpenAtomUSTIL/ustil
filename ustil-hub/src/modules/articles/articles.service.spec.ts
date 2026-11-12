@@ -161,6 +161,39 @@ describe('ArticlesService', () => {
     });
   });
 
+  it('摘要按块截取：HTML 块保整、文本块按长度截断、纯文本不加省略号', async () => {
+    const longText = '文'.repeat(200);
+    articlesRepository.list.mockResolvedValue({
+      rows: [
+        row({ content: `<div align="center"><img src="https://x/banner.png"></div>\n\n${longText}` }),
+        row({ content: 'a < b 与 c' }),
+      ],
+      total: 2,
+    });
+    tagsService.findTargetIds.mockResolvedValue(undefined);
+
+    const result = await service.list({ page: 1, pageSize: 20 });
+
+    const [first, second] = result.items;
+    expect(first.excerpt.startsWith('<div align="center"><img src="https://x/banner.png"></div>')).toBe(true);
+    expect(first.excerpt.endsWith('…')).toBe(true);
+    expect(second.excerpt).toBe('a < b 与 c');
+  });
+
+  it('摘要不残留半截 HTML 标签', async () => {
+    articlesRepository.list.mockResolvedValue({
+      rows: [row({ content: `${'文'.repeat(110)}<img src="https://x/a.png">尾巴` })],
+      total: 1,
+    });
+    tagsService.findTargetIds.mockResolvedValue(undefined);
+
+    const result = await service.list({ page: 1, pageSize: 20 });
+
+    const excerpt = result.items[0].excerpt;
+    expect(excerpt).not.toContain('<img');
+    expect(excerpt.endsWith('…')).toBe(true);
+  });
+
   it('WHEEL 创建文章成功', async () => {
     articlesRepository.insert.mockResolvedValue(row());
     articlesRepository.findById.mockResolvedValue(row());

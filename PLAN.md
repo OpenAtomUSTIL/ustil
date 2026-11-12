@@ -119,7 +119,7 @@
 ### P1 ｜ 个人中心优化
 
 > 设计定稿 2026-11-12（浏览器探讨选定方案 A：GitHub 式双栏）：完整设计见 docs/compose/specs/2026-11-12-profile-homepage-design.md
-> 实现 2026-11-12：users 加 bio/profile_readme/pinned_items（迁移 0013）；GET /users/:id/profile + PUT /users/me/profile-page + GET /users/:id/activity；前端 UserProfileView 双栏（资料卡+README/置顶/热力图/内容Tab）
+> 实现 2026-11-12：users 加 bio/profile_readme/pinned_items（迁移 0013）；GET /users/:id/profile + PUT /users/me/profile-page + GET /users/:id/activity + GET /users/:id/replies（回复 Tab）；前端 UserProfileView 双栏（资料卡+README/置顶/热力图/内容 Tab 文章|讨论|回复|资源）；改密/换绑/邀请码转正收进主页「设置」区并移除抽屉/ui store；迁移 0012/0013 已补登记 drizzle journal（此前 db:migrate 不会应用这两步）
 
 - [x] 个人中心独立界面为个人主页 ｜ /users/:id 独立页取代抽屉（抽屉移除）；/profile 重定向到自己主页；改密/换绑/邀请码转正收进主页「设置」区，行为不变
 - [x] 允许查看其他人的个人主页 ｜ MEMBER+ 互访可见公开资料；VISITOR 仅能看自己（访他人 403）；联系方式与编辑/设置区仅本人可见

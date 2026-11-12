@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import { renderMarkdown } from '@/utils/markdown'
 
-const props = defineProps<{ content: string }>()
+const props = defineProps<{ content: string; preview?: boolean }>()
 
-const html = computed(() => renderMarkdown(props.content))
+const html = computed(() => renderMarkdown(props.content, { preview: props.preview ?? false }))
 
 const resetTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>()
 

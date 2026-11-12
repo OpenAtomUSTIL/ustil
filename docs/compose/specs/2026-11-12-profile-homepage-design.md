@@ -24,7 +24,7 @@
 
 ## [S3] 数据模型与后端接口
 
-迁移 0011：
+迁移 0013：
 
 - `users` 加列：`bio` varchar(100) 可空、`profile_readme` text 可空、`pinned_items` jsonb（数组元素 `{type: 'ARTICLE'|'ISSUE'|'RESOURCE', id: uuid}`）。
 - `pinned_items` 由 service 校验：≤6 项、目标存在且属于本人、去重；**数组顺序即展示顺序**；软删目标不展示（恢复后重现）。不建独立 pin 表（单用户少量条目，jsonb 足够，避免多态 FK）。

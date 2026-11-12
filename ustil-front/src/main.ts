@@ -6,8 +6,11 @@ import App from '@/App.vue'
 import router from '@/router'
 import { setSessionRestoredHandler, setUnauthorizedHandler } from '@/api/error'
 import { useAuthStore } from '@/stores/auth'
+import { initTheme } from '@/utils/theme'
 import '@/styles/tokens.css'
 import '@/styles/app.css'
+
+initTheme()
 
 const app = createApp(App)
 const pinia = createPinia()

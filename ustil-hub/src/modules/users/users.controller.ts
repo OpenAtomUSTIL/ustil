@@ -6,11 +6,13 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { CurrentUser, CurrentAuthUser } from '../../common/decorators/current-user.decorator';
 import { Roles, Role } from '../../common/decorators/roles.decorator';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { fileUploadInterceptor } from '../../common/interceptors/file-upload.interceptor';
 import { uuidParamPipe } from '../../common/pipes/uuid-param.pipe';
 import { UploadedFileInput } from '../storage/uploads.service';
@@ -84,5 +86,14 @@ export class UsersController {
     @CurrentUser() user: CurrentAuthUser,
   ) {
     return this.usersService.getActivity(id, user);
+  }
+
+  @Get(':id/replies')
+  getReplies(
+    @Param('id', uuidParamPipe) id: string,
+    @Query() query: PaginationQueryDto,
+    @CurrentUser() user: CurrentAuthUser,
+  ) {
+    return this.usersService.getReplies(id, user, query.page, query.pageSize);
   }
 }

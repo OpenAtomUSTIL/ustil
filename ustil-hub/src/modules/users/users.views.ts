@@ -98,7 +98,7 @@ export interface UserProfileView {
     submissions: number;
   };
   topTags: { name: string; count: number }[];
-  pinnedItems: { type: string; id: string; title: string }[];
+  pinnedItems: { type: string; id: string; title: string; url?: string }[];
   isSelf: boolean;
   email?: string;
   phone?: string;
@@ -107,4 +107,13 @@ export interface UserProfileView {
 /** 活跃热力图数据 */
 export interface ActivityView {
   days: { date: string; count: number }[];
+}
+
+/** 个人主页 · 回复 Tab 列表项 */
+export interface ProfileReplyView {
+  id: string;
+  issueId: string;
+  issueTitle: string;
+  content: string;
+  createdAt: string;
 }

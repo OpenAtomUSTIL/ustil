@@ -6,6 +6,7 @@ import { adminApi } from '@/api/request'
 import type { ArticleListItem, Page } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import MarkdownBody from '@/components/MarkdownBody.vue'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime, roleLabel } from '@/utils/format'
 
@@ -104,7 +105,7 @@ onMounted(load)
           <h3>{{ item.title }}</h3>
           <span class="rc-author">{{ item.author.nickname }}（{{ roleLabel(item.author.role) }}）</span>
         </div>
-        <p class="rc-excerpt">{{ item.excerpt }}</p>
+        <MarkdownBody class="tc-preview" :content="item.excerpt" preview />
         <div class="rc-meta">
           <span>创建于 {{ formatDateTime(item.createdAt) }}</span>
           <span v-if="item.tags.length > 0" class="rc-tags">{{ item.tags.join(' · ') }}</span>
@@ -171,12 +172,6 @@ onMounted(load)
 .rc-author {
   font-size: 0.85rem;
   color: var(--text-muted, #888);
-}
-.rc-excerpt {
-  margin: 0.5rem 0;
-  color: var(--text-secondary, #666);
-  font-size: 0.9rem;
-  line-height: 1.5;
 }
 .rc-meta {
   display: flex;

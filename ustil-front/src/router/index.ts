@@ -3,7 +3,7 @@
    _admin.<name>.ts           — 管理后台子路由（布局与角色守卫在 _admin.ts）
    _authenticated.<name>.ts — meta.requiresAuth 的受保护路由
    _guest.<name>.ts         — meta.guestOnly 的游客路由（登录/注册）
-   _public.<name>.ts        — 公开路由
+   _public.<name>.ts        — 公开路由（仅 403/404 错误页；内容一律需登录）
    meta.requiresAuth：未登录跳登录页（登录后回跳 redirect）
    meta.guestOnly：已登录用户访问登录/注册页跳回首页
    meta.requiresRole：角色不匹配跳 403（仅体验优化，权限以后端为准） */
@@ -15,29 +15,29 @@ import { useAuthStore } from '@/stores/auth'
 import home from './_authenticated.home'
 import login from './_guest.login'
 import register from './_guest.register'
-import articles from './_public.articles'
+import articles from './_authenticated.articles'
 import articleNew from './_authenticated.article-new'
 import articleEdit from './_authenticated.article-edit'
 import myArticles from './_authenticated.my-articles'
-import articleDetail from './_public.article-detail'
-import assignments from './_public.assignments'
+import articleDetail from './_authenticated.article-detail'
+import assignments from './_authenticated.assignments'
 import assignmentNew from './_authenticated.assignment-new'
 import assignmentEdit from './_authenticated.assignment-edit'
-import assignmentDetail from './_public.assignment-detail'
+import assignmentDetail from './_authenticated.assignment-detail'
 import mySubmissions from './_authenticated.my-submissions'
-import issues from './_public.issues'
+import issues from './_authenticated.issues'
 import issueNew from './_authenticated.issue-new'
-import issueDetail from './_public.issue-detail'
-import announcements from './_public.announcements'
+import issueDetail from './_authenticated.issue-detail'
+import announcements from './_authenticated.announcements'
 import announcementNew from './_authenticated.announcement-new'
 import announcementEdit from './_authenticated.announcement-edit'
-import announcementDetail from './_public.announcement-detail'
-import resources from './_public.resources'
+import announcementDetail from './_authenticated.announcement-detail'
+import resources from './_authenticated.resources'
 import resourceNew from './_authenticated.resources-new'
 import resourceEdit from './_authenticated.resources-edit'
 import notifications from './_authenticated.notifications'
 import profile from './_authenticated.profile'
-import userProfile from './_public.user-profile'
+import userProfile from './_authenticated.user-profile'
 import admin from './_admin'
 import forbidden from './_public.forbidden'
 import notFound from './_public.not-found'

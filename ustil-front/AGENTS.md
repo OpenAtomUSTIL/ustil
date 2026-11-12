@@ -89,6 +89,6 @@
 - **状态管理**：Pinia（登录态唯一来源 `src/stores/auth.ts`）
 - **路由守卫**：`src/router/index.ts` 全局 `beforeEach`，`meta.requiresAuth` / `meta.guestOnly` / `meta.requiresRole` 约定，一文件一路由（`_public.*` / `_guest.*` / `_authenticated.*` / `_admin.*`）
 - **目录结构**：`src/views`（按业务模块分目录）/ `src/components` / `src/api` / `src/stores` / `src/router`
-- **页面清单与路由表**：见 `src/router/`（文章、作业、issue、个人中心侧拉抽屉、管理后台）
+- **页面清单与路由表**：见 `src/router/`（文章、作业、issue、个人主页 `/users/:id`、管理后台）
 - **Markdown 渲染方案**：前端渲染（`src/utils/markdown.ts`，marked + DOMPurify 过滤 XSS）
 - **前端仓库位置**：monorepo `ustil-front/`

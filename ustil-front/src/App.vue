@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import AppFooter from '@/components/AppFooter.vue'
 import AppHeader from '@/components/AppHeader.vue'
-import ProfileDrawer from '@/components/ProfileDrawer.vue'
 import ToastHost from '@/components/ToastHost.vue'
 </script>
 
@@ -11,6 +10,5 @@ import ToastHost from '@/components/ToastHost.vue'
     <RouterView />
   </main>
   <AppFooter />
-  <ProfileDrawer />
   <ToastHost />
 </template>

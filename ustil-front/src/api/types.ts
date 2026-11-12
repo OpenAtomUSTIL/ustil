@@ -449,6 +449,15 @@ export interface ApiRegistryItem {
   handler: string
 }
 
+/** 个人主页 · 置顶内容项（跨文章/讨论/资源，顺序即展示顺序） */
+export interface PinnedItem {
+  type: 'ARTICLE' | 'ISSUE' | 'RESOURCE'
+  id: string
+  title: string
+  /** RESOURCE 目标的外链；文章/讨论无此字段 */
+  url?: string
+}
+
 /** 个人主页视图 */
 export interface UserProfile {
   id: string
@@ -465,7 +474,7 @@ export interface UserProfile {
     submissions: number
   }
   topTags: { name: string; count: number }[]
-  pinnedItems: { type: string; id: string; title: string }[]
+  pinnedItems: PinnedItem[]
   isSelf: boolean
   email?: string
   phone?: string
@@ -479,4 +488,13 @@ export interface ActivityDay {
 
 export interface ActivityView {
   days: ActivityDay[]
+}
+
+/** 个人主页 · 回复 Tab 列表项 */
+export interface ProfileReplyItem {
+  id: string
+  issueId: string
+  issueTitle: string
+  content: string
+  createdAt: string
 }
