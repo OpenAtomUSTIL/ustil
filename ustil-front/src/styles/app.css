@@ -569,7 +569,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
   gap: 0.5rem;
 }
-.md-body .md-img-row > img, .md-body .md-img-row > a { margin: 0; }
+.md-body .md-img-row > img, .md-body .md-img-row > a, .md-body .md-img-row > picture { margin: 0; }
 .md-body .md-img-row img { height: auto; margin: 0; }
 .md-body .md-img-row-multi img { max-width: calc(50% - 0.25rem); }
 .md-body hr { border: 0; border-top: var(--bw-sm) solid var(--border); margin: 1.35rem 0; }

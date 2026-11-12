@@ -126,6 +126,58 @@ describe('renderMarkdown', () => {
     expect(mdImgs).toContain('md-img-row-multi')
   })
 
+  it('picture 徽章与普通图片混排同样标记图行', () => {
+    const html = renderMarkdown(
+      '<p><img src="https://x/a.png" alt="a"><picture><source media="(prefers-color-scheme: dark)" srcset="https://x/b-dark.png"><img src="https://x/b.png" alt="b"></picture> <img src="https://x/c.png" alt="c"></p>',
+    )
+    expect(html).toContain('md-img-row')
+    expect(html).toContain('md-img-row-multi')
+    expect(html).toContain('<picture>')
+  })
+
+  it('包 picture 的链接徽章与包图链接同样标记图行', () => {
+    const html = renderMarkdown(
+      '<p><a href="https://x"><img src="https://x/a.png" alt="a"></a> <a href="https://y"><picture><img src="https://x/b.png" alt="b"></picture></a></p>',
+    )
+    expect(html).toContain('md-img-row-multi')
+  })
+
+  it('br 分隔的图段落按行拆分为多个图行', () => {
+    const source =
+      '<p><img src="https://x/a.png" alt="a"><img src="https://x/b.png" alt="b"><br><img src="https://x/c.png" alt="c"><br><picture><img src="https://x/d.png" alt="d"></picture></p>'
+    const html = renderMarkdown(source)
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+    expect(doc.body.querySelectorAll('.md-img-row')).toHaveLength(3)
+    expect(doc.body.querySelectorAll('.md-img-row-multi')).toHaveLength(1)
+    expect(doc.body.querySelector('.md-img-row-multi img')).toBeTruthy()
+  })
+
+  it('空行分隔的整幅横幅上下堆叠不并排，各自居中成行', () => {
+    const html = renderMarkdown(
+      '<div align="center">\n\n<picture><img src="https://x/a.png" alt="header"></picture>\n\n<a href="https://x"><picture><img src="https://x/b.png" alt="typing"></picture></a>\n\n</div>',
+    )
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+    const rows = Array.from(doc.body.querySelectorAll('.md-img-row'))
+    expect(rows).toHaveLength(2)
+    expect(doc.body.querySelectorAll('.md-img-row-multi')).toHaveLength(0)
+    for (const row of rows) {
+      expect(row.querySelectorAll('img')).toHaveLength(1)
+    }
+  })
+
+  it('div 内相邻图形单元上下堆叠不并排（GitHub 横幅语义）', () => {
+    const html = renderMarkdown(
+      '<div align="center">\n\n<picture>\n<img src="https://x/a.png" alt="header">\n</picture>\n\n<a href="https://x">\n<picture>\n<img src="https://x/b.png" alt="typing">\n</picture>\n</a>\n\n</div>',
+    )
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+    const rows = Array.from(doc.body.querySelectorAll('.md-img-row'))
+    expect(rows).toHaveLength(2)
+    expect(doc.body.querySelectorAll('.md-img-row-multi')).toHaveLength(0)
+    for (const row of rows) {
+      expect(row.querySelectorAll('img')).toHaveLength(1)
+    }
+  })
+
   it('预览模式去掉链接与复制按钮，保留文字与图片', () => {
     const html = renderMarkdown('[链接](https://example.com) 与 ![](https://x/a.png)', { preview: true })
     expect(html).toContain('链接')

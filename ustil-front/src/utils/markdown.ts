@@ -130,7 +130,24 @@ function enhanceCodeBlocks(html: string): string {
   })
 }
 
-/** 预览模式去掉链接与复制按钮（列表卡片可嵌在 RouterLink 内），纯图段落标记为图行便于并排布局 */
+/** 图行判定：IMG、仅含单图的 picture、或包住它们的链接（徽章常用 picture 承载暗色适配） */
+function isImageLike(el: Element): boolean {
+  if (el.nodeName === 'IMG') return true
+  if (el.nodeName === 'PICTURE') {
+    let imgCount = 0
+    for (const child of Array.from(el.children)) {
+      if (child.nodeName === 'IMG') imgCount += 1
+      else if (child.nodeName !== 'SOURCE') return false
+    }
+    return imgCount === 1
+  }
+  if (el.nodeName === 'A') {
+    return el.children.length === 1 && isImageLike(el.children[0])
+  }
+  return false
+}
+
+/** 预览模式去掉链接与复制按钮（列表卡片可嵌在 RouterLink 内），纯图段落标记为图行便于并排布局，br 分隔的图组拆分为多个图行 */
 function processHtml(html: string, preview: boolean): string {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
   if (preview) {
@@ -145,31 +162,59 @@ function processHtml(html: string, preview: boolean): string {
     }
   }
   for (const el of Array.from(doc.body.querySelectorAll('p, div'))) {
+    const isSeparator = (node: Node) =>
+      (node.nodeType === Node.ELEMENT_NODE && (node as Element).nodeName === 'BR') ||
+      (node.nodeType === Node.TEXT_NODE && /\n[^\S\n]*\n/.test(node.textContent ?? ''))
+    const nodes = Array.from(el.childNodes).filter(
+      (node) => node.nodeType !== Node.TEXT_NODE || !!node.textContent?.trim() || isSeparator(node),
+    )
     let imageCount = 0
     let onlyImages = true
-    for (const node of Array.from(el.childNodes)) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (node.textContent?.trim()) {
-          onlyImages = false
-          break
-        }
-        continue
-      }
+    for (const node of nodes) {
       const element = node as Element
-      const isImage = element.nodeName === 'IMG'
-      const isImageLink =
-        element.nodeName === 'A' &&
-        element.children.length === 1 &&
-        element.children[0].nodeName === 'IMG'
-      if (!isImage && !isImageLink) {
+      if (isSeparator(node)) continue
+      if (node.nodeType === Node.TEXT_NODE || !isImageLike(element)) {
         onlyImages = false
         break
       }
       imageCount += 1
     }
     if (!onlyImages || imageCount === 0) continue
-    el.classList.add('md-img-row')
-    if (imageCount >= 2) el.classList.add('md-img-row-multi')
+
+    // p 为行内流：图元按分隔符分行后各自行内并排；div 为块容器：图形单元各自上下堆叠（GitHub 横幅语义）
+    const rows: Element[][] = []
+    if (el.nodeName === 'DIV') {
+      for (const node of nodes) {
+        if (!isSeparator(node)) rows.push([node as Element])
+      }
+    } else {
+      const groups: Element[][] = [[]]
+      for (const node of nodes) {
+        if (isSeparator(node)) {
+          groups.push([])
+          continue
+        }
+        groups[groups.length - 1].push(node as Element)
+      }
+      rows.push(...groups.filter((group) => group.length > 0))
+    }
+    const mark = (row: Element, group: Element[]) => {
+      row.classList.add('md-img-row')
+      if (group.length >= 2) row.classList.add('md-img-row-multi')
+    }
+    if (rows.length === 1) {
+      mark(el, rows[0])
+      continue
+    }
+    const parent = el.parentNode
+    if (!parent) continue
+    for (const group of rows) {
+      const row = el.cloneNode(false) as Element
+      for (const node of group) row.appendChild(node)
+      mark(row, group)
+      parent.insertBefore(row, el)
+    }
+    parent.removeChild(el)
   }
   return doc.body.innerHTML
 }
