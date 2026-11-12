@@ -100,9 +100,10 @@ async function submit(): Promise<void> {
         <input id="article-title" v-model="title" type="text" required :maxlength="TITLE_MAX" placeholder="一句话说清这篇文章讲什么">
       </div>
       <div class="field">
-        <label for="article-content">正文（Markdown）</label>
+        <label>正文（Markdown）</label>
         <MarkdownEditor
           v-model="content"
+          aria-label="正文（Markdown）"
           min-height="20rem"
           placeholder="支持 **粗体**、`代码`、> 引用、列表与链接。空行分段。"
         />

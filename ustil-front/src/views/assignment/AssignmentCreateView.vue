@@ -79,9 +79,10 @@ async function submit(): Promise<void> {
         <input id="assignment-title" v-model="title" type="text" required :maxlength="TITLE_MAX" placeholder="例如：第三周练习 —— 实现一个简易词法分析器">
       </div>
       <div class="field">
-        <label for="assignment-description">任务说明（Markdown）</label>
+        <label>任务说明（Markdown）</label>
         <MarkdownEditor
           v-model="description"
+          aria-label="任务说明（Markdown）"
           min-height="14rem"
           placeholder="说明任务目标、要求与提交物格式"
         />

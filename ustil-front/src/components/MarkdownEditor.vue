@@ -11,8 +11,9 @@ const props = withDefaults(
     modelValue: string
     placeholder?: string
     minHeight?: string
+    ariaLabel?: string
   }>(),
-  { placeholder: '', minHeight: '240px' },
+  { placeholder: '', minHeight: '240px', ariaLabel: '' },
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -181,6 +182,7 @@ onMounted(() => {
     history(),
     drawSelection(),
     EditorView.lineWrapping,
+    EditorView.contentAttributes.of({ 'aria-label': props.ariaLabel }),
     theme,
     cmPlaceholder(props.placeholder),
     keymap.of([

@@ -60,7 +60,10 @@ async function load(): Promise<void> {
 async function submitReply(): Promise<void> {
   if (submittingReply.value) return
   const content = replyContent.value.trim()
-  if (!content) return
+  if (!content) {
+    toast.show('回复内容不能为空')
+    return
+  }
   submittingReply.value = true
   try {
     await issuesApi.reply(issueId.value, { content })
@@ -177,9 +180,10 @@ onMounted(load)
       </section>
 
       <form v-if="auth.isLoggedIn" class="composer" @submit.prevent="submitReply">
-        <label class="sr-only" for="reply-input">写下你的回复</label>
+        <label class="sr-only">写下你的回复</label>
         <MarkdownEditor
           v-model="replyContent"
+          aria-label="写下你的回复"
           min-height="8rem"
           placeholder="写下你的回复…… 支持 **粗体**、`代码` 与 > 引用"
         />

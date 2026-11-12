@@ -104,9 +104,10 @@ function submit(): void {
       >
     </div>
     <div class="field">
-      <label for="resource-description">描述</label>
+      <label>描述</label>
       <MarkdownEditor
         v-model="description"
+        aria-label="描述"
         min-height="7rem"
         placeholder="这个资源是什么、适合谁（选填，支持 Markdown）"
       />

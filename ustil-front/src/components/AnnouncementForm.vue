@@ -77,9 +77,10 @@ function submit(): void {
       >
     </div>
     <div class="field">
-      <label for="announcement-content">内容（Markdown）</label>
+      <label>内容（Markdown）</label>
       <MarkdownEditor
         v-model="content"
+        aria-label="内容（Markdown）"
         min-height="12rem"
         placeholder="支持 **粗体**、`代码`、> 引用、列表与链接。空行分段。"
       />
