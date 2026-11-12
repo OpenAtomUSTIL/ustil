@@ -12,11 +12,19 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "dompurify": "^3.4.17",
+    "katex": "^0.19.1",
     "marked": "^18.2.0",
+    "marked-katex-extension": "^5.1.13",
     "pinia": "^4.1.0",
     "vue": "^3.5.45",
     "vue-router": "^5.4.0"
@@ -27,9 +35,11 @@
     "@vitejs/plugin-vue": "^6.0.10",
     "eslint": "^10.14.0",
     "eslint-plugin-vue": "^10.12.1",
+    "happy-dom": "^21.0.4",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.72.2",
     "vite": "^8.3.7",
+    "vitest": "^5.1.0",
     "vue-tsc": "^3.3.14"
   }
 }
