@@ -21,15 +21,16 @@ let view: EditorView | null = null
 
 const theme = EditorView.theme({
   '&': {
-    fontSize: '0.95rem',
+    fontSize: 'var(--fs-body)',
     color: 'var(--ink)',
     backgroundColor: 'var(--bg-raised)',
     border: 'var(--bw-sm) solid var(--border)',
-    borderRadius: '8px',
+    borderRadius: 'var(--br-12)',
+    lineHeight: '1.8',
   },
   '&.cm-focused': { outline: 'none', borderColor: 'var(--accent-interactive)' },
   '.cm-content': {
-    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    fontFamily: 'var(--font-mono)',
     padding: '10px 12px',
   },
   '.cm-scroller': { maxHeight: '32rem' },
