@@ -125,9 +125,12 @@ services:
     image: ${REGISTRY:-ustil}/ustil-web:${IMAGE_TAG:-latest}
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       # 站点配置在构建上下文之外（deploy/nginx/），挂载注入
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      # TLS 证书（deploy/init-certs.sh 生成或 CA 签发），私钥不入库
+      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - api
     restart: unless-stopped

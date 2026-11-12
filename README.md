@@ -56,12 +56,13 @@ pnpm dev                    # Vite 开发服务器
 ```bash
 cd deploy
 cp .env.example .env        # 填 JWT 密钥、POSTGRES_PASSWORD 等真实值
+bash init-certs.sh          # 生成自签 TLS 证书（生产换成 CA 签发，放 nginx/certs/）
 docker compose up -d --build
 docker compose --profile migrate run --rm migrate   # 部署前执行（幂等）
 docker compose --profile seed run --rm seed         # 初始 ADMIN 种子（幂等，可选）
 ```
 
-访问 `http://localhost`：nginx 托管前端静态文件并把 `/api/` 反代到后端。
+访问 `https://localhost`：nginx 托管前端静态文件并把 `/api/` 反代到后端；80 强制跳转 HTTPS（自签证书浏览器会告警，生产换 CA 证书即消失）。
 
 > 迁移红线：启动命令不跑迁移，迁移只由部署 job 幂等执行（避免多实例并发）。
 

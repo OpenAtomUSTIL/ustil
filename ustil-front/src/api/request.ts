@@ -126,7 +126,9 @@ async function refreshSession(): Promise<UserSelf> {
         const refreshed = await fetch(buildUrl('/auth/refresh'), {
           method: 'POST', credentials: 'include',
         })
-        user = await handleResponse<UserSelf>(refreshed, '/auth/refresh')
+        await handleResponse(refreshed, '/auth/refresh')
+        const me = await fetch(buildUrl('/auth/me'), { credentials: 'include' })
+        user = await handleResponse<UserSelf>(me, '/auth/me')
       } else {
         user = await handleResponse<UserSelf>(current, '/auth/me')
       }

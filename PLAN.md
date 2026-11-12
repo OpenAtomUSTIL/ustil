@@ -97,3 +97,62 @@
 管理操作 CURD 看看是否需要可回溯 回溯建议加一个记录日志 特殊情况可以按照日志来进行回溯 ｜ ✅（request_logs 接口日志 + audit_logs 操作审计，后台可查）
 
 然后文章 和提出的issue页面 包括新加的资源库 可以考虑同时加上标签来做标注 便于查找和阅读 ｜ ✅（统一标签体系，?tag= 过滤）
+
+## v3.0 - 功能优化，ui优化
+
+### P0｜ md输入优化
+
+> 设计定稿 2026-11-12（浏览器探讨选定：依赖方案二 CodeMirror 6 + KaTeX + marked-katex-extension；三视图模式仅编辑/仅预览/分栏+同步滚动开关；覆盖全部 7 处 MD 输入）：完整设计见 docs/compose/specs/2026-11-12-md-editor-design.md
+
+- [x] 输入框优化，添加快捷操作
+- [x] 优化md适配latex数学
+- [x] 优化预览与编辑
+- [x] 代码块渲染优化（增量：highlight.js 语法高亮 + 行号 + 语言标签 + 复制按钮）
+
+### P0 ｜ 操作权限优化
+
+- [] 允许学员发布文章
+- [] 学员文章先审后发，校友文章先发后审讨论
+
+### P1 ｜ 个人中心优化
+
+> 设计定稿 2026-11-12（浏览器探讨选定方案 A：GitHub 式双栏）：完整设计见 docs/compose/specs/2026-11-12-profile-homepage-design.md
+
+- [] 个人中心独立界面为个人主页 ｜ /users/:id 独立页取代抽屉（抽屉移除）；/profile 重定向到自己主页；改密/换绑/邀请码转正收进主页「设置」区，行为不变
+- [] 允许查看其他人的个人主页 ｜ MEMBER+ 互访可见公开资料；VISITOR 仅能看自己（访他人 403）；联系方式与编辑/设置区仅本人可见
+- [] 主页参照github主页， ｜ 双栏：左栏（头像/昵称/角色徽章/bio≤100/统计行/加入时间/擅长标签云）+ 右栏（README 个人介绍 md+latex、置顶内容≤6 跨文章讨论资源、活跃热力图近一年、内容 Tab 文章|讨论|回复|资源 分页）
+- 数据与接口：users 加 bio/profile_readme(≤10000)/pinned_items(jsonb≤6)，迁移 0011；新增 GET /users/:id/profile（含统计+标签Top10+置顶+isSelf）、PUT /users/me/profile-page、GET /users/:id/activity（文章/讨论/回复/提交/资源 五类事件按日聚合，软删不计）
+- 验收：两成员可互访主页；VISITOR 访他人 403；README/置顶/热力图/Tab 齐全；设置迁移后改密/换绑/邀请码转正行为不变
+
+### P0 ｜ 安全修复：登录 token 抓包泄露 / 用户信息越权获取
+
+> 抓包审计 2026-11-12（实测：明文 HTTP 抓到登录 token；持该 cookie 即可拉取含邮箱/手机号的用户信息，等价"未登录取用户信息"）：根因与修复项如下
+
+**问题 1｜token 被抓包截获 —— 全链路无 TLS，token 随 Cookie 明文传输**
+
+- 根因：deploy/nginx/default.conf:4 仅 `listen 80`，无 443/证书/HTTPS 跳转；deploy/docker-compose.yml 仅映射 `80:80`；README 按 `http://localhost` 纯 HTTP 上线
+- 根因：cookie `secure` 仅 `NODE_ENV=production` 生效（ustil-hub/src/modules/auth/auth.controller.ts:36-38），部署默认 development → 登录密码与 Set-Cookie/Cookie 全部明文过线
+- 排除项（已审计合规）：token 不走 URL/query、不写 localStorage、不落日志（request-logging.interceptor 只记 method/path/status 等，auth.service 注释明确不写密码）
+
+**问题 2｜用户信息越权/免登录可得**
+
+- `GET /api/v1/users/:id`（ustil-hub/src/modules/users/users.controller.ts:59）只认证不授权：任意登录态（含免邀请码注册的临时 VISITOR）可按 UUID 枚举任意用户资料
+- `POST /api/v1/auth/refresh`（@Public，ustil-hub/src/modules/auth/auth.controller.ts:75-85）仅凭 refresh cookie 即返回含 email/phone 的 UserSelf 并换发新 token
+- 与问题 1 联动：嗅探到 cookie 直接调 `GET /auth/me` 拿含邮箱/手机号的完整信息；若测试中完全无 cookie 也返回 200，则线上镜像为旧版本，需核对部署镜像 tag（release.yml 以 GITHUB_SHA:7 打标）与源码一致
+
+**修复项**
+
+- ✅ nginx 增加 443 + 证书 + 80→443 强制跳转 + HSTS ｜ default.conf 双 server 块（HSTS/nosniff/X-Frame-Options），compose 映射 443 并挂载 nginx/certs，deploy/init-certs.sh 自签引导（生产换 CA 证书）
+- ✅ cookie `secure` 改为无条件开启 ｜ cookies.ts 恒 true，去除 NODE_ENV 判断（auth.controller 不再传 flags）
+- ✅ main.ts 启用 helmet 等基础安全头 ｜ helmet 8 全局注册（ustil-hub 新增依赖）
+- ✅ `GET /users/:id` 仅返回脱敏公开字段 ｜ 恒为 UserPublic（id/昵称/头像/角色），users.service.spec.ts 已锁形状断言（不含 email/phone）；联系方式仅本人可见经 refresh 脱敏 + getSelf 本人路径落实；VISITOR 互访 403 完整可见性规则随 P1 `GET /users/:id/profile` 落地（设计 S8：不改造旧接口语义）
+- ✅ `POST /auth/refresh` 不再返回 email/phone ｜ 只回 UserPublic；前端登录态恢复改走 `GET /auth/me`（request.ts），AGENTS.md §11.2 契约已同步
+- ☐ 核对线上镜像 tag 与源码一致（部署侧人工）｜ 对比 release.yml `$GITHUB_SHA:7` 镜像与源码；线上无 cookie 调 /auth/me 必须 401
+- ☐ 顺带：ustil-hub/.env 明文 ADMIN_PASSWORD 注意本机/备份外泄（.env 已 gitignore，未入库；建议上线后轮换）
+
+**验收**
+
+- ☐ 抓包（tcpdump/Charles）登录全程见不到 token/密码明文；HTTP 访问被 301 到 HTTPS（代码层 TLS 已就绪，需部署后人工复验）
+- ✅ 无 cookie 调受保护接口 → 401（test/guards.e2e-spec.ts:124-127）；`/users/:id` 仅脱敏公开字段（单测锁定）
+- ✅ refresh 响应不含 email/phone（auth.service.spec.ts 新增成功路径断言）
+- ✅ 质量门全绿：后端 lint + 117 单测 + 22 e2e；前端 typecheck / lint / 12 单测 / build
