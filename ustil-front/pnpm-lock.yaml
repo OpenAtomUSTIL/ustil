@@ -30,14 +30,14 @@ importers:
         specifier: ^3.4.17
         version: 3.4.17
       katex:
-        specifier: ^0.19.1
-        version: 0.19.1
+        specifier: ^0.18.11
+        version: 0.18.11
       marked:
         specifier: ^18.2.0
         version: 18.2.0
       marked-katex-extension:
         specifier: ^5.1.13
-        version: 5.1.13(katex@0.19.1)(marked@18.2.0)
+        version: 5.1.13(katex@0.18.11)(marked@18.2.0)
       pinia:
         specifier: ^4.1.0
         version: 4.1.0(@vue/devtools-api@8.2.1)(typescript@5.9.3)(vue@3.5.45(typescript@5.9.3))
@@ -818,8 +818,8 @@ packages:
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
 
-  katex@0.19.1:
-    resolution: {integrity: sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==}
+  katex@0.18.11:
+    resolution: {integrity: sha512-yvyz/2VMKqoho/35Hat5w37wIEdWJ5ElVMidTAlWrxr5uW4aBGsEpveTmKh18/zw08v/7lGswCPon4OhqmqrTA==}
     hasBin: true
 
   keyv@5.6.0:
@@ -2136,7 +2136,7 @@ snapshots:
 
   json-stable-stringify-without-jsonify@1.0.1: {}
 
-  katex@0.19.1:
+  katex@0.18.11:
     dependencies:
       commander: 15.1.0
 
@@ -2224,9 +2224,9 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  marked-katex-extension@5.1.13(katex@0.19.1)(marked@18.2.0):
+  marked-katex-extension@5.1.13(katex@0.18.11)(marked@18.2.0):
     dependencies:
-      katex: 0.19.1
+      katex: 0.18.11
       marked: 18.2.0
 
   marked@18.2.0: {}
