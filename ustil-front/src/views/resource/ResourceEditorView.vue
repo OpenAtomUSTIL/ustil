@@ -16,6 +16,8 @@ const toast = useToastStore()
 const isEdit = computed(() => route.name === 'resource-edit')
 const resourceId = computed(() => String(route.params.id ?? ''))
 
+const recordId = ref('')
+
 const initial = ref<{
   title: string
   description: string
@@ -33,6 +35,7 @@ onMounted(async () => {
   loading.value = true
   try {
     const item: ResourceItem = await resourcesApi.get(resourceId.value)
+    recordId.value = item.id
     // 旧 id 链接 → 301 到 slug 规范地址
     if (route.params.id !== item.slug) {
       void router.replace({ name: 'resource-edit', params: { id: item.slug } })
@@ -61,7 +64,7 @@ async function submit(payload: ResourceWriteRequest): Promise<void> {
   formError.value = ''
   try {
     if (isEdit.value) {
-      await resourcesApi.update(resourceId.value, payload)
+      await resourcesApi.update(recordId.value, payload)
       toast.show('资源已更新')
     } else {
       await resourcesApi.create(payload)

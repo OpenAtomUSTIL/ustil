@@ -14,6 +14,8 @@ const toast = useToastStore()
 
 const assignmentId = computed(() => String(route.params.id))
 
+const recordId = ref('')
+
 const title = ref('')
 const description = ref('')
 const startAt = ref('')
@@ -26,6 +28,7 @@ onMounted(async () => {
   loading.value = true
   try {
     const assignment = await assignmentsApi.get(assignmentId.value)
+    recordId.value = assignment.id
     // 旧 id 链接 → 301 到 slug 规范地址
     if (route.params.id !== assignment.slug) {
       void router.replace({ name: 'assignment-edit', params: { id: assignment.slug } })
@@ -75,7 +78,7 @@ async function submit(): Promise<void> {
   submitting.value = true
   try {
     // 本地时间选择器 → ISO 8601 UTC 字符串提交给后端；失败保留输入并展示原因
-    await assignmentsApi.update(assignmentId.value, {
+    await assignmentsApi.update(recordId.value, {
       title: title.value.trim(),
       description: description.value,
       startAt: start.toISOString(),

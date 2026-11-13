@@ -15,6 +15,8 @@ const toast = useToastStore()
 const isEdit = computed(() => route.name === 'article-edit')
 const articleId = computed(() => String(route.params.id ?? ''))
 
+const recordId = ref('')
+
 const title = ref('')
 const content = ref('')
 const tags = ref<string[]>([])
@@ -27,6 +29,7 @@ onMounted(async () => {
   loading.value = true
   try {
     const article = await articlesApi.get(articleId.value)
+    recordId.value = article.id
     // 旧 id 链接 → 301 到 slug 规范地址
     if (route.params.id !== article.slug) {
       void router.replace({ name: 'article-edit', params: { id: article.slug } })
@@ -67,10 +70,10 @@ async function submit(): Promise<void> {
     const payload = {
       title: title.value.trim(),
       content: content.value,
-      tags: tags.value.length > 0 ? tags.value : undefined,
+      tags: [...tags.value],
     }
     if (isEdit.value) {
-      await articlesApi.update(articleId.value, payload)
+      await articlesApi.update(recordId.value, payload)
       toast.show('文章已更新')
       await router.push({ name: 'article-detail', params: { id: articleId.value } })
     } else {

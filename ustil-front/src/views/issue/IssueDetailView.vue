@@ -62,7 +62,7 @@ async function load(): Promise<void> {
 }
 
 async function submitReply(): Promise<void> {
-  if (submittingReply.value) return
+  if (submittingReply.value || !issue.value) return
   const content = replyContent.value.trim()
   if (!content) {
     toast.show('回复内容不能为空')
@@ -70,7 +70,7 @@ async function submitReply(): Promise<void> {
   }
   submittingReply.value = true
   try {
-    await issuesApi.reply(issueId.value, { content })
+    await issuesApi.reply(issue.value.id, { content })
     toast.show('回复已发布')
     replyContent.value = ''
     await load()
@@ -89,7 +89,7 @@ async function saveStatus(): Promise<void> {
   if (savingStatus.value || !issue.value || newStatus.value === issue.value.status) return
   savingStatus.value = true
   try {
-    await issuesApi.updateStatus(issueId.value, { status: newStatus.value })
+    await issuesApi.updateStatus(issue.value.id, { status: newStatus.value })
     toast.show('状态已更新')
     await load()
   } catch (err) {

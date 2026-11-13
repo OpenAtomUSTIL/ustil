@@ -67,7 +67,7 @@ function submit(): void {
     description: description.value.trim() || undefined,
     url: url.value.trim(),
     category: category.value,
-    tags: tags.value.length > 0 ? tags.value : undefined,
+    tags: [...tags.value],
   })
 }
 </script>

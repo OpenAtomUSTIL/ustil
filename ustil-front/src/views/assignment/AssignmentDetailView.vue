@@ -74,9 +74,9 @@ async function load(): Promise<void> {
 }
 
 async function loadSubmissions(): Promise<void> {
-  if (!canViewSubmissions.value) return
+  if (!canViewSubmissions.value || !assignment.value) return
   try {
-    const result = await assignmentsApi.submissions(assignmentId.value, {
+    const result = await assignmentsApi.submissions(assignment.value.id, {
       page: submissionPage.value,
       pageSize: submissionPageSize,
     })
@@ -94,8 +94,9 @@ async function loadSubmissions(): Promise<void> {
 
 /** 上传实现：file 必填、note 选填；成功后刷新提交状态 */
 async function submitFile(file: File, onProgress: (percent: number) => void): Promise<void> {
+  if (!assignment.value) return
   await assignmentsApi.submit(
-    assignmentId.value,
+    assignment.value.id,
     file,
     note.value.trim() || undefined,
     onProgress,

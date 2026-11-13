@@ -20,6 +20,8 @@ const toast = useToastStore()
 const isEdit = computed(() => route.name === 'announcement-edit')
 const announcementId = computed(() => String(route.params.id ?? ''))
 
+const recordId = ref('')
+
 const initial = ref<{ title: string; content: string; pinned: boolean } | null>(null)
 const loading = ref(false)
 const loadError = ref('')
@@ -31,6 +33,7 @@ onMounted(async () => {
   loading.value = true
   try {
     const item: AnnouncementItem = await announcementsApi.get(announcementId.value)
+    recordId.value = item.id
     // 旧 id 链接 → 301 到 slug 规范地址
     if (route.params.id !== item.slug) {
       void router.replace({ name: 'announcement-edit', params: { id: item.slug } })
@@ -55,7 +58,7 @@ async function submit(
   formError.value = ''
   try {
     if (isEdit.value) {
-      await announcementsApi.update(announcementId.value, payload)
+      await announcementsApi.update(recordId.value, payload)
       toast.show('公告已更新')
       await router.push({ name: 'announcement-detail', params: { id: announcementId.value } })
     } else {
