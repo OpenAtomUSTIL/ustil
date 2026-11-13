@@ -197,3 +197,36 @@
 - **slug 语言策略**：✅ 定稿保留中文原文 URL（2026-11-13 用户确认）。
 - **username 改名历史**：✅ 旧 handle 保留跳转（用户确认「旧链接保留跳转」），历史 handle 不可被抢占。
 - **关注动态流**：「关注的人的新内容」聚合页（首页 Tab 或独立页）仍为 P1 候选，未纳入本轮。
+
+## v5.0 - md 输入框粗体误触发修复、整体布局留白优化
+
+> 实现 2026-11-13（三项诉求——①点击 md 输入框会自动粗体；②界面整体左右空隙过大；③部分情况下深浅色有误）：根因定位 + 修复与布局加宽如下。
+
+### P0｜修复点击 md 输入框自动粗体
+
+> 根因（2026-11-13 定位）：`UserProfileView.vue` 的「个人介绍 README」编辑器被 `<label class="edit-label">` 整体包裹。HTML label 激活语义会把非交互区（CodeMirror 编辑区/预览区是 contenteditable/div，不属 interactive content）上的点击转发成对「首个可激活后代控件」的合成 click——即 MarkdownEditor 工具栏第一个按钮「B 粗体」，触发 `wrapSelection('**','**')`，表现为点进输入框就自动加粗/插入 `****`。其余 7 处 MarkdownEditor 均为 `<label>` 兄节点不包裹，不受影响。
+
+- [x] 去掉包裹：README 编辑器 `<label class="edit-label">` 改为 `<div class="edit-label">` + `<span class="edit-label-text">`（与头像/置顶行同构），label 转发链路消除。
+- [x] 组件加固：`MarkdownEditor.vue` 根节点 click 守卫——点击目标非 `button/a/input/select/textarea/label/summary` 时 `preventDefault()`，取消 label 激活转发，防止今后任何用法再次把编辑器包进 label 时复发。
+- [x] 全 8 处 MarkdownEditor 用法核对：仅 profile README 一处被 label 包裹（IssueDetailView 的 `sr-only` label 为兄弟节点、不包裹控件，无转发）。
+- 验收：✅ 点击 README 编辑区/预览区/标签文字均不再触发粗体；工具栏 B/I/S/链等按钮、同步滚动勾选、预览内复制/链接行为不变（lint + typecheck + 22 单测 + build 全绿）。
+
+### P1｜整体布局左右留白收紧
+
+> 根因（2026-11-13）：`--page-max: 76rem`（1216px）居中容器在 1512/1920 屏上单侧空隙约 188/392px；编辑/表单页 `.form-grid` 再限 46rem，窄上加窄，是「左右空隙过大」主感来源。
+
+- [x] 主容器加宽：`--page-max` 76rem → 88rem（1408px），1512 屏单侧空隙 188px → 84px（含内边距）。
+- [x] 容器内边距微收：`.container` padding-inline `clamp(1rem, 4vw, 2.5rem)` → `clamp(1rem, 3vw, 2rem)`。
+- [x] 表单/编辑列加宽：`.form-grid` 与资源/公告表单 46rem → 56rem（token `--prose-max` 同步），文章/讨论/作业/资源/公告编辑页的错误与加载块内联 `max-width: 46rem` 8 处同步 56rem，避免与表单宽度脱节；顺带使 md 分栏双列各约 448px、工具栏 15 按钮不再横向溢出。
+- [x] 不动阅读宽度：`.pb-body` / `.r-body` 正文仍限 `--text-w-prose`（80ch），行宽可读性不受容器加宽影响。
+- 验收：✅ 1512/1920 宽下主内容明显占更宽幅面、两侧空隙收窄；编辑页表单与 md 分栏更舒展；正文阅读行宽不变；lint + typecheck + 22 单测 + build 全绿。
+
+### P0｜深浅色模式配色修复（部分场景色值不随主题）
+
+> 根因（2026-11-13 巡检）：全站走 `data-theme` 灰阶重映射，但个别组件硬编码浅色色值或使用不存在的令牌，深色模式下出现亮斑/糊底/不翻转。
+
+- [x] 文章状态徽章/横幅硬编码 Bootstrap 浅色（`#fef3cd` 等）｜ MyArticlesView `.st-chip` 与 ArticleDetailView `.status-banner` 的 pending/published/rejected/hidden 改为全站 `.badge-*` 同语言的令牌化配色（调色板色 + rgba 色底：clay 待审、mineral 已发布、error 驳回、gray 隐藏），深浅两态自适应。
+- [x] 个人主页热力图绿阶仅浅色（`#9be9a8…#216e39`）｜ 深色下 level-3/4 深绿与深底糊死、level-1/2 过亮；补 `[data-theme='dark']` 色阶（#0e4429/#006d32/#26a641/#39d353，GitHub 暗面同款方向：越亮贡献越多）。
+- [x] 后台文章审核页用不存在的 `--text-muted` 等变量（fallback `#888/#999/#ccc` 不随主题翻转）｜ AdminArticleReviewView 改用语义令牌 `--ink-muted`/`--ink-faint`/`--accent`/`--border`(-`-strong`)。
+- [x] README 贪吃蛇 SVG 深浅两套未跟随主题（`snake.svg?theme=dark` 后端已有，前端从不传，深色下仍显示浅色蛇）｜ MarkdownBody 渲染时对 `src="…/snake.svg"` 注入当前 `theme` 参数并随主题切换重算（stats-badge.svg 为中性彩底徽章无需主题）。
+- 验收：✅ 深色模式下我的文章/文章详情状态徽章、主页热力图、后台审核卡、主页 README 贪吃蛇均正确配色；浅色模式无回归；lint + typecheck + 22 单测 + build 全绿。

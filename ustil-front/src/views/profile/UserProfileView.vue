@@ -616,15 +616,15 @@ watch(pinType, () => {
             简介（{{ editBio.length }}/{{ BIO_MAX }}）
             <input v-model="editBio" :maxlength="BIO_MAX" placeholder="一句话介绍自己">
           </label>
-          <label class="edit-label">
-            个人介绍 README（Markdown，{{ editReadme.length }}/{{ README_MAX }}）
+          <div class="edit-label">
+            <span class="edit-label-text">个人介绍 README（Markdown，{{ editReadme.length }}/{{ README_MAX }}）</span>
             <MarkdownEditor
               v-model="editReadme"
               aria-label="个人介绍 README（Markdown）"
               min-height="18rem"
               placeholder="用 Markdown 介绍自己，支持 LaTeX 公式"
             />
-          </label>
+          </div>
           <div class="edit-label">
             <span class="edit-label-text">置顶管理（{{ editPinned.length }}/6）</span>
             <div class="pin-manage">
@@ -1249,6 +1249,10 @@ watch(pinType, () => {
 .heatmap-cell.level-2 { background: #40c463; }
 .heatmap-cell.level-3 { background: #30a14e; }
 .heatmap-cell.level-4 { background: #216e39; }
+[data-theme='dark'] .heatmap-cell.level-1 { background: #0e4429; }
+[data-theme='dark'] .heatmap-cell.level-2 { background: #006d32; }
+[data-theme='dark'] .heatmap-cell.level-3 { background: #26a641; }
+[data-theme='dark'] .heatmap-cell.level-4 { background: #39d353; }
 .tab-bar {
   display: flex;
   gap: 0.5rem;

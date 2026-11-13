@@ -60,7 +60,7 @@ async function submit(): Promise<void> {
     <h1>发起讨论</h1>
     <p class="lead">把问题描述清楚，把上下文补齐 —— 好的问题本身就是一半的答案。</p>
 
-    <div v-if="error" class="form-error" style="max-width: 46rem">{{ error }}</div>
+    <div v-if="error" class="form-error" style="max-width: 56rem">{{ error }}</div>
 
     <form class="form-grid" @submit.prevent="submit">
       <div class="field">

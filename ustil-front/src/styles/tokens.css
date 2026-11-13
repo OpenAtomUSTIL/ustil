@@ -114,8 +114,8 @@
 
   /* —— 布局 —— */
   --nav-height: 4.25rem;
-  --page-max: 76rem;
-  --prose-max: 46rem;
+  --page-max: 88rem;
+  --prose-max: 56rem;
   --ease: cubic-bezier(0.33, 1, 0.68, 1);
   --t-fast: 150ms;
   --t-med: 220ms;

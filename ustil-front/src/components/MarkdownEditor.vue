@@ -46,6 +46,12 @@ const host = ref<HTMLElement | null>(null)
 let view: EditorView | null = null
 let syncing = false
 
+function onRootClick(event: MouseEvent): void {
+  const target = event.target
+  if (target instanceof Element && target.closest('button, a, input, select, textarea, label, summary')) return
+  event.preventDefault()
+}
+
 const theme = EditorView.theme({
   '&': {
     fontSize: 'var(--fs-body)',
@@ -222,7 +228,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="md-editor">
+  <div class="md-editor" @click="onRootClick">
     <div class="md-toolbar">
       <div v-for="group in toolGroups" :key="group.key" class="md-tools">
         <button

@@ -1,10 +1,22 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { renderMarkdown } from '@/utils/markdown'
+import { themeMode } from '@/utils/theme'
 
 const props = defineProps<{ content: string; preview?: boolean }>()
 
-const html = computed(() => renderMarkdown(props.content, { preview: props.preview ?? false }))
+/* README 等处引用的 snake.svg 有深浅两套（?theme=dark），按当前主题改写图片地址 */
+function withThemeAssets(html: string): string {
+  return html.replace(/src="([^"]*\/snake\.svg)([^"]*)"/g, (_match, base: string, query: string) => {
+    const params = new URLSearchParams(query.replace(/^\?/, ''))
+    params.set('theme', themeMode.value)
+    return `src="${base}?${params.toString()}"`
+  })
+}
+
+const html = computed(() =>
+  withThemeAssets(renderMarkdown(props.content, { preview: props.preview ?? false })),
+)
 
 const resetTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>()
 

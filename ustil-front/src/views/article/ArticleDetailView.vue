@@ -180,16 +180,16 @@ onMounted(load)
   margin-bottom: 1rem;
 }
 .st-pending {
-  background: #fef3cd;
-  color: #856404;
+  background: rgba(217, 119, 87, 0.12);
+  color: var(--clay-dark);
 }
 .st-rejected {
-  background: #f8d7da;
-  color: #721c24;
+  background: rgba(191, 77, 67, 0.12);
+  color: var(--error);
 }
 .st-hidden {
-  background: #e2e3e5;
-  color: #383d41;
+  background: var(--gray-200);
+  color: var(--ink-muted);
 }
 .st-badge {
   font-weight: 600;

@@ -129,7 +129,7 @@ function submit(): void {
 
 <style scoped>
 .resource-form {
-  max-width: 46rem;
+  max-width: 56rem;
 }
 
 .field-legend {

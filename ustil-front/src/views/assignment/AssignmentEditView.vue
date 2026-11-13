@@ -99,8 +99,8 @@ async function submit(): Promise<void> {
     <h1>编辑作业</h1>
     <p class="lead">修改任务说明与时间窗口。提交窗口由服务端按开始/截止时间判定。</p>
 
-    <div v-if="error" class="form-error" style="max-width: 46rem">{{ error }}</div>
-    <div v-if="loading" class="empty" style="max-width: 46rem">加载中…</div>
+    <div v-if="error" class="form-error" style="max-width: 56rem">{{ error }}</div>
+    <div v-if="loading" class="empty" style="max-width: 56rem">加载中…</div>
 
     <form v-else class="form-grid" @submit.prevent="submit">
       <div class="field">

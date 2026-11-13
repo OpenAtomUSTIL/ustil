@@ -155,7 +155,7 @@ onMounted(load)
   gap: 1rem;
 }
 .review-card {
-  border: 1px solid var(--border, #e0e0e0);
+  border: var(--bw-sm) solid var(--border);
   border-radius: 8px;
   padding: 1rem 1.25rem;
 }
@@ -171,17 +171,17 @@ onMounted(load)
 }
 .rc-author {
   font-size: 0.85rem;
-  color: var(--text-muted, #888);
+  color: var(--ink-muted);
 }
 .rc-meta {
   display: flex;
   gap: 1rem;
   font-size: 0.8rem;
-  color: var(--text-muted, #999);
+  color: var(--ink-faint);
   flex-wrap: wrap;
 }
 .rc-tags {
-  color: var(--accent, #666);
+  color: var(--accent);
 }
 .rc-actions {
   display: flex;
@@ -192,7 +192,7 @@ onMounted(load)
 }
 .reject-input {
   padding: 0.35rem 0.65rem;
-  border: 1px solid var(--border, #ccc);
+  border: var(--bw-sm) solid var(--border-strong);
   border-radius: 6px;
   font-size: 0.85rem;
   width: 220px;

@@ -84,7 +84,7 @@ function cancel(): void {
     <h1>{{ isEdit ? '编辑公告' : '发布公告' }}</h1>
     <p class="lead">公告以 Markdown 书写，发布后展示在公告栏与首页。</p>
 
-    <div v-if="loading" class="empty" style="max-width: 46rem">加载中…</div>
+    <div v-if="loading" class="empty" style="max-width: 56rem">加载中…</div>
     <EmptyState v-else-if="loadError" title="加载失败" :hint="loadError">
       <p style="margin-top: 1.15rem">
         <button class="btn btn-secondary" type="button" @click="router.back()">返回</button>
