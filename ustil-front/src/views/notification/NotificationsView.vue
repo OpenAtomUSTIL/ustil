@@ -21,6 +21,7 @@ const TYPE_ICONS: Record<NotificationType, string> = {
   ISSUE_REPLY: '💬',
   ROLE: '🎖',
   SYSTEM: '⚙️',
+  FOLLOW: '👤',
 }
 
 const data = ref<Page<NotificationItem> | null>(null)

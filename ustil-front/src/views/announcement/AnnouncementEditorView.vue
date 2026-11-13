@@ -31,6 +31,10 @@ onMounted(async () => {
   loading.value = true
   try {
     const item: AnnouncementItem = await announcementsApi.get(announcementId.value)
+    // 旧 id 链接 → 301 到 slug 规范地址
+    if (route.params.id !== item.slug) {
+      void router.replace({ name: 'announcement-edit', params: { id: item.slug } })
+    }
     initial.value = { title: item.title, content: item.content, pinned: item.pinned }
   } catch (err) {
     if (isForbidden(err)) {

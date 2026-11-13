@@ -29,6 +29,7 @@ import type {
   CreateReplyRequest,
   FileItem,
   FileKind,
+  FollowUserItem,
   GenerateInviteCodesRequest,
   InviteCode,
   IssueDetail,
@@ -245,17 +246,33 @@ export const authApi = {
 }
 
 export const usersApi = {
-  getUser: (id: string) => request<UserPublic>(`/users/${id}`),
-  /** 个人主页（含统计/标签/置顶） */
-  getProfile: (id: string) => request<UserProfile>(`/users/${id}/profile`),
+  /** id 或 username 寻址（URL 不暴露裸 id，旧 id 链接兼容） */
+  getUser: (idOrUsername: string) => request<UserPublic>(`/users/${idOrUsername}`),
+  /** 个人主页（含统计/标签/置顶/关注态） */
+  getProfile: (idOrUsername: string) => request<UserProfile>(`/users/${idOrUsername}/profile`),
   /** 更新个人主页（bio/readme/置顶） */
   updateProfilePage: (payload: { bio?: string | null; profileReadme?: string | null; pinnedItems?: Pick<PinnedItem, 'type' | 'id'>[] }) =>
     request<void>('/users/me/profile-page', { method: 'PUT', body: payload }),
+  /** 改主页用户名（handle） */
+  updateUsername: (payload: { username: string }) =>
+    request<UserSelf>('/users/me/username', { method: 'PUT', body: payload }),
   /** 活跃热力图 */
-  getActivity: (id: string) => request<ActivityView>(`/users/${id}/activity`),
+  getActivity: (idOrUsername: string) => request<ActivityView>(`/users/${idOrUsername}/activity`),
   /** 个人主页 · 回复 Tab */
-  getReplies: (id: string, query: PageQuery) =>
-    request<Page<ProfileReplyItem>>(`/users/${id}/replies`, { query }),
+  getReplies: (idOrUsername: string, query: PageQuery) =>
+    request<Page<ProfileReplyItem>>(`/users/${idOrUsername}/replies`, { query }),
+  /** 关注（幂等） */
+  follow: (idOrUsername: string) =>
+    request<{ following: boolean }>(`/users/${idOrUsername}/follow`, { method: 'POST' }),
+  /** 取关（幂等） */
+  unfollow: (idOrUsername: string) =>
+    request<{ following: boolean }>(`/users/${idOrUsername}/follow`, { method: 'DELETE' }),
+  /** 粉丝列表 */
+  getFollowers: (idOrUsername: string, query: PageQuery) =>
+    request<Page<FollowUserItem>>(`/users/${idOrUsername}/followers`, { query }),
+  /** 关注列表 */
+  getFollowing: (idOrUsername: string, query: PageQuery) =>
+    request<Page<FollowUserItem>>(`/users/${idOrUsername}/following`, { query }),
   updateMe: (payload: UpdateProfileRequest) =>
     request<UserSelf>('/users/me', { method: 'PATCH', body: payload }),
   updateIdentifier: (payload: UpdateIdentifierRequest) =>

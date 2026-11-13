@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useToastStore } from '@/stores/toast'
@@ -8,6 +8,7 @@ import { themeMode, toggleTheme } from '@/utils/theme'
 import AppAvatar from '@/components/AppAvatar.vue'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const toast = useToastStore()
@@ -49,6 +50,14 @@ watch(
     else notifications.reset()
   },
   { immediate: true },
+)
+
+// 路由变化收起移动端菜单
+watch(
+  () => route.fullPath,
+  () => {
+    menuOpen.value = false
+  },
 )
 
 onBeforeUnmount(() => {
@@ -93,8 +102,9 @@ async function logout(): Promise<void> {
         <nav id="nav-main" class="nav-main" :class="{ open: menuOpen }" aria-label="主导航">
           <RouterLink v-if="auth.isLoggedIn" class="nav-link" :to="{ name: 'home' }">首页</RouterLink>
           <RouterLink v-if="auth.isLoggedIn" class="nav-link" :to="{ name: 'articles' }">文章</RouterLink>
-          <RouterLink v-if="auth.canViewAssignments" class="nav-link" :to="{ name: 'assignments' }">作业</RouterLink>
           <RouterLink v-if="auth.isLoggedIn" class="nav-link" :to="{ name: 'issues' }">讨论</RouterLink>
+          <RouterLink v-if="auth.canViewAssignments" class="nav-link" :to="{ name: 'assignments' }">作业</RouterLink>
+          <RouterLink v-if="auth.isLoggedIn" class="nav-link" :to="{ name: 'resources' }">资料库</RouterLink>
 
           <!-- 发布入口显隐仅为体验优化，权限以后端为准 -->
           <div v-if="auth.canCreateIssue" ref="publishItem" class="nav-item" :class="{ open: publishOpen }">
@@ -120,6 +130,9 @@ async function logout(): Promise<void> {
               </RouterLink>
               <RouterLink v-if="auth.canManageContent" role="menuitem" :to="{ name: 'assignment-new' }" @click="publishOpen = false">
                 发布作业<span>布置练习与提交任务</span>
+              </RouterLink>
+              <RouterLink v-if="auth.canManageContent" role="menuitem" :to="{ name: 'resource-new' }" @click="publishOpen = false">
+                上传资料<span>题库、电子书与链接资源</span>
               </RouterLink>
             </div>
           </div>
@@ -164,7 +177,7 @@ async function logout(): Promise<void> {
               </svg>
               <span v-if="notifications.unreadCount > 0" class="bell-badge">{{ unreadLabel }}</span>
             </RouterLink>
-            <RouterLink class="btn btn-ghost" title="个人中心" :to="{ name: 'user-profile', params: { id: auth.user?.id } }">
+            <RouterLink class="btn btn-ghost" title="个人中心" :to="{ name: 'user-profile', params: { id: auth.user?.username } }">
               <AppAvatar :nickname="nickname" :avatar-url="avatarUrl" :user-id="userId" />
               {{ nickname }}
             </RouterLink>

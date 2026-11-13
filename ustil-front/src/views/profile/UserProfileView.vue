@@ -7,6 +7,7 @@ import { articlesApi, authApi, issuesApi, resourcesApi, usersApi } from '@/api/r
 import type {
   ActivityDay,
   ArticleListItem,
+  FollowUserItem,
   IssueListItem,
   PinnedItem,
   ProfileReplyItem,
@@ -49,8 +50,8 @@ const error = ref('')
 const activity = ref<ActivityDay[]>([])
 const activityLoading = ref(false)
 
-type TabKey = 'articles' | 'issues' | 'replies' | 'resources'
-type TabItem = ArticleListItem | IssueListItem | ResourceItem | ProfileReplyItem
+type TabKey = 'articles' | 'issues' | 'replies' | 'resources' | 'followers' | 'following'
+type TabItem = ArticleListItem | IssueListItem | ResourceItem | ProfileReplyItem | FollowUserItem
 const activeTab = ref<TabKey>('articles')
 const tabItems = ref<TabItem[]>([])
 const tabTotal = ref(0)
@@ -85,9 +86,39 @@ const savingIdentifier = ref(false)
 const inviteCode = ref('')
 const redeemError = ref('')
 const savingRedeem = ref(false)
+const editUsername = ref('')
+const usernameError = ref('')
+const savingUsername = ref(false)
 
 const userId = computed(() => String(route.params.id))
+/** authorId/creatorId 过滤必须用 UUID（路由参数可能是 username） */
+const ownerId = computed(() => profile.value?.id ?? '')
 const isSelf = computed(() => profile.value?.isSelf ?? false)
+
+const followLoading = ref(false)
+
+async function toggleFollow(): Promise<void> {
+  if (!profile.value || followLoading.value) return
+  followLoading.value = true
+  try {
+    const result = profile.value.isFollowing
+      ? await usersApi.unfollow(userId.value)
+      : await usersApi.follow(userId.value)
+    profile.value = {
+      ...profile.value,
+      isFollowing: result.following,
+      followerCount: profile.value.followerCount + (result.following ? 1 : -1),
+    }
+    toast.show(result.following ? '已关注' : '已取消关注')
+    if (activeTab.value === 'followers' || activeTab.value === 'following') {
+      void loadTab()
+    }
+  } catch (err) {
+    toast.show(describeError(err))
+  } finally {
+    followLoading.value = false
+  }
+}
 
 async function load(): Promise<void> {
   loading.value = true
@@ -97,6 +128,10 @@ async function load(): Promise<void> {
   try {
     await auth.ensureReady()
     profile.value = await usersApi.getProfile(userId.value)
+    // 旧 id 链接 → 301 到 username 规范地址
+    if (profile.value && route.params.id !== profile.value.username) {
+      void router.replace({ name: 'user-profile', params: { id: profile.value.username } })
+    }
     void loadActivity()
     void loadTab()
   } catch (err) {
@@ -130,19 +165,27 @@ async function loadTab(): Promise<void> {
   tabLoading.value = true
   try {
     if (activeTab.value === 'articles') {
-      const result = await articlesApi.list({ authorId: userId.value, page: tabPage.value, pageSize: tabPageSize })
+      const result = await articlesApi.list({ authorId: ownerId.value, page: tabPage.value, pageSize: tabPageSize })
       tabItems.value = result.items
       tabTotal.value = result.total
     } else if (activeTab.value === 'issues') {
-      const result = await issuesApi.list({ authorId: userId.value, page: tabPage.value, pageSize: tabPageSize })
+      const result = await issuesApi.list({ authorId: ownerId.value, page: tabPage.value, pageSize: tabPageSize })
       tabItems.value = result.items
       tabTotal.value = result.total
     } else if (activeTab.value === 'replies') {
       const result = await usersApi.getReplies(userId.value, { page: tabPage.value, pageSize: tabPageSize })
       tabItems.value = result.items
       tabTotal.value = result.total
+    } else if (activeTab.value === 'followers') {
+      const result = await usersApi.getFollowers(userId.value, { page: tabPage.value, pageSize: tabPageSize })
+      tabItems.value = result.items
+      tabTotal.value = result.total
+    } else if (activeTab.value === 'following') {
+      const result = await usersApi.getFollowing(userId.value, { page: tabPage.value, pageSize: tabPageSize })
+      tabItems.value = result.items
+      tabTotal.value = result.total
     } else {
-      const result = await resourcesApi.list({ creatorId: userId.value, page: tabPage.value, pageSize: tabPageSize })
+      const result = await resourcesApi.list({ creatorId: ownerId.value, page: tabPage.value, pageSize: tabPageSize })
       tabItems.value = result.items
       tabTotal.value = result.total
     }
@@ -177,6 +220,22 @@ function toReply(item: TabItem): ProfileReplyItem {
 function toResource(item: TabItem): ResourceItem {
   return item as ResourceItem
 }
+function toFollowUser(item: TabItem): FollowUserItem {
+  return item as FollowUserItem
+}
+
+/** 粉丝/关注列表内关注按钮 */
+async function toggleFollowUser(user: FollowUserItem): Promise<void> {
+  try {
+    const result = user.isFollowing
+      ? await usersApi.unfollow(user.username)
+      : await usersApi.follow(user.username)
+    user.isFollowing = result.following
+    toast.show(result.following ? '已关注' : '已取消关注')
+  } catch (err) {
+    toast.show(describeError(err))
+  }
+}
 
 function pinTypeLabel(type: PinnedItem['type']): string {
   return type === 'ARTICLE' ? '文章' : type === 'ISSUE' ? '讨论' : '资源'
@@ -191,6 +250,10 @@ const tabEmptyHint = computed(() => {
       return `${who}还没有回复过讨论。`
     case 'resources':
       return `${who}还没有创建资源。`
+    case 'followers':
+      return `${who}还没有粉丝。`
+    case 'following':
+      return `${who}还没有关注任何人。`
     default:
       return `${who}还没有发布文章。`
   }
@@ -220,6 +283,30 @@ function openSettings(): void {
   identifierError.value = ''
   inviteCode.value = ''
   redeemError.value = ''
+  editUsername.value = profile.value?.username ?? ''
+  usernameError.value = ''
+}
+
+async function saveUsername(): Promise<void> {
+  if (savingUsername.value) return
+  usernameError.value = ''
+  const value = editUsername.value.trim()
+  if (!/^[A-Za-z0-9_-]{2,32}$/.test(value)) {
+    usernameError.value = '用户名需为 2-32 位字母、数字、- 或 _'
+    return
+  }
+  savingUsername.value = true
+  try {
+    const updated = await usersApi.updateUsername({ username: value })
+    auth.setUser(updated)
+    toast.show('用户名已更新')
+    await router.replace({ name: 'user-profile', params: { id: updated.username } })
+    await load()
+  } catch (err) {
+    usernameError.value = describeError(err)
+  } finally {
+    savingUsername.value = false
+  }
 }
 
 async function saveProfile(): Promise<void> {
@@ -271,13 +358,13 @@ async function loadPinOptions(): Promise<void> {
   pinPickId.value = ''
   try {
     if (pinType.value === 'ARTICLE') {
-      const result = await articlesApi.list({ authorId: userId.value, page: 1, pageSize: 50 })
+      const result = await articlesApi.list({ authorId: ownerId.value, page: 1, pageSize: 50 })
       pinOptions.value = result.items.map((i) => ({ id: i.id, title: i.title }))
     } else if (pinType.value === 'ISSUE') {
-      const result = await issuesApi.list({ authorId: userId.value, page: 1, pageSize: 50 })
+      const result = await issuesApi.list({ authorId: ownerId.value, page: 1, pageSize: 50 })
       pinOptions.value = result.items.map((i) => ({ id: i.id, title: i.title }))
     } else {
-      const result = await resourcesApi.list({ creatorId: userId.value, page: 1, pageSize: 50 })
+      const result = await resourcesApi.list({ creatorId: ownerId.value, page: 1, pageSize: 50 })
       pinOptions.value = result.items.map((i) => ({ id: i.id, title: i.title }))
     }
   } catch {
@@ -436,15 +523,29 @@ watch(pinType, () => {
       <!-- 左栏 · 资料卡 -->
       <aside class="profile-sidebar">
         <div class="profile-card">
-          <AppAvatar
-            :nickname="profile.nickname"
-            :avatar-url="profile.avatarUrl || ''"
-            :user-id="profile.id"
-            size="xl"
-          />
+          <div class="profile-avatar">
+            <AppAvatar
+              :nickname="profile.nickname"
+              :avatar-url="profile.avatarUrl || ''"
+              :user-id="profile.id"
+              size="xl"
+            />
+          </div>
           <h1 class="profile-name">{{ profile.nickname }}</h1>
+          <div class="profile-handle">@{{ profile.username }}</div>
           <span class="role-badge" :class="`role-${profile.role.toLowerCase()}`">{{ roleLabel(profile.role) }}</span>
           <p v-if="profile.bio" class="profile-bio">{{ profile.bio }}</p>
+
+          <button
+            v-if="!isSelf && auth.isLoggedIn && auth.user?.role !== 'VISITOR'"
+            class="btn follow-btn"
+            :class="profile.isFollowing ? 'btn-ghost' : 'btn-clay'"
+            type="button"
+            :disabled="followLoading"
+            @click="toggleFollow"
+          >
+            {{ profile.isFollowing ? '已关注' : '关注' }}
+          </button>
 
           <div class="profile-stats">
             <button class="stat-item" type="button" @click="switchTab('articles')">
@@ -466,6 +567,12 @@ watch(pinType, () => {
             <span v-else class="stat-item">
               <strong>{{ profile.stats.submissions }}</strong> 提交
             </span>
+            <button class="stat-item" type="button" @click="switchTab('followers')">
+              <strong>{{ profile.followerCount }}</strong> 粉丝
+            </button>
+            <button class="stat-item" type="button" @click="switchTab('following')">
+              <strong>{{ profile.followingCount }}</strong> 关注
+            </button>
           </div>
 
           <div class="profile-meta">
@@ -566,6 +673,21 @@ watch(pinType, () => {
           <h3>设置</h3>
 
           <section class="settings-section">
+            <h4>用户名（主页地址）</h4>
+            <p class="hint">主页地址为 /users/用户名，改动后旧链接将自动跳转新地址。</p>
+            <div v-if="usernameError" class="form-error">{{ usernameError }}</div>
+            <form class="form-grid" @submit.prevent="saveUsername">
+              <div class="field">
+                <label for="pd-username">用户名</label>
+                <input id="pd-username" v-model="editUsername" type="text" required :minlength="2" :maxlength="32" pattern="[A-Za-z0-9_-]+">
+              </div>
+              <button class="btn btn-primary" type="submit" :disabled="savingUsername">
+                {{ savingUsername ? '保存中…' : '保存用户名' }}
+              </button>
+            </form>
+          </section>
+
+          <section class="settings-section">
             <h4>修改密码</h4>
             <div v-if="passwordError" class="form-error">{{ passwordError }}</div>
             <form class="form-grid" @submit.prevent="changePassword">
@@ -632,9 +754,8 @@ watch(pinType, () => {
           </div>
         </div>
 
-        <!-- README -->
-        <section v-if="!editing && (profile.profileReadme || isSelf)" class="profile-section">
-          <h2>README</h2>
+        <!-- README 个人介绍（GitHub 式：置顶裸渲染，不加节标题） -->
+        <section v-if="!editing && (profile.profileReadme || isSelf)" class="profile-section profile-readme">
           <MarkdownBody v-if="profile.profileReadme" :content="profile.profileReadme" />
           <p v-else-if="isSelf" class="empty-hint">写一段 Markdown 介绍自己吧。</p>
         </section>
@@ -657,14 +778,14 @@ watch(pinType, () => {
               <RouterLink
                 v-else-if="item.type === 'ARTICLE'"
                 class="pinned-title"
-                :to="{ name: 'article-detail', params: { id: item.id } }"
+                :to="{ name: 'article-detail', params: { id: item.slug } }"
               >
                 {{ item.title }}
               </RouterLink>
               <RouterLink
                 v-else-if="item.type === 'ISSUE'"
                 class="pinned-title"
-                :to="{ name: 'issue-detail', params: { id: item.id } }"
+                :to="{ name: 'issue-detail', params: { id: item.slug } }"
               >
                 {{ item.title }}
               </RouterLink>
@@ -696,7 +817,7 @@ watch(pinType, () => {
         <section v-if="!editing" class="profile-section">
           <div class="tab-bar">
             <button
-              v-for="tab in ([['articles', '文章'], ['issues', '讨论'], ['replies', '回复'], ['resources', '资源']] as const)"
+              v-for="tab in ([['articles', '文章'], ['issues', '讨论'], ['replies', '回复'], ['resources', '资源'], ['followers', `粉丝 ${profile.followerCount}`], ['following', `关注 ${profile.followingCount}`]] as const)"
               :key="tab[0]"
               class="tab-btn"
               :class="{ active: activeTab === tab[0] }"
@@ -720,12 +841,36 @@ watch(pinType, () => {
               v-for="item in tabItems"
               :key="item.id"
               class="tab-item"
-              :to="{ name: 'issue-detail', params: { id: toReply(item).issueId } }"
+              :to="{ name: 'issue-detail', params: { id: toReply(item).issueSlug } }"
             >
               <span class="tab-item-title">{{ toReply(item).issueTitle }}</span>
               <span class="tab-item-sub">{{ toReply(item).content }}</span>
               <span class="tab-item-time">{{ timeAgo(toReply(item).createdAt) }}</span>
             </RouterLink>
+          </div>
+          <div v-else-if="activeTab === 'followers' || activeTab === 'following'" class="tab-list">
+            <div v-for="item in tabItems" :key="item.id" class="follow-card">
+              <RouterLink class="follow-user" :to="{ name: 'user-profile', params: { id: toFollowUser(item).username } }">
+                <AppAvatar
+                  :nickname="toFollowUser(item).nickname"
+                  :avatar-url="toFollowUser(item).avatarUrl || ''"
+                  :user-id="toFollowUser(item).id"
+                />
+                <span class="follow-names">
+                  <strong>{{ toFollowUser(item).nickname }}</strong>
+                  <small>@{{ toFollowUser(item).username }}</small>
+                </span>
+              </RouterLink>
+              <p v-if="toFollowUser(item).bio" class="follow-bio">{{ toFollowUser(item).bio }}</p>
+              <button
+                v-if="!toFollowUser(item).isSelf && auth.isLoggedIn && auth.user?.role !== 'VISITOR'"
+                class="btn btn-ghost btn-sm"
+                type="button"
+                @click="toggleFollowUser(toFollowUser(item))"
+              >
+                {{ toFollowUser(item).isFollowing ? '已关注' : '关注' }}
+              </button>
+            </div>
           </div>
           <div v-else class="tab-list">
             <div v-for="item in tabItems" :key="item.id" class="tab-item">
@@ -757,27 +902,85 @@ watch(pinType, () => {
 <style scoped>
 .profile-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: var(--gap-md);
+  grid-template-columns: 296px minmax(0, 1fr);
+  gap: var(--gap-sm);
   margin-top: var(--gap-md);
 }
 @media (max-width: 768px) {
   .profile-layout {
     grid-template-columns: 1fr;
   }
+  .profile-card .profile-avatar :deep(.avatar.xl) {
+    max-width: 9.5rem;
+  }
 }
 .profile-card {
   background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
   border-radius: var(--br-12);
-  padding: 1.5rem;
-  text-align: center;
+  padding: 1.25rem;
+  text-align: left;
+}
+.profile-card .profile-avatar :deep(.avatar.xl) {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  font-size: 4.25rem;
 }
 .profile-name {
-  margin: 0.75rem 0 0.25rem;
+  margin: 1.15rem 0 0.25rem;
   font-family: var(--font-serif);
   font-size: var(--fs-h3);
   font-weight: var(--fw-regular);
+}
+.profile-handle {
+  color: var(--ink-faint);
+  font-size: var(--fs-meta);
+  margin-bottom: 0.55rem;
+  word-break: break-all;
+}
+.follow-btn {
+  width: 100%;
+  margin: 0.85rem 0 0.25rem;
+}
+.follow-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-raised);
+  border: var(--bw-sm) solid var(--border);
+  border-radius: var(--br-12);
+}
+.follow-card .follow-user {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+  flex: 1;
+}
+.follow-card .follow-user:hover strong {
+  color: var(--clay-soft);
+}
+.follow-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.follow-names small {
+  color: var(--ink-faint);
+}
+.follow-bio {
+  flex: 2;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--fs-meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .role-badge {
   display: inline-block;
@@ -799,10 +1002,9 @@ watch(pinType, () => {
 }
 .profile-stats {
   display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin: 1rem 0;
   flex-wrap: wrap;
+  align-items: baseline;
+  margin: 0.85rem 0;
 }
 .stat-item {
   background: none;
@@ -810,12 +1012,21 @@ watch(pinType, () => {
   cursor: pointer;
   font-size: var(--fs-small);
   color: var(--ink-muted);
-  padding: 0.25rem;
+  padding: 0.2rem 0;
   text-decoration: none;
 }
+.stat-item + .stat-item::before {
+  content: '·';
+  margin: 0 0.45rem;
+  color: var(--ink-faint);
+}
+.stat-item:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .stat-item strong {
-  display: block;
-  font-size: 1.15rem;
+  font-size: inherit;
+  font-weight: var(--fw-semibold);
   color: var(--ink);
 }
 .profile-meta {
@@ -824,13 +1035,16 @@ watch(pinType, () => {
   margin: 0.75rem 0;
 }
 .profile-self-actions {
-  margin-top: 1rem;
-  padding-top: 1rem;
+  margin-top: 1.15rem;
+  padding-top: 1.15rem;
   border-top: var(--bw-sm) solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+.profile-self-actions .btn {
+  width: 100%;
 }
 .contact-line {
   font-size: var(--fs-small);
@@ -856,6 +1070,11 @@ watch(pinType, () => {
   font-size: var(--fs-lead);
   font-weight: var(--fw-regular);
   margin-bottom: 0.75rem;
+}
+.profile-readme :deep(.md-body h1),
+.profile-readme :deep(.md-body h2) {
+  border-bottom: var(--bw-sm) solid var(--border);
+  padding-bottom: 0.35rem;
 }
 .section-hint {
   font-family: var(--font-sans);
@@ -982,8 +1201,8 @@ watch(pinType, () => {
 }
 .pinned-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 1rem;
 }
 .pinned-card {
   background: var(--bg-raised);

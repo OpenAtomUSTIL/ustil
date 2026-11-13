@@ -50,6 +50,10 @@ async function load(): Promise<void> {
   error.value = ''
   try {
     article.value = await articlesApi.get(articleId.value)
+    // 旧 id 链接 → 301 到 slug 规范地址
+    if (article.value && route.params.id !== article.value.slug) {
+      void router.replace({ name: 'article-detail', params: { id: article.value.slug } })
+    }
   } catch (err) {
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
@@ -100,7 +104,7 @@ onMounted(load)
           <span v-else-if="article.status === 'HIDDEN'" class="st-hint">文章已被管理员隐藏</span>
         </div>
         <div class="tc-meta">
-          <span class="who">
+          <RouterLink class="who" :to="{ name: 'user-profile', params: { id: article.author.username } }">
             <AppAvatar
               :nickname="article.author.nickname"
               :avatar-url="article.author.avatarUrl"
@@ -108,7 +112,7 @@ onMounted(load)
               size="lg"
             />
             {{ article.author.nickname }} · {{ roleLabel(article.author.role) }}
-          </span>
+          </RouterLink>
           <span class="num">{{ timeAgo(article.createdAt) }}</span>
           <span class="num">更新于 {{ formatDateTime(article.updatedAt) }}</span>
         </div>
@@ -120,7 +124,7 @@ onMounted(load)
           <RouterLink
             v-if="canEdit"
             class="btn btn-secondary"
-            :to="{ name: 'article-edit', params: { id: article.id } }"
+            :to="{ name: 'article-edit', params: { id: article.slug } }"
           >
             编辑
           </RouterLink>

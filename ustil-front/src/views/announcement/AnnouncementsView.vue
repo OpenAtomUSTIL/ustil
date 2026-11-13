@@ -110,23 +110,24 @@ onMounted(load)
           </p>
         </EmptyState>
         <div v-else class="topic-list">
-          <RouterLink
-            v-for="item in items"
-            :key="item.id"
-            class="topic-card"
-            :to="{ name: 'announcement-detail', params: { id: item.id } }"
-          >
+          <div v-for="item in items" :key="item.id" class="topic-card">
             <div class="tc-top">
               <span v-if="item.pinned" class="tag tag-cat" data-tone="clay">置顶</span>
               <span class="tag tag-cat" data-tone="sky">公告</span>
             </div>
-            <h3>{{ item.title }}</h3>
+            <h3>
+              <RouterLink class="tc-title-link" :to="{ name: 'announcement-detail', params: { id: item.slug } }">
+                {{ item.title }}
+              </RouterLink>
+            </h3>
             <p class="tc-excerpt">{{ excerpt(item.content) }}</p>
             <div class="tc-meta">
-              <span class="num">{{ item.authorName }}</span>
+              <RouterLink class="who" :to="{ name: 'user-profile', params: { id: item.authorUsername } }">
+                {{ item.authorName }}
+              </RouterLink>
               <span class="num">{{ timeAgo(item.createdAt) }}</span>
             </div>
-          </RouterLink>
+          </div>
         </div>
 
         <BasePagination

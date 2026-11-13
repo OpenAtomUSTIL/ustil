@@ -27,6 +27,10 @@ onMounted(async () => {
   loading.value = true
   try {
     const article = await articlesApi.get(articleId.value)
+    // 旧 id 链接 → 301 到 slug 规范地址
+    if (route.params.id !== article.slug) {
+      void router.replace({ name: 'article-edit', params: { id: article.slug } })
+    }
     title.value = article.title
     content.value = article.content
     tags.value = [...(article.tags ?? [])]

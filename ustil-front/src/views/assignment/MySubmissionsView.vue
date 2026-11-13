@@ -79,7 +79,7 @@ onMounted(load)
         <div v-else class="topic-list">
           <div v-for="item in items" :key="item.id" class="topic-card">
             <h3>
-              <RouterLink :to="{ name: 'assignment-detail', params: { id: item.assignmentId } }">
+              <RouterLink :to="{ name: 'assignment-detail', params: { id: item.assignmentSlug } }">
                 {{ item.assignmentTitle }}
               </RouterLink>
             </h3>
@@ -93,7 +93,7 @@ onMounted(load)
                 <button class="btn btn-ghost btn-sm" type="button" @click="downloadOf(item)">下载</button>
               </span>
               <span v-else class="hint">无附件</span>
-              <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'assignment-detail', params: { id: item.assignmentId } }">
+              <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'assignment-detail', params: { id: item.assignmentSlug } }">
                 去提交 / 重新提交
               </RouterLink>
             </div>

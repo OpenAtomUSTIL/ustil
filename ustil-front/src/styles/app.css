@@ -246,6 +246,14 @@ ul { margin: 0; padding: 0; list-style: none; }
 .tc-meta .who { display: flex; align-items: center; gap: 0.5rem; color: var(--ink-muted); }
 .tc-meta .num { display: inline-flex; align-items: center; gap: 0.28rem; font-variant-numeric: tabular-nums; }
 .tc-meta .num .ic { width: 0.92em; height: 0.92em; }
+/* 卡片标题 stretched-link：整卡可点进详情；作者/解答人链接浮在其上独立跳主页 */
+.topic-card h3 .tc-title-link { color: inherit; text-decoration: none; }
+.topic-card h3 .tc-title-link:hover { color: var(--clay-soft); }
+.topic-card h3 .tc-title-link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.tc-meta a.who { text-decoration: none; position: relative; z-index: 1; cursor: pointer; }
+.tc-meta a.who:hover { color: var(--clay-soft); }
+.inline-user { color: inherit; text-decoration: underline; text-underline-offset: 2px; position: relative; z-index: 1; }
+.inline-user:hover { color: var(--clay-soft); }
 
 .avatar {
   flex: none; display: inline-flex; align-items: center; justify-content: center;
@@ -321,6 +329,8 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .reply .r-head { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.65rem; }
 .reply .r-name { font-weight: var(--fw-semibold); font-size: var(--fs-meta); }
+.reply a.r-name { color: inherit; text-decoration: none; }
+.reply a.r-name:hover { color: var(--clay-soft); }
 .reply .r-time { font-size: var(--fs-small); color: var(--ink-faint); }
 .reply .r-floor { margin-left: auto; font-size: var(--fs-small); color: var(--ink-faint); font-variant-numeric: tabular-nums; }
 .reply .r-body { color: var(--gray-800); line-height: 1.8; max-width: var(--text-w-prose); }

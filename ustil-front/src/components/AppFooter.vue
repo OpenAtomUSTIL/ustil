@@ -8,7 +8,7 @@ const auth = useAuthStore()
 
 function openProfile(): void {
   if (auth.isLoggedIn) {
-    void router.push({ name: 'user-profile', params: { id: auth.user?.id } })
+    void router.push({ name: 'user-profile', params: { id: auth.user?.username } })
     return
   }
   void router.push({ name: 'login', query: { redirect: '/profile' } })
@@ -37,12 +37,14 @@ function openProfile(): void {
           <RouterLink :to="{ name: 'articles' }">文章</RouterLink>
           <RouterLink v-if="auth.canViewAssignments" :to="{ name: 'assignments' }">作业</RouterLink>
           <RouterLink :to="{ name: 'issues' }">讨论区</RouterLink>
+          <RouterLink :to="{ name: 'resources' }">资料库</RouterLink>
         </div>
         <div v-if="auth.canCreateIssue" class="footer-col">
           <h4>参与</h4>
           <RouterLink :to="{ name: 'issue-new' }">发起讨论</RouterLink>
           <RouterLink v-if="auth.canPublishArticle" :to="{ name: 'article-new' }">发布文章</RouterLink>
           <RouterLink v-if="auth.canManageContent" :to="{ name: 'assignment-new' }">发布作业</RouterLink>
+          <RouterLink v-if="auth.canManageContent" :to="{ name: 'resource-new' }">上传资料</RouterLink>
         </div>
         <div class="footer-col">
           <h4>账号</h4>

@@ -9,24 +9,32 @@ defineProps<{ issue: IssueListItem }>()
 </script>
 
 <template>
-  <RouterLink class="topic-card" :to="{ name: 'issue-detail', params: { id: issue.id } }">
+  <div class="topic-card">
     <div class="tc-top">
       <StatusBadge kind="issue" :value="issue.status" />
       <span v-if="issue.status === 'ANSWERED' && issue.answeredBy" class="tag tag-hash">
-        由 {{ issue.answeredBy.nickname }} 解答
+        由
+        <RouterLink class="inline-user" :to="{ name: 'user-profile', params: { id: issue.answeredBy.username } }">
+          {{ issue.answeredBy.nickname }}
+        </RouterLink>
+        解答
       </span>
     </div>
-    <h3>{{ issue.title }}</h3>
+    <h3>
+      <RouterLink class="tc-title-link" :to="{ name: 'issue-detail', params: { id: issue.slug } }">
+        {{ issue.title }}
+      </RouterLink>
+    </h3>
     <TagsChips v-if="issue.tags.length > 0" class="card-tags" :tags="issue.tags" target="issues" />
     <div class="tc-meta">
-      <span class="who">
+      <RouterLink class="who" :to="{ name: 'user-profile', params: { id: issue.author.username } }">
         <AppAvatar :nickname="issue.author.nickname" :avatar-url="issue.author.avatarUrl" :user-id="issue.author.id" />
         {{ issue.author.nickname }}
-      </span>
+      </RouterLink>
       <span class="num">{{ issue.replyCount }} 条回复</span>
       <span class="num">{{ timeAgo(issue.createdAt) }}</span>
     </div>
-  </RouterLink>
+  </div>
 </template>
 
 <style scoped>

@@ -124,6 +124,7 @@
 - [x] 个人中心独立界面为个人主页 ｜ /users/:id 独立页取代抽屉（抽屉移除）；/profile 重定向到自己主页；改密/换绑/邀请码转正收进主页「设置」区，行为不变
 - [x] 允许查看其他人的个人主页 ｜ MEMBER+ 互访可见公开资料；VISITOR 仅能看自己（访他人 403）；联系方式与编辑/设置区仅本人可见
 - [x] 主页参照github主页， ｜ 双栏：左栏（头像/昵称/角色徽章/bio≤100/统计行/加入时间/擅长标签云）+ 右栏（README 个人介绍 md+latex、置顶内容≤6 跨文章讨论资源、活跃热力图近一年、内容 Tab 文章|讨论|回复|资源 分页）
+- [x] GitHub 式布局精修 + README 社区数据实时徽章 + 贡献贪吃蛇（2026-11-13）｜ 双栏 296px/24px、资料卡左对齐大圆头像、统计行内联、README 置顶裸渲染；公开 GET /users/:username/stats-badge(.svg)（四类计数+近一年贡献+站内连击，按用户名 handle 寻址，shields.io endpoint 徽章）+ GET /users/:username/snake.svg（@platane/snk 同款贪吃蛇，vendored 求解/渲染，03:20 定时预生成深浅两套进 storage），README 数据区由 GitHub 统计/贪吃蛇换为站内实时数据
 - 数据与接口：users 加 bio/profile_readme(≤10000)/pinned_items(jsonb≤6)，迁移 0013；新增 GET /users/:id/profile（含统计+标签Top10+置顶+isSelf）、PUT /users/me/profile-page、GET /users/:id/activity（文章/讨论/回复/提交/资源 五类事件按日聚合，软删不计）
 - 验收：两成员可互访主页；VISITOR 访他人 403；README/置顶/热力图/Tab 齐全；设置迁移后改密/换绑/邀请码转正行为不变
 
@@ -159,3 +160,40 @@
 - ✅ 无 cookie 调受保护接口 → 401（test/guards.e2e-spec.ts:124-127）；`/users/:id` 仅脱敏公开字段（单测锁定）
 - ✅ refresh 响应不含 email/phone（auth.service.spec.ts 新增成功路径断言）
 - ✅ 质量门全绿：后端 lint + 117 单测 + 22 e2e；前端 typecheck / lint / 12 单测 / build
+
+## v4.0 - 界面入口优化、关注体系、去 ID 化链接
+
+> 设计定稿 2026-11-13（三条诉求——①界面功能优化如导航栏直达资料库；②优化关注并查看他人主页；③URL 用标题/名称不暴露裸 ID；讨论决议：slug 保留中文原文、旧链接一律保留跳转）。实现 2026-11-13：迁移 0014（user_follows + 五内容表 slug + users username，含存量回填与去重）+ 0015（user_username_history）；notification_type 加 FOLLOW；users 加关注/改名 API；内容模块 slug/idOrSlug；前端导航补入口、卡片改 stretched-link 作者可点、主页关注按钮/粉丝关注 Tab/用户名设置。
+
+### P0｜全局导航与界面入口优化
+
+- [x] 导航栏补「资料库」入口：`AppHeader.vue` 主导航顺序 首页 / 文章 / 讨论 / 作业 / 资料库（登录后可见）。
+- [x] 发布下拉补「上传资料」→ `resource-new`（canManageContent 显隐，后端 WHEEL/ADMIN 为准）。
+- [x] 页脚 `AppFooter.vue` 「社区」列补「资料库」，「参与」列补「上传资料」。
+- [x] 主导航当前路由高亮（router-link-active 沿用）；移动端路由变化自动收起菜单，顺序与桌面一致。
+- 验收：✅ 任一页面可从导航直达 /resources；发布菜单可进上传资料；移动端/桌面一致。
+
+### P0｜关注体系 + 他人主页互访优化
+
+- [x] 数据：`user_follows`（follower_id、followee_id、created_at，唯一约束，迁移 0014）。
+- [x] 接口：`POST|DELETE /users/:id/follow`（幂等）、`GET /users/:id/followers|following`（分页用户卡）；`GET /users/:id/profile` 增加 isFollowing / followerCount / followingCount。
+- [x] 规则：不能关注自己（400）；VISITOR 关注/访列表 403；封禁用户不出列表不计数不可关注；重复关注幂等不重复通知。
+- [x] 互访入口：ArticleCard / IssueCard 改 stretched-link（标题链接铺整卡，作者链接 z-index 独立跳 /users/:username，避免 a 套 a）；文章/讨论详情作者块、讨论回复人、解答人、作业发布者/提交人、资料创建者、公告作者均可点击进主页。
+- [x] 主页左栏：关注/已关注按钮 + 粉丝/关注计数可点；followers / following 两个 Tab（用户卡含头像/昵称/@handle/bio/关注按钮，分页）。
+- [x] 被关注发站内通知（type FOLLOW，link 走 /users/:username）；取关不通知不删历史。
+- 验收：✅ 关注/取关计数与按钮态正确；卡片点作者直达主页；VISITOR 关注 403（e2e/单测锁定）；被关注方收通知。
+
+### P0｜去 ID 化：URL 用标题/名称
+
+- [x] slug 字段：articles / issues / resources / assignments / announcements 加 `slug` 唯一列（迁移 0014）；创建时由标题生成（小写、保留中文、去特殊符号、空标题兜底短随机串、冲突追加 -2/-3），创建后不变，软删不回收。
+- [x] 用户 handle：users 加唯一 `username`（2–32 位字母/数字/-/_）；注册时由昵称生成（不合规回退 user-xxxxxxx，冲突加序号）；主页「设置」区可改（格式+唯一校验）。
+- [x] 旧 handle 保留跳转：`user_username_history`（迁移 0015）记录变更历史，旧 handle 解析回落历史且不可被他人抢占（占用检查含历史，库级唯一索引兜底）。
+- [x] 兼容过渡：详情接口与前台路由均 idOrSlug——形如 UUID 查库后 `router.replace` 跳 slug/username 规范址；改标题/改 handle 后旧链接仍可达（跳同一内容再规范化）；新通知/置顶/站内跳转一律 slug 路由。
+- [x] 页面内链接不含 UUID：列表卡片/详情/我的内容/置顶/回复 Tab/粉丝关注卡均用 slug 或 username；后台内部 id 查询不受影响。
+- 验收：✅ 地址栏与页面内链接不含 UUID；旧 /articles/:id、/users/:id 自动跳规范址；改标题后旧链接可用；改 handle 后旧 handle 跳新主页。
+
+### 需先讨论（决议记录）
+
+- **slug 语言策略**：✅ 定稿保留中文原文 URL（2026-11-13 用户确认）。
+- **username 改名历史**：✅ 旧 handle 保留跳转（用户确认「旧链接保留跳转」），历史 handle 不可被抢占。
+- **关注动态流**：「关注的人的新内容」聚合页（首页 Tab 或独立页）仍为 P1 候选，未纳入本轮。

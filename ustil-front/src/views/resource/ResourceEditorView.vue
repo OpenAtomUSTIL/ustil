@@ -33,6 +33,10 @@ onMounted(async () => {
   loading.value = true
   try {
     const item: ResourceItem = await resourcesApi.get(resourceId.value)
+    // 旧 id 链接 → 301 到 slug 规范地址
+    if (route.params.id !== item.slug) {
+      void router.replace({ name: 'resource-edit', params: { id: item.slug } })
+    }
     initial.value = {
       title: item.title,
       description: item.description ?? '',

@@ -6,7 +6,7 @@ const route: RouteRecordRaw = {
   name: 'profile',
   redirect: () => {
     const auth = useAuthStore()
-    return { name: 'user-profile', params: { id: auth.user?.id ?? '' } }
+    return { name: 'user-profile', params: { id: auth.user?.username ?? '' } }
   },
   meta: { requiresAuth: true },
 }

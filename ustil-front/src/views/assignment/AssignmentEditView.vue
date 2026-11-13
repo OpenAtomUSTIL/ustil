@@ -26,6 +26,10 @@ onMounted(async () => {
   loading.value = true
   try {
     const assignment = await assignmentsApi.get(assignmentId.value)
+    // 旧 id 链接 → 301 到 slug 规范地址
+    if (route.params.id !== assignment.slug) {
+      void router.replace({ name: 'assignment-edit', params: { id: assignment.slug } })
+    }
     title.value = assignment.title
     description.value = assignment.description
     // ISO 8601 UTC → datetime-local 本地值，回填后可直接继续编辑

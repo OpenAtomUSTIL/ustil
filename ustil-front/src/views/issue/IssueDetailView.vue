@@ -46,6 +46,10 @@ async function load(): Promise<void> {
   try {
     issue.value = await issuesApi.get(issueId.value)
     newStatus.value = issue.value.status
+    // 旧 id 链接 → 301 到 slug 规范地址
+    if (issue.value && route.params.id !== issue.value.slug) {
+      void router.replace({ name: 'issue-detail', params: { id: issue.value.slug } })
+    }
   } catch (err) {
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
@@ -117,13 +121,17 @@ onMounted(load)
         <div class="tc-top">
           <StatusBadge kind="issue" :value="issue.status" />
           <span v-if="issue.status === 'ANSWERED' && issue.answeredBy" class="tag tag-hash">
-            由 {{ issue.answeredBy.nickname }} 于 {{ formatDateTime(issue.answeredAt ?? issue.updatedAt) }} 解答
+            由
+            <RouterLink class="inline-user" :to="{ name: 'user-profile', params: { id: issue.answeredBy.username } }">
+              {{ issue.answeredBy.nickname }}
+            </RouterLink>
+            于 {{ formatDateTime(issue.answeredAt ?? issue.updatedAt) }} 解答
           </span>
         </div>
         <h1>{{ issue.title }}</h1>
         <TagsChips v-if="issue.tags.length > 0" class="head-tags" :tags="issue.tags" target="issues" />
         <div class="tc-meta">
-          <span class="who">
+          <RouterLink class="who" :to="{ name: 'user-profile', params: { id: issue.author.username } }">
             <AppAvatar
               :nickname="issue.author.nickname"
               :avatar-url="issue.author.avatarUrl"
@@ -131,7 +139,7 @@ onMounted(load)
               size="lg"
             />
             {{ issue.author.nickname }} · {{ roleLabel(issue.author.role) }}
-          </span>
+          </RouterLink>
           <span class="num">{{ timeAgo(issue.createdAt) }}</span>
           <span class="num">{{ issue.replyCount }} 条回复</span>
         </div>
@@ -171,7 +179,9 @@ onMounted(load)
               :avatar-url="reply.author.avatarUrl"
               :user-id="reply.author.id"
             />
-            <span class="r-name">{{ reply.author.nickname }}</span>
+            <RouterLink class="r-name" :to="{ name: 'user-profile', params: { id: reply.author.username } }">
+              {{ reply.author.nickname }}
+            </RouterLink>
             <span class="r-time">{{ timeAgo(reply.createdAt) }}</span>
             <span class="r-floor">#{{ index + 1 }}</span>
           </div>

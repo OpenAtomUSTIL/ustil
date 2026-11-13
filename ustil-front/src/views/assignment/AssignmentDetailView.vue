@@ -58,6 +58,10 @@ async function load(): Promise<void> {
   error.value = ''
   try {
     assignment.value = await assignmentsApi.get(assignmentId.value)
+    // 旧 id 链接 → 301 到 slug 规范地址
+    if (assignment.value && route.params.id !== assignment.value.slug) {
+      void router.replace({ name: 'assignment-detail', params: { id: assignment.value.slug } })
+    }
   } catch (err) {
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
@@ -143,7 +147,9 @@ onBeforeUnmount(() => {
         <div class="meta-rows">
           <span>
             <span class="k">发布者</span>
-            <span class="v">{{ assignment.publisher.nickname }}（{{ roleLabel(assignment.publisher.role) }}）</span>
+            <RouterLink class="v inline-user" :to="{ name: 'user-profile', params: { id: assignment.publisher.username } }">
+              {{ assignment.publisher.nickname }}（{{ roleLabel(assignment.publisher.role) }}）
+            </RouterLink>
           </span>
           <span>
             <span class="k">开始</span>
@@ -163,7 +169,7 @@ onBeforeUnmount(() => {
       <div class="post-block">
         <MarkdownBody class="pb-body" :content="assignment.description" />
         <div v-if="canEdit" class="pb-actions">
-          <RouterLink class="btn btn-secondary" :to="{ name: 'assignment-edit', params: { id: assignment.id } }">
+          <RouterLink class="btn btn-secondary" :to="{ name: 'assignment-edit', params: { id: assignment.slug } }">
             编辑
           </RouterLink>
         </div>
@@ -232,7 +238,9 @@ onBeforeUnmount(() => {
               :avatar-url="item.submitter.avatarUrl"
               :user-id="item.submitter.id"
             />
-            <span class="r-name">{{ item.submitter.nickname }}</span>
+            <RouterLink class="r-name" :to="{ name: 'user-profile', params: { id: item.submitter.username } }">
+              {{ item.submitter.nickname }}
+            </RouterLink>
             <span class="r-time">{{ timeAgo(item.createdAt) }}</span>
             <span class="r-floor">#{{ index + 1 }}</span>
           </div>

@@ -87,7 +87,7 @@ onMounted(async () => {
           <h2>最新讨论</h2>
           <p>社区里刚刚发生的问题与回答</p>
           <div class="topic-mini">
-            <RouterLink v-for="issue in issues.slice(0, 3)" :key="issue.id" :to="{ name: 'issue-detail', params: { id: issue.id } }">
+            <RouterLink v-for="issue in issues.slice(0, 3)" :key="issue.id" :to="{ name: 'issue-detail', params: { id: issue.slug } }">
               <StatusBadge kind="issue" :value="issue.status" />
               <span class="tm-title">{{ issue.title }}</span>
             </RouterLink>
@@ -130,7 +130,7 @@ onMounted(async () => {
           v-for="item in announcements"
           :key="item.id"
           class="announce-row"
-          :to="{ name: 'announcement-detail', params: { id: item.id } }"
+          :to="{ name: 'announcement-detail', params: { id: item.slug } }"
         >
           <span v-if="item.pinned" class="tag tag-cat" data-tone="clay">置顶</span>
           <span class="an-title">{{ item.title }}</span>

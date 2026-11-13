@@ -9,21 +9,25 @@ defineProps<{ article: ArticleListItem }>()
 </script>
 
 <template>
-  <RouterLink class="topic-card" :to="{ name: 'article-detail', params: { id: article.id } }">
+  <div class="topic-card">
     <div class="tc-top">
       <span class="tag tag-cat" data-tone="clay">文章</span>
     </div>
-    <h3>{{ article.title }}</h3>
+    <h3>
+      <RouterLink class="tc-title-link" :to="{ name: 'article-detail', params: { id: article.slug } }">
+        {{ article.title }}
+      </RouterLink>
+    </h3>
     <MarkdownBody class="tc-preview" :content="article.excerpt" preview />
     <TagsChips v-if="article.tags.length > 0" class="card-tags" :tags="article.tags" target="articles" />
     <div class="tc-meta">
-      <span class="who">
+      <RouterLink class="who" :to="{ name: 'user-profile', params: { id: article.author.username } }">
         <AppAvatar :nickname="article.author.nickname" :avatar-url="article.author.avatarUrl" :user-id="article.author.id" />
         {{ article.author.nickname }}
-      </span>
+      </RouterLink>
       <span class="num">{{ timeAgo(article.createdAt) }}</span>
     </div>
-  </RouterLink>
+  </div>
 </template>
 
 <style scoped>

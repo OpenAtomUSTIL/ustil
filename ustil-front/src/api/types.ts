@@ -18,6 +18,7 @@ export type AssignmentState = 'NOT_STARTED' | 'OPEN' | 'CLOSED'
 /** 当前登录用户完整资料 */
 export interface UserSelf {
   id: string
+  username: string
   nickname: string
   avatarUrl: string
   role: Role
@@ -29,9 +30,10 @@ export interface UserSelf {
   updatedAt: string
 }
 
-/** 他人公开资料（只含昵称/头像/角色） */
+/** 他人公开资料（只含 handle/昵称/头像/角色） */
 export interface UserPublic {
   id: string
+  username: string
   nickname: string
   avatarUrl: string
   role: Role
@@ -58,6 +60,7 @@ export interface Page<T> {
 /** 文章列表项 */
 export interface ArticleListItem {
   id: string
+  slug: string
   title: string
   excerpt: string
   author: UserPublic
@@ -70,6 +73,7 @@ export interface ArticleListItem {
 /** 文章详情（content 为 markdown 原文） */
 export interface ArticleDetail {
   id: string
+  slug: string
   title: string
   content: string
   author: UserPublic
@@ -83,6 +87,7 @@ export interface ArticleDetail {
 /** 作业列表项 / 详情 */
 export interface AssignmentItem {
   id: string
+  slug: string
   title: string
   description: string
   startAt: string
@@ -111,6 +116,7 @@ export interface SubmissionView {
 export interface MySubmissionItem {
   id: string
   assignmentId: string
+  assignmentSlug: string
   assignmentTitle: string
   startAt: string
   deadlineAt: string
@@ -125,6 +131,7 @@ export interface MySubmissionItem {
 /** Issue 列表项 */
 export interface IssueListItem {
   id: string
+  slug: string
   title: string
   status: IssueStatus
   author: UserPublic
@@ -292,11 +299,13 @@ export interface AuditLogItem {
 
 export interface AnnouncementItem {
   id: string
+  slug: string
   title: string
   content: string
   pinned: boolean
   authorId: string
   authorName: string
+  authorUsername: string
   createdAt: string
   updatedAt: string
 }
@@ -317,7 +326,13 @@ export interface AnnouncementUpdateRequest {
 
 /* ============ 通知 ============ */
 
-export type NotificationType = 'ANNOUNCEMENT' | 'ASSIGNMENT' | 'ISSUE_REPLY' | 'ROLE' | 'SYSTEM'
+export type NotificationType =
+  | 'ANNOUNCEMENT'
+  | 'ASSIGNMENT'
+  | 'ISSUE_REPLY'
+  | 'ROLE'
+  | 'SYSTEM'
+  | 'FOLLOW'
 
 export interface NotificationItem {
   id: string
@@ -335,6 +350,7 @@ export type ResourceCategory = 'GITHUB' | 'EXAM' | 'EBOOK' | 'DOCUMENT' | 'OTHER
 
 export interface ResourceItem {
   id: string
+  slug: string
   title: string
   description: string | null
   url: string
@@ -342,6 +358,7 @@ export interface ResourceItem {
   tags: string[]
   creatorId: string
   creatorName: string
+  creatorUsername: string
   createdAt: string
   updatedAt: string
 }
@@ -453,6 +470,7 @@ export interface ApiRegistryItem {
 export interface PinnedItem {
   type: 'ARTICLE' | 'ISSUE' | 'RESOURCE'
   id: string
+  slug: string
   title: string
   /** RESOURCE 目标的外链；文章/讨论无此字段 */
   url?: string
@@ -461,6 +479,7 @@ export interface PinnedItem {
 /** 个人主页视图 */
 export interface UserProfile {
   id: string
+  username: string
   nickname: string
   avatarUrl: string | null
   role: Role
@@ -476,8 +495,23 @@ export interface UserProfile {
   topTags: { name: string; count: number }[]
   pinnedItems: PinnedItem[]
   isSelf: boolean
+  isFollowing: boolean
+  followerCount: number
+  followingCount: number
   email?: string
   phone?: string
+}
+
+/** 关注/粉丝列表用户卡 */
+export interface FollowUserItem {
+  id: string
+  username: string
+  nickname: string
+  avatarUrl: string | null
+  role: Role
+  bio: string | null
+  isSelf: boolean
+  isFollowing: boolean
 }
 
 /** 活跃热力图数据 */
@@ -494,6 +528,7 @@ export interface ActivityView {
 export interface ProfileReplyItem {
   id: string
   issueId: string
+  issueSlug: string
   issueTitle: string
   content: string
   createdAt: string

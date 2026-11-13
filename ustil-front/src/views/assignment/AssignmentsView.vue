@@ -80,22 +80,23 @@ watch(() => route.fullPath, load)
         <EmptyState v-else-if="items.length === 0" title="暂时没有作业" hint="等待新的练习任务发布。" />
 
         <div v-else class="topic-list">
-          <RouterLink
-            v-for="item in items"
-            :key="item.id"
-            class="topic-card"
-            :to="{ name: 'assignment-detail', params: { id: item.id } }"
-          >
+          <div v-for="item in items" :key="item.id" class="topic-card">
             <div class="tc-top">
               <StatusBadge kind="assignment" :value="item.state" />
               <span v-if="item.mySubmission" class="tag tag-hash">已提交</span>
             </div>
-            <h3>{{ item.title }}</h3>
+            <h3>
+              <RouterLink class="tc-title-link" :to="{ name: 'assignment-detail', params: { id: item.slug } }">
+                {{ item.title }}
+              </RouterLink>
+            </h3>
             <p class="tc-excerpt">{{ item.description }}</p>
             <div class="meta-rows">
               <span>
                 <span class="k">发布者</span>
-                <span class="v">{{ item.publisher.nickname }}</span>
+                <RouterLink class="v inline-user" :to="{ name: 'user-profile', params: { id: item.publisher.username } }">
+                  {{ item.publisher.nickname }}
+                </RouterLink>
               </span>
               <span>
                 <span class="k">开始</span>
@@ -110,18 +111,18 @@ watch(() => route.fullPath, load)
               </span>
             </div>
             <div class="tc-meta">
-              <span class="who">
+              <RouterLink class="who" :to="{ name: 'user-profile', params: { id: item.publisher.username } }">
                 <AppAvatar
                   :nickname="item.publisher.nickname"
                   :avatar-url="item.publisher.avatarUrl"
                   :user-id="item.publisher.id"
                 />
                 {{ item.publisher.nickname }}
-              </span>
+              </RouterLink>
               <span class="num">{{ timeAgo(item.createdAt) }}</span>
               <span v-if="item.canSubmit" class="num" style="color: var(--mineral)">可提交</span>
             </div>
-          </RouterLink>
+          </div>
         </div>
 
         <BasePagination

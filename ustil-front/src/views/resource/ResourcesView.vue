@@ -227,13 +227,15 @@ onMounted(load)
             <h3>{{ item.title }}</h3>
             <MarkdownBody v-if="item.description" class="tc-excerpt" :content="item.description" />
             <div class="tc-meta">
-              <span class="num">{{ item.creatorName }}</span>
+              <RouterLink class="who" :to="{ name: 'user-profile', params: { id: item.creatorUsername } }">
+                {{ item.creatorName }}
+              </RouterLink>
               <span class="num">{{ timeAgo(item.createdAt) }}</span>
               <a class="go-link" :href="item.url" target="_blank" rel="noopener">
                 打开链接 ↗
               </a>
               <template v-if="canManage(item)">
-                <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'resource-edit', params: { id: item.id } }">
+                <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'resource-edit', params: { id: item.slug } }">
                   编辑
                 </RouterLink>
                 <template v-if="confirmDeleteId === item.id">

@@ -109,10 +109,10 @@ onMounted(load)
               <span class="num">更新于 {{ formatDateTime(article.updatedAt) }}</span>
             </div>
             <div class="row-actions">
-              <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'article-detail', params: { id: article.id } }">
+              <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'article-detail', params: { id: article.slug } }">
                 查看
               </RouterLink>
-              <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'article-edit', params: { id: article.id } }">
+              <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'article-edit', params: { id: article.slug } }">
                 编辑
               </RouterLink>
               <template v-if="confirmDeleteId === article.id">

@@ -34,6 +34,8 @@
 - `GET /api/v1/users/:id/profile` → 一次返回：公开资料（UserPublic）+ `bio` + `profileReadme` + `createdAt` + `stats {articles, issues, replies, submissions}` + `topTags [{name,count}]`（Top10）+ `pinnedItems`（复用现有各列表项视图）+ `isSelf`；`isSelf=true` 时追加 `email`、`phone`。
 - `PUT /api/v1/users/me/profile-page` `{bio?, profileReadme?, pinnedItems?}`：长度契约 bio ≤100、README ≤10000、置顶 ≤6；写入失败保留输入并展示原因。
 - `GET /api/v1/users/:id/activity` → `{days: [{date: 'YYYY-MM-DD', count}]}`，近一年按日聚合。
+- `GET /api/v1/users/:username/stats-badge` → shields.io endpoint 协议 JSON `[{schemaVersion:1, label, message, color}]`（六枚：文章/讨论/回复/提交/近一年贡献/站内连击），README 经 `img.shields.io/endpoint?url=…` 引用；`GET /api/v1/users/:username/stats-badge.svg` → 站内自绘同款 SVG（shields.io 不可达时备用）。两者按用户名 handle 寻址、`@Public`（2026-11-13 增量），仅聚合计数、无私有字段，`Cache-Control: public, max-age=300`。
+- `GET /api/v1/users/:username/snake.svg?theme=light|dark` → 贡献贪吃蛇动画 SVG（@platane/snk 同款 vendored 求解/渲染，见 hub `users/snake/vendor/NOTICE.txt`）。数据 = 近一年五类事件聚合；每日 03:20 定时任务（SchedulerService）为全员预生成深浅两套存 storage（key 为确定性 uuid，`image/svg+xml`），接口仅读取、`@Public`、`Cache-Control: public, max-age=3600`；未生成时 404。
 
 热力图/统计口径（软删不计）：文章创建、发起讨论、讨论回复、作业提交、资源创建五类事件。聚合按 UTC 日；前端渲染时按本地时区展示 tooltip。
 

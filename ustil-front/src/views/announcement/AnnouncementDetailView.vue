@@ -35,6 +35,10 @@ async function load(): Promise<void> {
   error.value = ''
   try {
     announcement.value = await announcementsApi.get(announcementId.value)
+    // 旧 id 链接 → 301 到 slug 规范地址
+    if (route.params.id !== announcement.value.slug) {
+      void router.replace({ name: 'announcement-detail', params: { id: announcement.value.slug } })
+    }
   } catch (err) {
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
@@ -82,7 +86,9 @@ onMounted(load)
         </div>
         <h1>{{ announcement.title }}</h1>
         <div class="tc-meta">
-          <span class="num">{{ announcement.authorName }}</span>
+          <RouterLink class="who" :to="{ name: 'user-profile', params: { id: announcement.authorUsername } }">
+            {{ announcement.authorName }}
+          </RouterLink>
           <span class="num">{{ timeAgo(announcement.createdAt) }}</span>
           <span class="num">更新于 {{ formatDateTime(announcement.updatedAt) }}</span>
         </div>
@@ -93,7 +99,7 @@ onMounted(load)
         <div v-if="canManage" class="pb-actions">
           <RouterLink
             class="btn btn-secondary"
-            :to="{ name: 'announcement-edit', params: { id: announcement.id } }"
+            :to="{ name: 'announcement-edit', params: { id: announcement.slug } }"
           >
             编辑
           </RouterLink>
