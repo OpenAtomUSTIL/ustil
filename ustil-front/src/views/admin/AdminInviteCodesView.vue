@@ -45,20 +45,33 @@ async function loadCounts(): Promise<void> {
   }
 }
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   try {
-    data.value = await adminApi.listInviteCodes({
+    const result = await adminApi.listInviteCodes({
       page: page.value,
       pageSize,
       status: statusFilter.value || undefined,
     })
+    if (version !== loadVersion) return
+    data.value = result
+    const lastPage = Math.max(1, Math.ceil(data.value.total / pageSize))
+    if (page.value > lastPage) {
+      page.value = lastPage
+      await load()
+      return
+    }
     void loadCounts()
   } catch (err) {
+    if (version !== loadVersion) return
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 
@@ -209,7 +222,7 @@ onMounted(load)
         type="button"
         @click="statusFilter = 'ACTIVE'; search()"
       >
-        生效中<span v-if="counts.active !== null" class="n">{{ counts.active }}</span>
+        未作废<span v-if="counts.active !== null" class="n">{{ counts.active }}</span>
       </button>
       <button
         class="chip"
@@ -266,7 +279,7 @@ onMounted(load)
               </div>
             </td>
             <td>
-              <span>{{ item.expiresAt ? formatDateTime(item.expiresAt) : '永久有效' }}</span>
+              <span>{{ item.expiresAt ? formatDateTime(item.expiresAt) : '不设到期时间' }}</span>
               <div v-if="item.expiresAt && new Date(item.expiresAt).getTime() <= Date.now()" class="hint">
                 已过期
               </div>
@@ -275,34 +288,38 @@ onMounted(load)
               <span>{{ formatDateTime(item.createdAt) }}</span>
               <div class="hint">{{ timeAgo(item.createdAt) }}</div>
             </td>
-            <td class="ops">
-              <template v-if="confirmRevokeId === item.id">
+            <td>
+              <div class="ops">
+                <template v-if="confirmRevokeId === item.id">
+                  <button
+                    class="btn btn-sm btn-danger"
+                    type="button"
+                    :disabled="busyId === item.id"
+                    @click="revoke(item)"
+                  >
+                    {{ busyId === item.id ? '作废中…' : '确认作废？' }}
+                  </button>
+                  <button
+                    class="btn btn-sm btn-ghost"
+                    type="button"
+                    :disabled="busyId === item.id"
+                    @click="confirmRevokeId = null"
+                  >
+                    取消
+                  </button>
+                  <span class="rm-hint">作废后不可恢复</span>
+                </template>
                 <button
+                  v-else-if="item.status === 'ACTIVE'"
                   class="btn btn-sm btn-danger"
                   type="button"
-                  :disabled="busyId === item.id"
-                  @click="revoke(item)"
+                  @click="confirmRevokeId = item.id"
                 >
-                  {{ busyId === item.id ? '作废中…' : '确认作废？' }}
+                  作废
                 </button>
-                <button
-                  class="btn btn-sm btn-ghost"
-                  type="button"
-                  :disabled="busyId === item.id"
-                  @click="confirmRevokeId = null"
-                >
-                  取消
-                </button>
-                <span class="rm-hint">作废后不可恢复</span>
-              </template>
-              <button
-                v-else-if="item.status === 'ACTIVE'"
-                class="btn btn-sm btn-danger"
-                type="button"
-                @click="confirmRevokeId = item.id"
-              >
-                作废
-              </button>
+
+                <span v-if="item.status === 'REVOKED'" class="hint">已作废</span>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -508,6 +525,7 @@ onMounted(load)
 
 .ops {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.45rem;
   align-items: center;
 }

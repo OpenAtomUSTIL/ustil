@@ -150,6 +150,15 @@ function isImageLike(el: Element): boolean {
 /** 预览模式去掉链接与复制按钮（列表卡片可嵌在 RouterLink 内），纯图段落标记为图行便于并排布局，br 分隔的图组拆分为多个图行 */
 function processHtml(html: string, preview: boolean): string {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+  for (const table of Array.from(doc.body.querySelectorAll('table'))) {
+    const wrap = doc.createElement('div')
+    wrap.className = 'md-table-scroll'
+    wrap.tabIndex = 0
+    wrap.setAttribute('role', 'region')
+    wrap.setAttribute('aria-label', '表格，可横向滚动')
+    table.replaceWith(wrap)
+    wrap.appendChild(table)
+  }
   if (preview) {
     for (const anchor of Array.from(doc.body.querySelectorAll('a'))) {
       const parent = anchor.parentNode
@@ -232,4 +241,19 @@ export function renderMarkdown(source: string, options: { preview?: boolean } = 
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
   }
+}
+
+/** 列表摘要用纯文本呈现，避免残缺 HTML、图形横幅和标题撑高卡片。 */
+export function markdownSummary(source: string): string {
+  const doc = new DOMParser().parseFromString(renderMarkdown(source, { preview: true }), 'text/html')
+  for (const element of Array.from(doc.body.querySelectorAll('script, style, math, .katex-mathml'))) element.remove()
+  for (const image of Array.from(doc.body.querySelectorAll('img'))) {
+    image.replaceWith(doc.createTextNode(image.alt ? ` ${image.alt} ` : ' '))
+  }
+  for (const block of Array.from(doc.body.querySelectorAll('p, div, h1, h2, h3, h4, li, pre, tr, br'))) {
+    block.appendChild(doc.createTextNode(' '))
+  }
+  const text = (doc.body.textContent ?? '').replace(/\s+/g, ' ').trim()
+  if (!text.replace(/[.…\s]/g, '')) return '暂无文字摘要，进入文章查看完整内容。'
+  return text.length > 180 ? `${text.slice(0, 180).replace(/[.…\s]+$/, '')}…` : text
 }

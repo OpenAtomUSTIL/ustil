@@ -34,7 +34,11 @@ function queryTag(): string {
   return typeof route.query.tag === 'string' ? route.query.tag : ''
 }
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   try {
@@ -44,19 +48,21 @@ async function load(): Promise<void> {
       keyword: queryKeyword() || undefined,
       tag: queryTag() || undefined,
     })
+    if (version !== loadVersion) return
     items.value = result.items
     total.value = result.total
     page.value = result.page
     keyword.value = queryKeyword()
     tag.value = queryTag()
   } catch (err) {
+    if (version !== loadVersion) return
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
       return
     }
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 
@@ -92,7 +98,7 @@ onMounted(load)
 
 <template>
   <div class="container">
-    <div class="layout single">
+    <div class="layout single article-index">
       <main>
         <div class="section-head">
           <h2>文章</h2>
@@ -135,3 +141,7 @@ onMounted(load)
     </div>
   </div>
 </template>
+
+<style scoped>
+.article-index { max-width: 72rem; margin-inline: auto; }
+</style>

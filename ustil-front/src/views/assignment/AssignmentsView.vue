@@ -29,22 +29,28 @@ function queryPage(): number {
   return Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1
 }
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   try {
     const result = await assignmentsApi.list({ page: queryPage(), pageSize })
+    if (version !== loadVersion) return
     items.value = result.items
     total.value = result.total
     page.value = result.page
   } catch (err) {
+    if (version !== loadVersion) return
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
       return
     }
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 

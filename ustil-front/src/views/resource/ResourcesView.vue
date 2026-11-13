@@ -81,7 +81,11 @@ function canManage(item: ResourceItem): boolean {
   return auth.isAdmin || (auth.isLoggedIn && auth.user?.id === item.creatorId)
 }
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   confirmDeleteId.value = null
@@ -93,6 +97,7 @@ async function load(): Promise<void> {
       category: queryCategory() || undefined,
       tag: queryTag() || undefined,
     })
+    if (version !== loadVersion) return
     items.value = result.items
     total.value = result.total
     page.value = result.page
@@ -100,13 +105,14 @@ async function load(): Promise<void> {
     category.value = queryCategory()
     tag.value = queryTag()
   } catch (err) {
+    if (version !== loadVersion) return
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
       return
     }
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 

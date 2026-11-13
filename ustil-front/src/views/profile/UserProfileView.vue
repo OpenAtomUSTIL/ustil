@@ -2,7 +2,7 @@
 /* 个人主页：GitHub 式双栏（资料卡 + README/置顶/热力图/内容 Tab） */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { describeError, isForbidden } from '@/api/error'
+import { ApiError, describeError, isForbidden } from '@/api/error'
 import { articlesApi, authApi, issuesApi, resourcesApi, usersApi } from '@/api/request'
 import type {
   ActivityDay,
@@ -139,8 +139,8 @@ async function load(): Promise<void> {
       void router.push({ name: 'forbidden' })
       return
     }
-    if ((err as { status?: number }).status === 404) {
-      void router.push({ name: 'not-found' })
+    if (err instanceof ApiError && err.statusCode === 404) {
+      void router.push('/404')
       return
     }
     error.value = describeError(err)
@@ -902,7 +902,7 @@ watch(pinType, () => {
 <style scoped>
 .profile-layout {
   display: grid;
-  grid-template-columns: 296px minmax(0, 1fr);
+  grid-template-columns: clamp(14rem, 24%, 18.5rem) minmax(0, 1fr);
   gap: var(--gap-sm);
   margin-top: var(--gap-md);
 }
@@ -1201,7 +1201,7 @@ watch(pinType, () => {
 }
 .pinned-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.375rem), 1fr));
   gap: 1rem;
 }
 .pinned-card {
@@ -1255,11 +1255,14 @@ watch(pinType, () => {
 [data-theme='dark'] .heatmap-cell.level-4 { background: #39d353; }
 .tab-bar {
   display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 0.5rem;
   margin-bottom: 1rem;
   border-bottom: var(--bw-sm) solid var(--border);
 }
 .tab-btn {
+  flex: 0 0 auto;
   background: none;
   border: none;
   padding: 0.5rem 1rem;

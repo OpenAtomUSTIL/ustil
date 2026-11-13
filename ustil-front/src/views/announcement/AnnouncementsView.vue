@@ -37,7 +37,11 @@ function excerpt(content: string): string {
   return text.length > 100 ? `${text.slice(0, 100)}…` : text
 }
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   try {
@@ -46,18 +50,20 @@ async function load(): Promise<void> {
       pageSize,
       keyword: queryKeyword() || undefined,
     })
+    if (version !== loadVersion) return
     items.value = result.items
     total.value = result.total
     page.value = result.page
     keyword.value = queryKeyword()
   } catch (err) {
+    if (version !== loadVersion) return
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
       return
     }
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 

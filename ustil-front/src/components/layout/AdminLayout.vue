@@ -74,9 +74,14 @@
 
 .admin-grid {
   display: grid;
-  grid-template-columns: 13.5rem minmax(0, 1fr);
+  grid-template-columns: clamp(11rem, 20%, 13.5rem) minmax(0, 1fr);
   gap: 2rem;
   align-items: start;
+}
+
+.admin-main {
+  min-width: 0;
+  container-type: inline-size;
 }
 
 .admin-sidebar {

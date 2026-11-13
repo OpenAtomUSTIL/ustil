@@ -89,6 +89,9 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
+  if (to.name === 'profile' && auth.user) {
+    return { name: 'user-profile', params: { id: auth.user.username } }
+  }
   if (to.meta.guestOnly && auth.isLoggedIn) {
     return { name: 'home' }
   }

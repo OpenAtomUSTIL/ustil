@@ -24,15 +24,28 @@ const acting = ref(false)
 
 const toast = useToastStore()
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   try {
-    data.value = await adminApi.listPendingArticles({ page: page.value, pageSize })
+    const result = await adminApi.listPendingArticles({ page: page.value, pageSize })
+    if (version !== loadVersion) return
+    data.value = result
+    const lastPage = Math.max(1, Math.ceil(data.value.total / pageSize))
+    if (page.value > lastPage) {
+      page.value = lastPage
+      await load()
+      return
+    }
   } catch (err) {
+    if (version !== loadVersion) return
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 

@@ -30,15 +30,22 @@ const formError = ref('')
 const confirmDeleteId = ref<string | null>(null)
 const deleting = ref(false)
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   try {
-    data.value = await announcementsApi.list({ page: page.value, pageSize })
+    const result = await announcementsApi.list({ page: page.value, pageSize })
+    if (version !== loadVersion) return
+    data.value = result
   } catch (err) {
+    if (version !== loadVersion) return
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 
@@ -158,20 +165,22 @@ onMounted(load)
             <td>{{ item.authorName }}</td>
             <td>{{ formatDateTime(item.createdAt) }}</td>
             <td>{{ formatDateTime(item.updatedAt) }}</td>
-            <td class="ops">
-              <button class="btn btn-sm btn-secondary" type="button" @click="openEdit(item)">编辑</button>
-              <template v-if="confirmDeleteId === item.id">
-                <button class="btn btn-sm btn-danger" type="button" :disabled="deleting" @click="remove(item.id)">
-                  {{ deleting ? '删除中…' : '确认删除？' }}
+            <td>
+              <div class="ops">
+                <button class="btn btn-sm btn-secondary" type="button" @click="openEdit(item)">编辑</button>
+                <template v-if="confirmDeleteId === item.id">
+                  <button class="btn btn-sm btn-danger" type="button" :disabled="deleting" @click="remove(item.id)">
+                    {{ deleting ? '删除中…' : '确认删除？' }}
+                  </button>
+                  <button class="btn btn-sm btn-ghost" type="button" :disabled="deleting" @click="confirmDeleteId = null">
+                    取消
+                  </button>
+                  <span class="rm-hint">删除后可在后台回收站恢复</span>
+                </template>
+                <button v-else class="btn btn-sm btn-ghost" type="button" @click="confirmDeleteId = item.id">
+                  删除
                 </button>
-                <button class="btn btn-sm btn-ghost" type="button" :disabled="deleting" @click="confirmDeleteId = null">
-                  取消
-                </button>
-                <span class="rm-hint">删除后可在后台回收站恢复</span>
-              </template>
-              <button v-else class="btn btn-sm btn-ghost" type="button" @click="confirmDeleteId = item.id">
-                删除
-              </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -236,6 +245,7 @@ onMounted(load)
 
 .ops {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.45rem;
   align-items: center;
 }

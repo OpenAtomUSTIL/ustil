@@ -21,9 +21,9 @@ function go(page: number): void {
 </script>
 
 <template>
-  <nav class="pagination" aria-label="分页">
-    <button class="chip" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
+  <nav v-if="total > 0" class="pagination" aria-label="分页">
+    <button v-if="pageCount > 1" type="button" class="chip" :disabled="page <= 1" @click="go(page - 1)">上一页</button>
     <span class="page-info">第 {{ page }} / {{ pageCount }} 页 · 共 {{ total }} 条</span>
-    <button class="chip" :disabled="page >= pageCount" @click="go(page + 1)">下一页</button>
+    <button v-if="pageCount > 1" type="button" class="chip" :disabled="page >= pageCount" @click="go(page + 1)">下一页</button>
   </nav>
 </template>

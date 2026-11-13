@@ -26,21 +26,34 @@ const busyId = ref('')
 
 const ROLE_OPTIONS: UpdateUserRoleRequest['role'][] = ['VISITOR', 'MEMBER', 'ALUMNI', 'WHEEL']
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   try {
-    data.value = await adminApi.listUsers({
+    const result = await adminApi.listUsers({
       page: page.value,
       pageSize,
       keyword: keyword.value.trim() || undefined,
       role: roleFilter.value || undefined,
       status: statusFilter.value || undefined,
     })
+    if (version !== loadVersion) return
+    data.value = result
+    const lastPage = Math.max(1, Math.ceil(data.value.total / pageSize))
+    if (page.value > lastPage) {
+      page.value = lastPage
+      await load()
+      return
+    }
   } catch (err) {
+    if (version !== loadVersion) return
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 
@@ -166,38 +179,42 @@ onMounted(load)
               </span>
             </td>
             <td>{{ formatDate(user.createdAt) }}</td>
-            <td class="ops">
-              <select
-                v-if="auth.isAdmin && user.role !== 'ADMIN'"
-                class="role-select"
-                :value="user.role"
-                :disabled="busyId === user.id"
-                aria-label="修改角色"
-                @change="changeRole(user, $event)"
-              >
-                <option v-for="opt in ROLE_OPTIONS" :key="opt" :value="opt">{{ roleLabel(opt) }}</option>
-              </select>
-              <button
-                v-if="user.role === 'MEMBER'"
-                class="btn btn-sm btn-secondary"
-                type="button"
-                :disabled="busyId === user.id"
-                @click="promote(user)"
-              >
-                提拔
-              </button>
-              <button v-if="auth.isAdmin && user.role !== 'ADMIN'" class="btn btn-sm btn-ghost" type="button" :disabled="busyId === user.id" @click="toggleBan(user)">
-                {{ user.status === 'BANNED' ? '解封' : '封禁' }}
-              </button>
-              <button
-                v-if="user.role === 'MEMBER' || user.role === 'VISITOR'"
-                class="btn btn-sm btn-danger"
-                type="button"
-                :disabled="busyId === user.id"
-                @click="remove(user)"
-              >
-                剔除
-              </button>
+            <td>
+              <div class="ops">
+                <select
+                  v-if="auth.isAdmin && user.role !== 'ADMIN'"
+                  class="role-select"
+                  :value="user.role"
+                  :disabled="busyId === user.id"
+                  aria-label="修改角色"
+                  @change="changeRole(user, $event)"
+                >
+                  <option v-for="opt in ROLE_OPTIONS" :key="opt" :value="opt">{{ roleLabel(opt) }}</option>
+                </select>
+                <button
+                  v-if="user.role === 'MEMBER'"
+                  class="btn btn-sm btn-secondary"
+                  type="button"
+                  :disabled="busyId === user.id"
+                  @click="promote(user)"
+                >
+                  提拔
+                </button>
+                <button v-if="auth.isAdmin && user.role !== 'ADMIN'" class="btn btn-sm btn-ghost" type="button" :disabled="busyId === user.id" @click="toggleBan(user)">
+                  {{ user.status === 'BANNED' ? '解封' : '封禁' }}
+                </button>
+                <button
+                  v-if="user.role === 'MEMBER' || user.role === 'VISITOR'"
+                  class="btn btn-sm btn-danger"
+                  type="button"
+                  :disabled="busyId === user.id"
+                  @click="remove(user)"
+                >
+                  剔除
+                </button>
+
+                <span v-if="!((auth.isAdmin && user.role !== 'ADMIN') || user.role === 'MEMBER' || user.role === 'VISITOR')" class="hint">无可用操作</span>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -270,6 +287,7 @@ onMounted(load)
 
 .ops {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.45rem;
   align-items: center;
 }

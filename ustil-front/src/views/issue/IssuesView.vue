@@ -47,7 +47,11 @@ function queryTag(): string {
   return typeof route.query.tag === 'string' ? route.query.tag : ''
 }
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   loading.value = true
   error.value = ''
   try {
@@ -58,6 +62,7 @@ async function load(): Promise<void> {
       status: queryStatus() || undefined,
       tag: queryTag() || undefined,
     })
+    if (version !== loadVersion) return
     items.value = result.items
     total.value = result.total
     page.value = result.page
@@ -65,13 +70,14 @@ async function load(): Promise<void> {
     status.value = queryStatus()
     tag.value = queryTag()
   } catch (err) {
+    if (version !== loadVersion) return
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
       return
     }
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 

@@ -15,17 +15,24 @@ const data = ref<OnlineUsersResult | null>(null)
 const loading = ref(true)
 const error = ref('')
 
+// 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
+let loadVersion = 0
+
 async function load(): Promise<void> {
+  const version = ++loadVersion
   const minutes = Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, Math.round(minutesInput.value) || MIN_MINUTES))
   minutesInput.value = minutes
   loading.value = true
   error.value = ''
   try {
-    data.value = await adminApi.getOnlineUsers(minutes)
+    const result = await adminApi.getOnlineUsers(minutes)
+    if (version !== loadVersion) return
+    data.value = result
   } catch (err) {
+    if (version !== loadVersion) return
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 
