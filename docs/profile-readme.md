@@ -75,8 +75,8 @@
 
 <div align="center">
 
-<a href="https://openatomustil.cn/users/GeminiMortal">
-  <img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fopenatomustil.cn%2Fapi%2Fv1%2Fusers%2FGeminiMortal%2Fstats-badge&style=for-the-badge" alt="社区数据" />
+<a href="https://openatomustil.cn/users/geminimortal">
+  <img src="https://openatomustil.cn/api/v1/users/geminimortal/stats-badge.svg" alt="社区数据" />
 </a>
 
 </div>
@@ -88,9 +88,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://openatomustil.cn/api/v1/users/GeminiMortal/snake.svg?theme=dark" />
-  <source media="(prefers-color-scheme: light)" srcset="https://openatomustil.cn/api/v1/users/GeminiMortal/snake.svg" />
-  <img alt="社区贡献贪吃蛇" src="https://openatomustil.cn/api/v1/users/GeminiMortal/snake.svg" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://openatomustil.cn/api/v1/users/geminimortal/snake.svg?theme=dark" />
+  <source media="(prefers-color-scheme: light)" srcset="https://openatomustil.cn/api/v1/users/geminimortal/snake.svg" />
+  <img alt="社区贡献贪吃蛇" src="https://openatomustil.cn/api/v1/users/geminimortal/snake.svg" />
 </picture>
 
 </div>
