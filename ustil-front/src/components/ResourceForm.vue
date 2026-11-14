@@ -129,13 +129,6 @@ function submit(): void {
 
 <style scoped>
 .resource-form {
-  max-width: 56rem;
-}
-
-.field-legend {
-  display: block;
-  font-size: var(--fs-meta);
-  font-weight: var(--fw-semibold);
-  margin-bottom: 0.45rem;
+  max-width: var(--prose-max);
 }
 </style>

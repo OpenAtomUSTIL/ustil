@@ -6,6 +6,8 @@ import { adminApi, fileContentUrl } from '@/api/request'
 import type { FileItem, FileKind, Page } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
+import ModalOverlay from '@/components/ModalOverlay.vue'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime, formatSize } from '@/utils/format'
 import { KEYWORD_MAX } from '@/utils/limits'
@@ -109,7 +111,7 @@ onMounted(load)
       <span v-if="data" class="hint">共 {{ data.total }} 个</span>
     </div>
 
-    <form class="filter-bar" role="search" @submit.prevent="search">
+    <form class="admin-filters" role="search" @submit.prevent="search">
       <div class="field">
         <select v-model="kindFilter" aria-label="文件类型">
           <option value="">全部类型</option>
@@ -134,7 +136,7 @@ onMounted(load)
       <p class="form-error">{{ error }}</p>
       <button class="btn btn-secondary" type="button" @click="load">重试</button>
     </div>
-    <div v-else-if="loading" class="empty">加载中…</div>
+    <LoadingState v-else-if="loading" />
     <EmptyState v-else-if="!data || data.items.length === 0" title="没有匹配的文件" hint="换个筛选条件试试" />
 
     <div v-else class="table-wrap">
@@ -172,14 +174,14 @@ onMounted(load)
             </td>
             <td class="file-name" :title="file.fileName">{{ file.fileName }}</td>
             <td>
-              <span class="type-badge" :class="file.isImage ? 'type-image' : 'type-attachment'">
+              <span class="badge" :class="file.isImage ? 'badge-plum' : 'badge-gray'">
                 {{ file.isImage ? '图片' : '附件' }}
               </span>
             </td>
             <td class="mono">{{ formatSize(file.sizeBytes) }}</td>
             <td class="mono">{{ file.uploaderEmail ?? file.uploaderId }}</td>
             <td>
-              <span class="ref-badge" :class="file.referenced ? 'ref-used' : 'ref-orphan'">
+              <span class="badge" :class="file.referenced ? 'badge-plum' : 'badge-gray'">
                 {{ file.referenced ? '使用中' : '孤立' }}
               </span>
             </td>
@@ -221,100 +223,32 @@ onMounted(load)
       <BasePagination :page="page" :page-size="pageSize" :total="data.total" @change="changePage" />
     </div>
 
-    <Teleport to="body">
-      <div v-if="previewFile" class="preview-overlay" role="dialog" aria-modal="true" @click.self="closePreview">
-        <div class="preview-panel">
-          <div class="preview-head">
-            <span class="preview-title">{{ previewFile.fileName }}</span>
-            <button class="btn btn-sm btn-ghost" type="button" @click="closePreview">关闭</button>
-          </div>
-          <p v-if="previewFailed" class="preview-fail">预览加载失败</p>
-          <img
-            v-else
-            class="preview-img"
-            :src="fileContentUrl(previewFile.id)"
-            :alt="previewFile.fileName"
-            @error="previewFailed = true"
-          >
-        </div>
+    <ModalOverlay v-if="previewFile" wide @close="closePreview">
+      <div class="preview-head">
+        <span class="preview-title">{{ previewFile.fileName }}</span>
+        <button class="btn btn-sm btn-ghost" type="button" @click="closePreview">关闭</button>
       </div>
-    </Teleport>
+      <p v-if="previewFailed" class="preview-fail">预览加载失败</p>
+      <img
+        v-else
+        class="preview-img"
+        :src="fileContentUrl(previewFile.id)"
+        :alt="previewFile.fileName"
+        @error="previewFailed = true"
+      >
+    </ModalOverlay>
   </div>
 </template>
 
 <style scoped>
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  align-items: center;
-  margin-bottom: 1.25rem;
-}
-
-.filter-bar .field {
-  margin: 0;
-}
-
-.filter-bar input,
-.filter-bar select {
-  min-width: 11rem;
-  padding: 0.5rem 0.75rem;
-  border: var(--bw-sm) solid var(--border-strong);
-  border-radius: var(--br-8);
-  background: var(--bg-raised);
-  font-size: var(--fs-meta);
-}
-
-.state-box {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
-  font-size: var(--fs-meta);
-}
-
-.admin-table th,
-.admin-table td {
-  padding: 0.75rem 0.9rem;
-  text-align: left;
-  border-bottom: var(--bw-sm) solid var(--border);
-  white-space: nowrap;
-}
-
-.admin-table th {
-  font-size: var(--fs-small);
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  font-weight: var(--fw-semibold);
-}
-
-.admin-table tr:last-child td {
-  border-bottom: none;
-}
-
-.mono {
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-muted);
-}
-
+/* 业务独有：文件名单元格截断 */
 .file-name {
   max-width: 16rem;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* 业务独有：缩略图按钮与占位 */
 .thumb-btn {
   display: inline-flex;
   padding: 0;
@@ -336,67 +270,10 @@ onMounted(load)
 .thumb-none {
   color: var(--ink-faint);
 }
-
-.type-badge,
-.ref-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.12rem 0.52rem;
-  border-radius: var(--br-6);
-  font-size: 0.78rem;
-  font-weight: var(--fw-semibold);
-  border: var(--bw-sm) solid transparent;
-}
-
-.type-image {
-  background: rgba(106, 155, 204, 0.13);
-  color: var(--sky);
-  border-color: rgba(106, 155, 204, 0.3);
-}
-
-.type-attachment {
-  background: var(--gray-200);
-  color: var(--gray-700);
-  border-color: var(--border-strong);
-}
-
-.ref-used {
-  background: rgba(102, 153, 135, 0.16);
-  color: var(--mineral);
-  border-color: rgba(102, 153, 135, 0.32);
-}
-
-.ref-orphan {
-  background: rgba(217, 119, 87, 0.12);
-  color: var(--clay-dark);
-  border-color: rgba(217, 119, 87, 0.3);
-}
 </style>
 
 <style scoped>
-.preview-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  background: rgba(32, 30, 28, 0.55);
-}
-
-.preview-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  max-width: min(56rem, 92vw);
-  max-height: 88vh;
-  padding: 1rem;
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
-}
-
+/* 业务独有：预览内容（壳层由 ModalOverlay 提供） */
 .preview-head {
   display: flex;
   align-items: center;
@@ -412,7 +289,9 @@ onMounted(load)
   white-space: nowrap;
 }
 
+/* 与标题行的间距（原 preview-panel 的 flex gap 0.75rem） */
 .preview-img {
+  margin-top: 0.75rem;
   max-width: 100%;
   max-height: 72vh;
   object-fit: contain;

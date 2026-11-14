@@ -5,6 +5,7 @@ import { adminApi } from '@/api/request'
 import type { InviteCode, Page } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime, timeAgo } from '@/utils/format'
 
@@ -207,7 +208,7 @@ onMounted(load)
       </div>
     </section>
 
-    <div class="filter-bar">
+    <div class="admin-filters">
       <button
         class="chip"
         :class="{ active: statusFilter === '' }"
@@ -235,7 +236,7 @@ onMounted(load)
     </div>
 
     <div v-if="error" class="form-error">{{ error }}</div>
-    <div v-else-if="loading" class="empty">加载中…</div>
+    <LoadingState v-else-if="loading" />
     <EmptyState
       v-else-if="!data || data.items.length === 0"
       title="还没有邀请码"
@@ -344,7 +345,7 @@ onMounted(load)
 }
 
 .gen-head h3 {
-  font-size: var(--fs-h3, 1.05rem);
+  font-size: var(--fs-h3);
   letter-spacing: -0.01em;
   margin-bottom: 0.25rem;
 }
@@ -446,55 +447,18 @@ onMounted(load)
 }
 
 .code-grid code {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   letter-spacing: 0.06em;
   font-size: var(--fs-meta);
 }
 
-.filter-bar {
-  display: flex;
-  gap: 0.55rem;
-  margin-bottom: 1.15rem;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
-  font-size: var(--fs-meta);
-}
-
-.admin-table th,
-.admin-table td {
-  padding: 0.75rem 0.9rem;
-  text-align: left;
-  border-bottom: var(--bw-sm) solid var(--border);
-  white-space: nowrap;
-}
-
-.admin-table th {
-  font-size: var(--fs-small);
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  font-weight: var(--fw-semibold);
-}
-
+/* 业务差异：邀请码表行 hover（其余 admin 表格无此交互） */
 .admin-table tbody tr {
-  transition: background var(--t-fast, 120ms) ease;
+  transition: background var(--t-fast) var(--ease);
 }
 
 .admin-table tbody tr:hover {
   background: var(--bg-sunken);
-}
-
-.admin-table tr:last-child td {
-  border-bottom: none;
 }
 
 .code-cell {
@@ -504,14 +468,9 @@ onMounted(load)
 }
 
 .code-cell code {
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
   letter-spacing: 0.08em;
   font-weight: var(--fw-semibold);
-}
-
-.mono {
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-muted);
 }
 
 .usage-col {
@@ -521,12 +480,5 @@ onMounted(load)
 .usage-col .progress {
   width: 7.5rem;
   margin-top: 0.45rem;
-}
-
-.ops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  align-items: center;
 }
 </style>

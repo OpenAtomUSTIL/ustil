@@ -112,13 +112,44 @@
   --fs-h2: clamp(1.75rem, 2.6vw, 2.375rem);
   --fs-h1: clamp(2.5rem, 5.2vw, 4.25rem);
 
+  /* —— 调色板透明底（徽章/筛选/状态底色统一来源，深色随主题校正）—— */
+  --tint-clay-bg: rgba(217, 119, 87, 0.12);
+  --tint-clay-bd: rgba(217, 119, 87, 0.30);
+  --tint-mineral-bg: rgba(102, 153, 135, 0.14);
+  --tint-mineral-bd: rgba(102, 153, 135, 0.30);
+  --tint-sky-bg: rgba(106, 155, 204, 0.13);
+  --tint-sky-bd: rgba(106, 155, 204, 0.28);
+  --tint-plum-bg: rgba(130, 125, 189, 0.13);
+  --tint-plum-bd: rgba(130, 125, 189, 0.28);
+  --tint-error-bg: rgba(191, 77, 67, 0.10);
+  --tint-error-bd: rgba(191, 77, 67, 0.35);
+  --tint-peach-bg: rgba(217, 119, 87, 0.10);
+  --tint-peach-bd: rgba(235, 201, 183, 0.70);
+  --ring-focus: rgba(217, 119, 87, 0.16);
+  --overlay-dim: rgba(32, 30, 28, 0.55);
+
+  /* —— 贡献热力图绿阶（暗面越亮贡献越多）—— */
+  --hm-0: transparent;
+  --hm-1: #9be9a8;
+  --hm-2: #40c463;
+  --hm-3: #30a14e;
+  --hm-4: #216e39;
+
   /* —— 布局 —— */
   --nav-height: 4.25rem;
   --page-max: 88rem;
-  --prose-max: 56rem;
+  --w-list-narrow: 72rem;  /* 阅读型列表内容列（文章列表等） */
+  --prose-max: 56rem;      /* 表单/编辑列唯一宽度来源 */
+  --pad-y-page: clamp(2.25rem, 4.5vw, 3.5rem); /* 页面顶部节奏（.layout/.thread/.compose-page 统一） */
+  --pad-b-page: 4.5rem;                        /* 页面底部节奏 */
   --ease: cubic-bezier(0.33, 1, 0.68, 1);
   --t-fast: 150ms;
   --t-med: 220ms;
+
+  /* —— 响应式断点（媒体查询不能引用变量，此处仅登记约定，全站只用这三档）——
+     1080px 布局折叠（hero/layout/feeds 单栏）；
+     820px  导航折叠、后台侧栏转顶排、profile/编辑器分栏竖排；
+     480px  表单与筛选条收窄。 */
 }
 
 /* 深色区块局部令牌（hero / footer 反色区） */
@@ -166,6 +197,24 @@
   --error: #e0655a;
   --ok: #6aa5f0;
   --line-warm: rgba(227, 218, 204, 0.16);
+
+  /* 深色下 tint 提高不透明度补偿对比度 */
+  --tint-clay-bg: rgba(224, 130, 95, 0.16);
+  --tint-clay-bd: rgba(224, 130, 95, 0.38);
+  --tint-mineral-bg: rgba(127, 184, 164, 0.16);
+  --tint-mineral-bd: rgba(127, 184, 164, 0.36);
+  --tint-sky-bg: rgba(134, 176, 221, 0.16);
+  --tint-sky-bd: rgba(134, 176, 221, 0.34);
+  --tint-plum-bg: rgba(164, 159, 216, 0.16);
+  --tint-plum-bd: rgba(164, 159, 216, 0.34);
+  --tint-error-bg: rgba(224, 101, 90, 0.14);
+  --tint-error-bd: rgba(224, 101, 90, 0.40);
+
+  /* 热力图暗面绿阶：越亮贡献越多 */
+  --hm-1: #0e4429;
+  --hm-2: #006d32;
+  --hm-3: #26a641;
+  --hm-4: #39d353;
 }
 
 /* 深色下反色区块改为略深于页面的暗带，避免翻白断层 */

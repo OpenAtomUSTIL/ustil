@@ -12,6 +12,7 @@ import type {
 } from '@/api/types'
 import AnnouncementForm from '@/components/AnnouncementForm.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { useToastStore } from '@/stores/toast'
 
 const route = useRoute()
@@ -29,9 +30,10 @@ const loadError = ref('')
 const saving = ref(false)
 const formError = ref('')
 
-onMounted(async () => {
+async function load(): Promise<void> {
   if (!isEdit.value) return
   loading.value = true
+  loadError.value = ''
   try {
     const item: AnnouncementItem = await announcementsApi.get(announcementId.value)
     recordId.value = item.id
@@ -49,6 +51,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(() => {
+  void load()
 })
 
 async function submit(
@@ -85,9 +91,12 @@ function cancel(): void {
     <h1>{{ isEdit ? '编辑公告' : '发布公告' }}</h1>
     <p class="lead">公告以 Markdown 书写，发布后展示在公告栏与首页。</p>
 
-    <div v-if="loading" class="empty" style="max-width: 56rem">加载中…</div>
+    <LoadingState v-if="loading" class="form-col" />
     <EmptyState v-else-if="loadError" title="加载失败" :hint="loadError">
-      <p style="margin-top: 1.15rem">
+      <p>
+        <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+      </p>
+      <p>
         <button class="btn btn-secondary" type="button" @click="router.back()">返回</button>
       </p>
     </EmptyState>

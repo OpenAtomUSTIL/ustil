@@ -7,6 +7,7 @@ import type { IssueListItem, IssueStatus } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IssueCard from '@/components/IssueCard.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { KEYWORD_MAX } from '@/utils/limits'
 
 const route = useRoute()
@@ -118,24 +119,26 @@ onMounted(load)
           <RouterLink class="btn btn-clay" :to="{ name: 'issue-new' }">发起讨论</RouterLink>
         </div>
 
-        <form class="search-box" role="search" @submit.prevent="search">
-          <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索讨论标题…" aria-label="搜索讨论">
-          <button class="btn btn-secondary" type="submit">搜索</button>
-        </form>
+        <div class="list-toolbar">
+          <form class="search-box" role="search" @submit.prevent="search">
+            <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索讨论标题…" aria-label="搜索讨论">
+            <button class="btn btn-secondary" type="submit">搜索</button>
+          </form>
 
-        <div class="filter-bar" role="tablist" aria-label="状态筛选" style="margin-top: 1.25rem">
-          <button
-            v-for="filter in STATUS_FILTERS"
-            :key="filter.value"
-            class="chip"
-            :class="{ active: status === filter.value }"
-            type="button"
-            role="tab"
-            :aria-selected="status === filter.value"
-            @click="applyQuery(filter.value)"
-          >
-            {{ filter.label }}
-          </button>
+          <div class="filter-bar" role="tablist" aria-label="状态筛选">
+            <button
+              v-for="filter in STATUS_FILTERS"
+              :key="filter.value"
+              class="chip"
+              :class="{ active: status === filter.value }"
+              type="button"
+              role="tab"
+              :aria-selected="status === filter.value"
+              @click="applyQuery(filter.value)"
+            >
+              {{ filter.label }}
+            </button>
+          </div>
         </div>
 
         <div v-if="tag" class="filter-bar">
@@ -145,12 +148,12 @@ onMounted(load)
           </span>
         </div>
 
-        <div v-if="loading" class="empty">加载中…</div>
-        <EmptyState v-else-if="error" title="加载失败" :hint="error" />
+        <LoadingState v-if="loading" />
+        <EmptyState v-else-if="error" title="加载失败" :hint="error">
+          <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+        </EmptyState>
         <EmptyState v-else-if="items.length === 0" title="没有找到匹配的讨论" hint="换个关键词或筛选条件。">
-          <p style="margin-top: 1.15rem">
-            <RouterLink class="btn btn-secondary" :to="{ name: 'issue-new' }">发起一个新讨论</RouterLink>
-          </p>
+          <RouterLink class="btn btn-secondary" :to="{ name: 'issue-new' }">发起一个新讨论</RouterLink>
         </EmptyState>
         <div v-else class="topic-list">
           <IssueCard v-for="issue in items" :key="issue.id" :issue="issue" />

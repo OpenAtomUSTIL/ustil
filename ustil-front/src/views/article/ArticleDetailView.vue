@@ -10,8 +10,11 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime, roleLabel, timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import TagsChips from '@/components/TagsChips.vue'
 
 const route = useRoute()
@@ -41,10 +44,6 @@ const canDelete = computed(() => {
   if (!isAuthor.value) return false
   if (isMember.value) return isPendingOrRejected.value
   return auth.canManageContent
-})
-const statusLabel = computed(() => {
-  const map: Record<string, string> = { PENDING: '待审核', PUBLISHED: '已发布', REJECTED: '已拒绝', HIDDEN: '已隐藏' }
-  return article.value ? map[article.value.status] ?? article.value.status : ''
 })
 
 async function load(): Promise<void> {
@@ -100,7 +99,7 @@ onMounted(load)
         <h1>{{ article.title }}</h1>
         <TagsChips v-if="article.tags.length > 0" class="head-tags" :tags="article.tags" target="articles" />
         <div v-if="article.status !== 'PUBLISHED'" class="status-banner" :class="`st-${article.status.toLowerCase()}`">
-          <span class="st-badge">{{ statusLabel }}</span>
+          <StatusBadge kind="article" :value="article.status" />
           <span v-if="article.status === 'PENDING'" class="st-hint">文章已提交，等待管理员审核后发布</span>
           <span v-else-if="article.status === 'REJECTED'" class="st-hint">文章未通过审核<span v-if="article.reviewNote">：{{ article.reviewNote }}</span></span>
           <span v-else-if="article.status === 'HIDDEN'" class="st-hint">文章已被管理员隐藏</span>
@@ -131,42 +130,30 @@ onMounted(load)
           >
             编辑
           </RouterLink>
-          <template v-if="canDelete">
-            <button
-              v-if="!confirmDelete"
-              class="btn btn-ghost"
-              type="button"
-              @click="confirmDelete = true"
-            >
-              删除
-            </button>
-            <button
-              v-else
-              class="btn btn-danger"
-              type="button"
-              :disabled="deleting"
-              @click="remove"
-            >
-              {{ deleting ? '删除中…' : '确认删除？' }}
-            </button>
-            <span v-if="confirmDelete" class="rm-hint">删除后可在后台回收站恢复</span>
-            <button
-              v-if="confirmDelete"
-              class="btn btn-ghost"
-              type="button"
-              :disabled="deleting"
-              @click="confirmDelete = false"
-            >
-              取消
-            </button>
-          </template>
+          <button v-if="canDelete" class="btn btn-ghost" type="button" @click="confirmDelete = true">
+            删除
+          </button>
         </div>
       </div>
     </article>
 
-    <div v-else-if="loading" class="empty" style="margin-top: 3rem">加载中…</div>
-    <EmptyState v-else-if="error" title="加载失败" :hint="error" />
+    <LoadingState v-else-if="loading" />
+    <EmptyState v-else-if="error" title="加载失败" :hint="error">
+      <p>
+        <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+      </p>
+    </EmptyState>
     <EmptyState v-else title="文章不存在" hint="它可能已被删除。" />
+
+    <ConfirmModal
+      v-if="confirmDelete"
+      title="确认删除？"
+      message="删除后可在后台回收站恢复"
+      confirm-text="删除"
+      :busy="deleting"
+      @confirm="remove"
+      @cancel="confirmDelete = false"
+    />
   </div>
 </template>
 
@@ -174,30 +161,7 @@ onMounted(load)
 .head-tags {
   margin-top: 1rem;
 }
-.status-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-}
-.st-pending {
-  background: rgba(217, 119, 87, 0.12);
-  color: var(--clay-dark);
-}
-.st-rejected {
-  background: rgba(191, 77, 67, 0.12);
-  color: var(--error);
-}
-.st-hidden {
-  background: var(--gray-200);
-  color: var(--ink-muted);
-}
-.st-badge {
-  font-weight: 600;
-  font-size: 0.85rem;
-}
+/* .st-hint 为横幅内提示文案，全局未定义，保留在本视图 */
 .st-hint {
   font-size: 0.85rem;
 }

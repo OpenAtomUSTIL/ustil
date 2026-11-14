@@ -7,6 +7,7 @@ import { notificationsApi } from '@/api/request'
 import type { NotificationItem, NotificationType, Page } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime } from '@/utils/format'
@@ -126,11 +127,9 @@ onMounted(load)
           </button>
         </div>
 
-        <div v-if="loading" class="empty">加载中…</div>
+        <LoadingState v-if="loading" />
         <EmptyState v-else-if="error" title="加载失败" :hint="error">
-          <p style="margin-top: 1.15rem">
-            <button class="btn btn-secondary" type="button" @click="load">重试</button>
-          </p>
+          <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
         </EmptyState>
         <EmptyState
           v-else-if="!data || data.items.length === 0"
@@ -195,8 +194,8 @@ onMounted(load)
 }
 
 .notice-card.unread {
-  border-color: rgba(217, 119, 87, 0.45);
-  background: rgba(217, 119, 87, 0.05);
+  border-color: var(--tint-clay-bd);
+  background: var(--tint-clay-bg);
 }
 
 .notice-ic {
@@ -238,7 +237,7 @@ onMounted(load)
   color: var(--ink-muted);
   font-size: var(--fs-meta);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

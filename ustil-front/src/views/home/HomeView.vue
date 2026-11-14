@@ -9,6 +9,7 @@ import type { AnnouncementItem, ArticleListItem, IssueListItem } from '@/api/typ
 import ArticleCard from '@/components/ArticleCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import IssueCard from '@/components/IssueCard.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { timeAgo } from '@/utils/format'
 
@@ -123,7 +124,7 @@ onMounted(async () => {
         <h2>公告栏</h2>
         <RouterLink :to="{ name: 'announcements' }">更多</RouterLink>
       </div>
-      <div v-if="announcementLoading" class="empty">加载中…</div>
+      <LoadingState v-if="announcementLoading" />
       <EmptyState v-else-if="announcementError" title="公告加载失败" hint="稍后刷新重试。" />
       <EmptyState v-else-if="announcements.length === 0" title="暂无公告" hint="有新公告会在这里展示。" />
       <div v-else class="announce-list">
@@ -146,7 +147,7 @@ onMounted(async () => {
           <h2>最新文章</h2>
           <RouterLink :to="{ name: 'articles' }">查看全部</RouterLink>
         </div>
-        <div v-if="loading" class="empty">加载中…</div>
+        <LoadingState v-if="loading" />
         <EmptyState v-else-if="error" title="加载失败" :hint="error" />
         <EmptyState v-else-if="articles.length === 0" title="还没有文章" hint="等待社区的第一篇长文。" />
         <div v-else class="topic-list">
@@ -159,7 +160,7 @@ onMounted(async () => {
           <h2>最新讨论</h2>
           <RouterLink :to="{ name: 'issues' }">查看全部</RouterLink>
         </div>
-        <div v-if="loading" class="empty">加载中…</div>
+        <LoadingState v-if="loading" />
         <EmptyState v-else-if="error" title="加载失败" :hint="error" />
         <EmptyState v-else-if="issues.length === 0" title="还没有讨论" hint="发起第一个问题吧。" />
         <div v-else class="topic-list">
@@ -188,7 +189,7 @@ onMounted(async () => {
   padding: 0.85rem 1.15rem;
   background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
+  border-radius: var(--br-16);
   transition: border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
 }
 

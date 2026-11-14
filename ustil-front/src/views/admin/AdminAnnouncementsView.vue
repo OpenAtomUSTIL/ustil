@@ -12,6 +12,7 @@ import type {
 import AnnouncementForm from '@/components/AnnouncementForm.vue'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime } from '@/utils/format'
 
@@ -135,7 +136,7 @@ onMounted(load)
     />
 
     <div v-if="error" class="form-error">{{ error }}</div>
-    <div v-else-if="loading" class="empty">加载中…</div>
+    <LoadingState v-else-if="loading" />
     <EmptyState v-else-if="!data || data.items.length === 0" title="还没有公告" hint="点击右上角「新建公告」发布第一条。" />
 
     <div v-else class="table-wrap">
@@ -192,44 +193,13 @@ onMounted(load)
 </template>
 
 <style scoped>
+/* 业务独有：内嵌新建/编辑表单卡片 */
 .inline-form {
   margin-bottom: 1.75rem;
   padding: 1.35rem;
   background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
   border-radius: var(--br-16);
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
-  font-size: var(--fs-meta);
-}
-
-.admin-table th,
-.admin-table td {
-  padding: 0.75rem 0.9rem;
-  text-align: left;
-  border-bottom: var(--bw-sm) solid var(--border);
-  white-space: nowrap;
-}
-
-.admin-table th {
-  font-size: var(--fs-small);
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  font-weight: var(--fw-semibold);
-}
-
-.admin-table tr:last-child td {
-  border-bottom: none;
 }
 
 .title-link {
@@ -241,12 +211,5 @@ onMounted(load)
   color: var(--clay-dark);
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.ops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  align-items: center;
 }
 </style>

@@ -14,6 +14,7 @@ import { SUBMIT_EXTENSIONS } from '@/utils/upload'
 import AppAvatar from '@/components/AppAvatar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FileUploader from '@/components/FileUploader.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import BasePagination from '@/components/BasePagination.vue'
@@ -116,11 +117,17 @@ function changeSubmissionPage(next: number): void {
   void loadSubmissions()
 }
 
+/** 完整加载：详情 + 学生提交（供首载与重试共用） */
+async function reload(): Promise<void> {
+  await load()
+  await loadSubmissions()
+}
+
 onMounted(() => {
   timer = window.setInterval(() => {
     now.value = Date.now()
   }, 60_000)
-  void load().then(() => loadSubmissions())
+  void reload()
 })
 
 onBeforeUnmount(() => {
@@ -178,7 +185,7 @@ onBeforeUnmount(() => {
       </div>
 
       <section class="composer">
-        <h2 style="font-size: 1.25rem; margin-bottom: 0.85rem">提交作业</h2>
+        <h2 class="submit-head">提交作业</h2>
 
         <EmptyState
           v-if="!assignment.canSubmit"
@@ -187,12 +194,12 @@ onBeforeUnmount(() => {
         />
 
         <template v-else>
-          <div class="field" style="margin-bottom: 1rem">
+          <div class="field note-field">
             <label for="submit-note">备注（可选）</label>
             <textarea
               id="submit-note"
               v-model="note"
-              style="min-height: 5.5rem"
+              class="note-input"
               :maxlength="NOTE_MAX"
               placeholder="想让发布者了解的内容，例如运行方式、未完成的部分"
             />
@@ -204,14 +211,14 @@ onBeforeUnmount(() => {
           />
         </template>
 
-        <div v-if="assignment.mySubmission" class="post-block" style="margin-top: 1.25rem">
-          <h3 style="font-family: var(--font-sans); font-size: var(--fs-small); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint)">
+        <div v-if="assignment.mySubmission" class="post-block mine-block">
+          <h3 class="mine-title">
             我的提交
           </h3>
           <div class="meta-rows">
             <span>
               <span class="k">文件</span>
-              <a class="v" :href="assignment.mySubmission.attachment.url" style="color: var(--clay-dark); text-decoration: underline; text-underline-offset: 3px" @click.prevent="download(assignment.mySubmission.attachment)">
+              <a class="v file-link" :href="assignment.mySubmission.attachment.url" @click.prevent="download(assignment.mySubmission.attachment)">
                 {{ assignment.mySubmission.attachment.originalName }}
               </a>
               （{{ formatSize(assignment.mySubmission.attachment.size) }}）
@@ -221,7 +228,7 @@ onBeforeUnmount(() => {
               <span class="v">{{ formatDateTime(assignment.mySubmission.createdAt) }}</span>
             </span>
           </div>
-          <p v-if="assignment.mySubmission.note" style="margin-top: 0.65rem; color: var(--ink-muted)">
+          <p v-if="assignment.mySubmission.note" class="mine-note">
             备注：{{ assignment.mySubmission.note }}
           </p>
         </div>
@@ -249,7 +256,7 @@ onBeforeUnmount(() => {
           <div class="r-body">
             <p>
               附件：
-              <a :href="item.attachment.url" style="color: var(--clay-dark); text-decoration: underline; text-underline-offset: 3px" @click.prevent="download(item.attachment)">
+              <a class="file-link" :href="item.attachment.url" @click.prevent="download(item.attachment)">
                 {{ item.attachment.originalName }}
               </a>
               （{{ formatSize(item.attachment.size) }}）
@@ -267,8 +274,52 @@ onBeforeUnmount(() => {
       </section>
     </article>
 
-    <div v-else-if="loading" class="empty" style="margin-top: 3rem">加载中…</div>
-    <EmptyState v-else-if="error" title="加载失败" :hint="error" />
+    <LoadingState v-else-if="loading" class="state-gap" />
+    <EmptyState v-else-if="error" title="加载失败" :hint="error">
+      <button class="btn btn-sm btn-secondary" type="button" @click="reload">重试</button>
+    </EmptyState>
     <EmptyState v-else title="作业不存在" hint="它可能已被删除。" />
   </div>
 </template>
+
+<style scoped>
+/* 提交区（借用全局 .composer 结构，仅补充标题与备注排布） */
+.submit-head {
+  font-size: 1.25rem;
+  margin-bottom: 0.85rem;
+}
+.note-field {
+  margin-bottom: 1rem;
+}
+.note-input {
+  min-height: 5.5rem;
+}
+
+/* 我的提交块（借用全局 .post-block 结构，仅收紧间距与标签样式） */
+.mine-block {
+  margin-top: 1.25rem;
+}
+.mine-title {
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.mine-note {
+  margin-top: 0.65rem;
+  color: var(--ink-muted);
+}
+
+/* 附件行下载链接（我的提交 / 学生提交共用） */
+.file-link {
+  color: var(--clay-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 详情加载块相对容器顶部的留白 */
+.state-gap {
+  margin-top: 3rem;
+}
+</style>

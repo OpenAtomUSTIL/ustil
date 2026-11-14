@@ -7,6 +7,7 @@ import { describeError, isForbidden } from '@/api/error'
 import { resourcesApi } from '@/api/request'
 import type { ResourceCategory, ResourceItem, ResourceWriteRequest } from '@/api/types'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import ResourceForm from '@/components/ResourceForm.vue'
 import { useToastStore } from '@/stores/toast'
 
@@ -31,9 +32,10 @@ const loadError = ref('')
 const saving = ref(false)
 const formError = ref('')
 
-onMounted(async () => {
+async function load(): Promise<void> {
   if (!isEdit.value) return
   loading.value = true
+  loadError.value = ''
   try {
     const item: ResourceItem = await resourcesApi.get(resourceId.value)
     recordId.value = item.id
@@ -57,6 +59,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(() => {
+  void load()
 })
 
 async function submit(payload: ResourceWriteRequest): Promise<void> {
@@ -90,9 +96,12 @@ function cancel(): void {
     <h1>{{ isEdit ? '编辑资源' : '新建资源' }}</h1>
     <p class="lead">收录对社区有用的仓库、题库、电子书与文档，标注分类与标签便于检索。</p>
 
-    <div v-if="loading" class="empty" style="max-width: 56rem">加载中…</div>
+    <LoadingState v-if="loading" class="form-col" />
     <EmptyState v-else-if="loadError" title="加载失败" :hint="loadError">
-      <p style="margin-top: 1.15rem">
+      <p>
+        <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+      </p>
+      <p>
         <button class="btn btn-secondary" type="button" @click="router.back()">返回</button>
       </p>
     </EmptyState>

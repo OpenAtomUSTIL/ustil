@@ -5,7 +5,7 @@ import EmptyState from '@/components/EmptyState.vue'
 <template>
   <div class="container compose-page">
     <EmptyState title="页面不存在" hint="它可能已被删除，或者链接地址有误。">
-      <p style="margin-top: 1.15rem">
+      <p class="empty-action">
         <RouterLink class="btn btn-secondary" :to="{ name: 'home' }">回到首页</RouterLink>
       </p>
     </EmptyState>

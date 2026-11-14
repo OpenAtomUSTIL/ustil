@@ -10,6 +10,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime, timeAgo } from '@/utils/format'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
 
 const route = useRoute()
@@ -104,28 +106,27 @@ onMounted(load)
           >
             编辑
           </RouterLink>
-          <template v-if="confirmDelete">
-            <button class="btn btn-danger" type="button" :disabled="deleting" @click="remove">
-              {{ deleting ? '删除中…' : '确认删除？' }}
-            </button>
-            <button class="btn btn-ghost" type="button" :disabled="deleting" @click="confirmDelete = false">
-              取消
-            </button>
-            <span class="rm-hint">删除后可在后台回收站恢复</span>
-          </template>
-          <button v-else class="btn btn-ghost" type="button" @click="confirmDelete = true">
+          <button class="btn btn-ghost" type="button" @click="confirmDelete = true">
             删除
           </button>
         </div>
       </div>
     </article>
 
-    <div v-else-if="loading" class="empty" style="margin-top: 3rem">加载中…</div>
+    <LoadingState v-else-if="loading" />
     <EmptyState v-else-if="error" title="加载失败" :hint="error">
-      <p style="margin-top: 1.15rem">
-        <button class="btn btn-secondary" type="button" @click="load">重试</button>
-      </p>
+      <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
     </EmptyState>
     <EmptyState v-else title="公告不存在" hint="它可能已被删除。" />
+
+    <ConfirmModal
+      v-if="confirmDelete"
+      title="确认删除？"
+      message="删除后可在后台回收站恢复"
+      confirm-text="删除"
+      :busy="deleting"
+      @confirm="remove"
+      @cancel="confirmDelete = false"
+    />
   </div>
 </template>

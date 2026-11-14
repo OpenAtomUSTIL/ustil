@@ -54,6 +54,6 @@ function go(tag: string): void {
 .tags-chip:hover {
   border-color: var(--mineral);
   color: var(--mineral);
-  background: rgba(102, 153, 135, 0.1);
+  background: var(--tint-mineral-bg);
 }
 </style>

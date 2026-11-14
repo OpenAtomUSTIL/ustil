@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { describeError } from '@/api/error'
 import { adminApi } from '@/api/request'
 import type { AdminStats } from '@/api/types'
+import LoadingState from '@/components/LoadingState.vue'
 
 const stats = ref<AdminStats | null>(null)
 const loading = ref(true)
@@ -26,7 +27,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="error" class="form-error">{{ error }}</div>
-    <div v-else-if="loading" class="empty">加载中…</div>
+    <LoadingState v-else-if="loading" />
 
     <template v-else-if="stats">
       <div class="stat-grid">

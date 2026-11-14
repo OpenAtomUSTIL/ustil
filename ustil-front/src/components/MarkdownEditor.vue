@@ -294,7 +294,7 @@ onBeforeUnmount(() => {
   background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
   border-radius: var(--br-12);
-  box-shadow: 0 2px 10px rgba(26, 25, 24, 0.07);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -341,7 +341,7 @@ onBeforeUnmount(() => {
 
 .md-tool:hover:not(:disabled) {
   background: var(--bg-raised);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .md-tool:disabled {
@@ -374,7 +374,7 @@ onBeforeUnmount(() => {
 .md-mode.active {
   background: var(--accent);
   color: var(--gray-000);
-  box-shadow: 0 1px 2px rgba(217, 119, 87, 0.4);
+  box-shadow: 0 1px 2px var(--tint-clay-bd);
 }
 
 .md-sync {
@@ -411,7 +411,7 @@ onBeforeUnmount(() => {
   padding: 0.75rem 1rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .md-panes {
     flex-direction: column;
   }

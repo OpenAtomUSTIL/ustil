@@ -7,7 +7,9 @@ import { describeError, isForbidden } from '@/api/error'
 import { resourcesApi } from '@/api/request'
 import type { ResourceCategory, ResourceItem } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
 import TagsChips from '@/components/TagsChips.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -183,48 +185,46 @@ onMounted(load)
           <span v-else class="hint">共 {{ total }} 条</span>
         </div>
 
-        <form class="search-box" role="search" @submit.prevent="search">
-          <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索资源标题或描述…" aria-label="搜索资源">
-          <button class="btn btn-secondary" type="submit">搜索</button>
-        </form>
+        <div class="list-toolbar">
+          <form class="search-box" role="search" @submit.prevent="search">
+            <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索资源标题或描述…" aria-label="搜索资源">
+            <button class="btn btn-secondary" type="submit">搜索</button>
+          </form>
 
-        <div class="filter-bar" role="tablist" aria-label="分类筛选" style="margin-top: 1.25rem">
-          <button
-            v-for="tab in CATEGORY_TABS"
-            :key="tab.value"
-            class="chip"
-            :class="{ active: category === tab.value }"
-            type="button"
-            role="tab"
-            :aria-selected="category === tab.value"
-            @click="selectCategory(tab.value)"
-          >
-            {{ tab.label }}
-          </button>
+          <div class="filter-bar" role="tablist" aria-label="分类筛选">
+            <button
+              v-for="tab in CATEGORY_TABS"
+              :key="tab.value"
+              class="chip"
+              :class="{ active: category === tab.value }"
+              type="button"
+              role="tab"
+              :aria-selected="category === tab.value"
+              @click="selectCategory(tab.value)"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <div v-if="tag" class="filter-bar">
+            <span class="tag-filter">
+              标签：# {{ tag }}
+              <button type="button" class="tag-clear" aria-label="清除标签筛选" @click="clearTag">×</button>
+            </span>
+          </div>
         </div>
 
-        <div v-if="tag" class="filter-bar">
-          <span class="tag-filter">
-            标签：# {{ tag }}
-            <button type="button" class="tag-clear" aria-label="清除标签筛选" @click="clearTag">×</button>
-          </span>
-        </div>
-
-        <div v-if="loading" class="empty">加载中…</div>
+        <LoadingState v-if="loading" />
         <EmptyState v-else-if="error" title="加载失败" :hint="error">
-          <p style="margin-top: 1.15rem">
-            <button class="btn btn-secondary" type="button" @click="load">重试</button>
-          </p>
+          <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
         </EmptyState>
         <EmptyState v-else-if="items.length === 0" title="没有找到匹配的资源" hint="换个关键词、分类或标签。">
-          <p style="margin-top: 1.15rem">
-            <button class="btn btn-secondary" type="button" @click="keyword = ''; pushQuery({ keyword: '', category: '', tag: '' })">
-              清除筛选
-            </button>
-          </p>
+          <button class="btn btn-secondary" type="button" @click="keyword = ''; pushQuery({ keyword: '', category: '', tag: '' })">
+            清除筛选
+          </button>
         </EmptyState>
         <div v-else class="topic-list">
-          <div v-for="item in items" :key="item.id" class="topic-card resource-card">
+          <div v-for="item in items" :key="item.id" class="topic-card">
             <div class="tc-top">
               <span class="tag tag-cat" :data-tone="CATEGORY_TONES[item.category]">
                 {{ CATEGORY_LABELS[item.category] ?? item.category }}
@@ -232,7 +232,7 @@ onMounted(load)
               <TagsChips :tags="item.tags" target="resources" />
             </div>
             <h3>{{ item.title }}</h3>
-            <MarkdownBody v-if="item.description" class="tc-excerpt" :content="item.description" />
+            <MarkdownBody v-if="item.description" class="tc-preview tc-excerpt" :content="item.description" />
             <div class="tc-meta">
               <RouterLink class="who" :to="{ name: 'user-profile', params: { id: item.creatorUsername } }">
                 {{ item.creatorName }}
@@ -245,16 +245,7 @@ onMounted(load)
                 <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'resource-edit', params: { id: contentPathId(item) } }">
                   编辑
                 </RouterLink>
-                <template v-if="confirmDeleteId === item.id">
-                  <button class="btn btn-danger btn-sm" type="button" :disabled="deleting" @click="remove(item.id)">
-                    {{ deleting ? '删除中…' : '确认删除？' }}
-                  </button>
-                  <button class="btn btn-ghost btn-sm" type="button" :disabled="deleting" @click="confirmDeleteId = null">
-                    取消
-                  </button>
-                  <span class="rm-hint">删除后可在后台回收站恢复</span>
-                </template>
-                <button v-else class="btn btn-ghost btn-sm" type="button" @click="confirmDeleteId = item.id">
+                <button class="btn btn-ghost btn-sm" type="button" @click="confirmDeleteId = item.id">
                   删除
                 </button>
               </template>
@@ -269,16 +260,23 @@ onMounted(load)
           :total="total"
           @change="changePage"
         />
+
+        <ConfirmModal
+          v-if="confirmDeleteId !== null"
+          title="确认删除？"
+          message="删除后可在后台回收站恢复"
+          confirm-text="删除"
+          :busy="deleting"
+          @confirm="confirmDeleteId !== null && remove(confirmDeleteId)"
+          @cancel="confirmDeleteId = null"
+        />
       </main>
     </div>
   </div>
 </template>
 
 <style scoped>
-.resource-card h3 {
-  word-break: break-word;
-}
-
+/* 外链跳转（↗）：与全局 .act（描边 pill 行操作）不同语言，业务独有保留 */
 .go-link {
   display: inline-flex;
   align-items: center;

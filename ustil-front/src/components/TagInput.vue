@@ -89,8 +89,8 @@ function remove(tag: string): void {
   gap: 0.32rem;
   padding: 0.18rem 0.55rem 0.18rem 0.72rem;
   border-radius: var(--br-pill);
-  border: var(--bw-sm) solid rgba(102, 153, 135, 0.28);
-  background: rgba(102, 153, 135, 0.13);
+  border: var(--bw-sm) solid var(--tint-mineral-bd);
+  background: var(--tint-mineral-bg);
   color: var(--mineral);
   font-size: 0.78rem;
   font-weight: var(--fw-medium);
@@ -109,7 +109,7 @@ function remove(tag: string): void {
 }
 
 .ti-remove:hover {
-  background: rgba(102, 153, 135, 0.22);
+  background: var(--tint-mineral-bd);
   color: var(--ink);
 }
 
@@ -126,7 +126,7 @@ function remove(tag: string): void {
 .tag-input input:focus {
   outline: 0;
   border-color: var(--clay);
-  box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.16);
+  box-shadow: 0 0 0 3px var(--ring-focus);
 }
 
 .tag-input input:disabled {

@@ -6,6 +6,7 @@ import { adminApi } from '@/api/request'
 import type { ArticleListItem, Page } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime, roleLabel } from '@/utils/format'
@@ -105,11 +106,9 @@ onMounted(load)
       <span v-if="data" class="hint">待审 {{ data.total }} 篇</span>
     </div>
 
-    <div v-if="loading" class="empty">加载中…</div>
+    <LoadingState v-if="loading" />
     <EmptyState v-else-if="error" title="加载失败" :hint="error">
-      <p style="margin-top: 1.15rem">
-        <button class="btn btn-secondary" type="button" @click="load">重试</button>
-      </p>
+      <button class="btn btn-secondary" type="button" @click="load">重试</button>
     </EmptyState>
     <EmptyState v-else-if="!data || data.items.length === 0" title="没有待审文章" hint="所有文章都已处理完毕。" />
     <div v-else class="review-list">
@@ -168,8 +167,9 @@ onMounted(load)
   gap: 1rem;
 }
 .review-card {
+  background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--br-8);
   padding: 1rem 1.25rem;
 }
 .rc-head {
@@ -206,7 +206,7 @@ onMounted(load)
 .reject-input {
   padding: 0.35rem 0.65rem;
   border: var(--bw-sm) solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--br-6);
   font-size: 0.85rem;
   width: 220px;
 }

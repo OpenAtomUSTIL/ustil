@@ -8,6 +8,7 @@ import { announcementsApi } from '@/api/request'
 import type { AnnouncementItem } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { useAuthStore } from '@/stores/auth'
 import { timeAgo } from '@/utils/format'
 import { KEYWORD_MAX } from '@/utils/limits'
@@ -98,23 +99,19 @@ onMounted(load)
           <span v-else class="hint">共 {{ total }} 条</span>
         </div>
 
-        <form class="search-box" role="search" @submit.prevent="search">
-          <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索公告标题或内容…" aria-label="搜索公告">
-          <button class="btn btn-secondary" type="submit">搜索</button>
-        </form>
+        <div class="list-toolbar">
+          <form class="search-box" role="search" @submit.prevent="search">
+            <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索公告标题或内容…" aria-label="搜索公告">
+            <button class="btn btn-secondary" type="submit">搜索</button>
+          </form>
+        </div>
 
-        <div style="height: 1.5rem" />
-
-        <div v-if="loading" class="empty">加载中…</div>
+        <LoadingState v-if="loading" />
         <EmptyState v-else-if="error" title="加载失败" :hint="error">
-          <p style="margin-top: 1.15rem">
-            <button class="btn btn-secondary" type="button" @click="load">重试</button>
-          </p>
+          <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
         </EmptyState>
         <EmptyState v-else-if="items.length === 0" title="没有找到公告" hint="换个关键词，或者稍后再来。">
-          <p v-if="keyword" style="margin-top: 1.15rem">
-            <button class="btn btn-secondary" type="button" @click="keyword = ''; search()">清除筛选</button>
-          </p>
+          <button v-if="keyword" class="btn btn-secondary" type="button" @click="keyword = ''; search()">清除筛选</button>
         </EmptyState>
         <div v-else class="topic-list">
           <div v-for="item in items" :key="item.id" class="topic-card">

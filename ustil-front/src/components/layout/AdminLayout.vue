@@ -170,7 +170,7 @@
 }
 
 .admin-nav-link.router-link-active .nav-ic {
-  background: rgba(250, 249, 245, 0.16);
+  background: color-mix(in srgb, var(--ink-inverse) 16%, transparent);
   color: var(--ink-inverse);
 }
 

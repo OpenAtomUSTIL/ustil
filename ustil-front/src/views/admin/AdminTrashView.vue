@@ -6,6 +6,7 @@ import { adminApi } from '@/api/request'
 import type { Page, TrashItem, TrashType } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime } from '@/utils/format'
 
@@ -93,11 +94,11 @@ onMounted(load)
       <span v-if="data" class="hint">共 {{ data.total }} 条</span>
     </div>
 
-    <div class="type-tabs" role="tablist" aria-label="回收站类型">
+    <div class="admin-filters" role="tablist" aria-label="回收站类型">
       <button
         v-for="tab in TYPE_TABS"
         :key="tab.value"
-        class="type-tab"
+        class="chip"
         :class="{ active: activeType === tab.value }"
         type="button"
         role="tab"
@@ -112,7 +113,7 @@ onMounted(load)
       <p class="form-error">{{ error }}</p>
       <button class="btn btn-secondary" type="button" @click="load">重试</button>
     </div>
-    <div v-else-if="loading" class="empty">加载中…</div>
+    <LoadingState v-else-if="loading" />
     <EmptyState v-else-if="!data || data.items.length === 0" title="回收站为空" hint="被删除的内容会先移入这里，可随时恢复" />
 
     <div v-else class="table-wrap">
@@ -150,76 +151,7 @@ onMounted(load)
 </template>
 
 <style scoped>
-.type-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-bottom: 1.25rem;
-}
-
-.type-tab {
-  padding: 0.42rem 0.95rem;
-  border: var(--bw-sm) solid var(--border-strong);
-  border-radius: var(--br-8);
-  background: var(--bg-raised);
-  color: var(--ink-muted);
-  font-size: var(--fs-meta);
-  font-weight: var(--fw-medium);
-  cursor: pointer;
-  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease),
-    border-color var(--t-fast) var(--ease);
-}
-
-.type-tab:hover {
-  color: var(--ink);
-  background: var(--gray-150);
-}
-
-.type-tab.active {
-  background: var(--ink);
-  color: var(--ink-inverse);
-  border-color: var(--ink);
-}
-
-.state-box {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
-  font-size: var(--fs-meta);
-}
-
-.admin-table th,
-.admin-table td {
-  padding: 0.75rem 0.9rem;
-  text-align: left;
-  border-bottom: var(--bw-sm) solid var(--border);
-  white-space: nowrap;
-}
-
-.admin-table th {
-  font-size: var(--fs-small);
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  font-weight: var(--fw-semibold);
-}
-
-.admin-table tr:last-child td {
-  border-bottom: none;
-}
-
+/* 业务独有：标题/摘要单元格截断（全局 .admin-table td 为 nowrap 不截断） */
 .title-cell {
   max-width: 18rem;
   overflow: hidden;

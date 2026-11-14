@@ -6,6 +6,7 @@ import { adminApi } from '@/api/request'
 import type { Page, LoginLogItem } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { KEYWORD_MAX } from '@/utils/limits'
 import { formatDateTime } from '@/utils/format'
 
@@ -74,7 +75,7 @@ onMounted(load)
       <span v-if="data" class="hint">共 {{ data.total }} 条</span>
     </div>
 
-    <form class="filter-bar" role="search" @submit.prevent="search">
+    <form class="admin-filters" role="search" @submit.prevent="search">
       <div class="field">
         <input
           v-model="emailFilter"
@@ -99,7 +100,7 @@ onMounted(load)
       <p class="form-error">{{ error }}</p>
       <button class="btn btn-secondary" type="button" @click="load">重试</button>
     </div>
-    <div v-else-if="loading" class="empty">加载中…</div>
+    <LoadingState v-else-if="loading" />
     <EmptyState v-else-if="!data || data.items.length === 0" title="没有匹配的日志" hint="换个筛选条件试试" />
 
     <div v-else class="table-wrap">
@@ -123,7 +124,7 @@ onMounted(load)
             <td class="mono">{{ log.ip }}</td>
             <td class="ua" :title="log.userAgent">{{ log.userAgent }}</td>
             <td>
-              <span class="result-badge" :class="log.success ? 'result-ok' : 'result-fail'">
+              <span class="badge" :class="log.success ? 'badge-mineral' : 'badge-error'">
                 {{ log.success ? '成功' : '失败' }}
               </span>
             </td>
@@ -138,99 +139,12 @@ onMounted(load)
 </template>
 
 <style scoped>
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  align-items: center;
-  margin-bottom: 1.25rem;
-}
-
-.filter-bar .field {
-  margin: 0;
-}
-
-.filter-bar input,
-.filter-bar select {
-  min-width: 11rem;
-  padding: 0.5rem 0.75rem;
-  border: var(--bw-sm) solid var(--border-strong);
-  border-radius: var(--br-8);
-  background: var(--bg-raised);
-  font-size: var(--fs-meta);
-}
-
-.state-box {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
-  font-size: var(--fs-meta);
-}
-
-.admin-table th,
-.admin-table td {
-  padding: 0.75rem 0.9rem;
-  text-align: left;
-  border-bottom: var(--bw-sm) solid var(--border);
-  white-space: nowrap;
-}
-
-.admin-table th {
-  font-size: var(--fs-small);
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  font-weight: var(--fw-semibold);
-}
-
-.admin-table tr:last-child td {
-  border-bottom: none;
-}
-
-.mono {
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-muted);
-}
-
+/* 业务独有：UA / 失败原因单元格截断 */
 .ua,
 .fail-reason {
   max-width: 18rem;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ink-muted);
-}
-
-.result-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.12rem 0.52rem;
-  border-radius: var(--br-6);
-  font-size: 0.78rem;
-  font-weight: var(--fw-semibold);
-  border: var(--bw-sm) solid transparent;
-}
-
-.result-ok {
-  background: rgba(102, 153, 135, 0.16);
-  color: var(--mineral);
-  border-color: rgba(102, 153, 135, 0.32);
-}
-
-.result-fail {
-  background: rgba(191, 77, 67, 0.12);
-  color: var(--error);
-  border-color: rgba(191, 77, 67, 0.35);
 }
 </style>

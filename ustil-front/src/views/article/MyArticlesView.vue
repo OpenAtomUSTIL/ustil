@@ -9,7 +9,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime } from '@/utils/format'
 import BasePagination from '@/components/BasePagination.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -23,13 +26,6 @@ const loading = ref(true)
 const error = ref('')
 const confirmDeleteId = ref<string | null>(null)
 const deleting = ref(false)
-
-const statusLabel: Record<string, string> = {
-  PENDING: '待审核',
-  PUBLISHED: '已发布',
-  REJECTED: '已拒绝',
-  HIDDEN: '已隐藏',
-}
 
 async function load(): Promise<void> {
   loading.value = true
@@ -78,6 +74,11 @@ async function remove(id: string): Promise<void> {
   }
 }
 
+function confirmRemove(): void {
+  const id = confirmDeleteId.value
+  if (id !== null) void remove(id)
+}
+
 onMounted(load)
 </script>
 
@@ -90,14 +91,14 @@ onMounted(load)
           <RouterLink class="btn btn-clay" :to="{ name: 'article-new' }">写文章</RouterLink>
         </div>
 
-        <div v-if="loading" class="empty">加载中…</div>
+        <LoadingState v-if="loading" />
         <EmptyState v-else-if="error" title="加载失败" :hint="error">
-          <p style="margin-top: 1.15rem">
-            <button class="btn btn-secondary" type="button" @click="load">重试</button>
+          <p>
+            <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
           </p>
         </EmptyState>
         <EmptyState v-else-if="items.length === 0" title="还没有发布过文章" hint="写下第一篇，分享你的实践与思考。">
-          <p style="margin-top: 1.15rem">
+          <p>
             <RouterLink class="btn btn-clay" :to="{ name: 'article-new' }">去写文章</RouterLink>
           </p>
         </EmptyState>
@@ -105,7 +106,7 @@ onMounted(load)
           <div v-for="article in items" :key="article.id" class="topic-card">
             <h3>{{ article.title }}</h3>
             <div class="tc-meta">
-              <span class="st-chip" :class="`st-${article.status.toLowerCase()}`">{{ statusLabel[article.status] ?? article.status }}</span>
+              <StatusBadge kind="article" :value="article.status" />
               <span class="num">创建于 {{ formatDateTime(article.createdAt) }}</span>
               <span class="num">更新于 {{ formatDateTime(article.updatedAt) }}</span>
             </div>
@@ -116,16 +117,7 @@ onMounted(load)
               <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'article-edit', params: { id: contentPathId(article) } }">
                 编辑
               </RouterLink>
-              <template v-if="confirmDeleteId === article.id">
-                <button class="btn btn-danger btn-sm" type="button" :disabled="deleting" @click="remove(article.id)">
-                  {{ deleting ? '删除中…' : '确认删除？' }}
-                </button>
-                <button class="btn btn-ghost btn-sm" type="button" :disabled="deleting" @click="confirmDeleteId = null">
-                  取消
-                </button>
-                <span class="rm-hint">删除后可在后台回收站恢复</span>
-              </template>
-              <button v-else class="btn btn-ghost btn-sm" type="button" @click="confirmDeleteId = article.id">
+              <button class="btn btn-ghost btn-sm" type="button" @click="confirmDeleteId = article.id">
                 删除
               </button>
             </div>
@@ -141,38 +133,15 @@ onMounted(load)
         />
       </main>
     </div>
+
+    <ConfirmModal
+      v-if="confirmDeleteId !== null"
+      title="确认删除？"
+      message="删除后可在后台回收站恢复"
+      confirm-text="删除"
+      :busy="deleting"
+      @confirm="confirmRemove"
+      @cancel="confirmDeleteId = null"
+    />
   </div>
 </template>
-
-<style scoped>
-.row-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  margin-top: 1rem;
-  flex-wrap: wrap;
-}
-.st-chip {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-.st-pending {
-  background: rgba(217, 119, 87, 0.12);
-  color: var(--clay-dark);
-}
-.st-published {
-  background: rgba(102, 153, 135, 0.16);
-  color: var(--mineral);
-}
-.st-rejected {
-  background: rgba(191, 77, 67, 0.12);
-  color: var(--error);
-}
-.st-hidden {
-  background: var(--gray-200);
-  color: var(--ink-muted);
-}
-</style>

@@ -10,6 +10,7 @@ import { formatDateTime } from '@/utils/format'
 import { downloadAttachmentFile } from '@/utils/download'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 
 const router = useRouter()
 const toast = useToastStore()
@@ -66,16 +67,12 @@ onMounted(load)
           <span class="hint">共 {{ total }} 条</span>
         </div>
 
-        <div v-if="loading" class="empty">加载中…</div>
+        <LoadingState v-if="loading" />
         <EmptyState v-else-if="error" title="加载失败" :hint="error">
-          <p style="margin-top: 1.15rem">
-            <button class="btn btn-secondary" type="button" @click="load">重试</button>
-          </p>
+          <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
         </EmptyState>
         <EmptyState v-else-if="items.length === 0" title="还没有提交过作业" hint="去作业详情页提交，提交记录会出现在这里。">
-          <p style="margin-top: 1.15rem">
-            <RouterLink class="btn btn-clay" :to="{ name: 'assignments' }">去看作业</RouterLink>
-          </p>
+          <RouterLink class="btn btn-clay" :to="{ name: 'assignments' }">去看作业</RouterLink>
         </EmptyState>
         <div v-else class="topic-list">
           <div v-for="item in items" :key="item.id" class="topic-card">
@@ -114,14 +111,6 @@ onMounted(load)
 </template>
 
 <style scoped>
-.row-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  margin-top: 1rem;
-  flex-wrap: wrap;
-}
-
 .file-line {
   display: inline-flex;
   align-items: center;

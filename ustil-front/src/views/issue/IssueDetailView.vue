@@ -10,6 +10,7 @@ import { useToastStore } from '@/stores/toast'
 import { formatDateTime, roleLabel, timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -147,9 +148,9 @@ onMounted(load)
       </div>
 
       <!-- 变更状态：ADMIN / ALUMNI（显隐为体验优化，权限以后端为准） -->
-      <div v-if="canChangeStatus" class="filter-bar" style="margin-top: 1.25rem">
-        <label for="issue-status" style="font-size: var(--fs-meta); color: var(--ink-muted)">讨论状态</label>
-        <select id="issue-status" v-model="newStatus" style="width: auto; padding: 0.42rem 0.75rem">
+      <div v-if="canChangeStatus" class="filter-bar status-toolbar">
+        <label for="issue-status" class="status-label">讨论状态</label>
+        <select id="issue-status" v-model="newStatus" class="select-sm">
           <option v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
@@ -206,8 +207,8 @@ onMounted(load)
         </div>
       </form>
       <div v-else class="composer">
-        <p style="color: var(--ink-muted)">
-          <RouterLink :to="{ name: 'login', query: { redirect: route.fullPath } }" style="color: var(--clay-dark)">
+        <p class="login-hint">
+          <RouterLink class="login-link" :to="{ name: 'login', query: { redirect: route.fullPath } }">
             登录
           </RouterLink>
           后即可参与回复。
@@ -215,8 +216,10 @@ onMounted(load)
       </div>
     </article>
 
-    <div v-else-if="loading" class="empty" style="margin-top: 3rem">加载中…</div>
-    <EmptyState v-else-if="error" title="加载失败" :hint="error" />
+    <LoadingState v-else-if="loading" class="thread-loading" />
+    <EmptyState v-else-if="error" title="加载失败" :hint="error">
+      <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+    </EmptyState>
     <EmptyState v-else title="讨论不存在" hint="它可能已被删除。" />
   </div>
 </template>
@@ -224,5 +227,21 @@ onMounted(load)
 <style scoped>
 .head-tags {
   margin-top: 1rem;
+}
+.status-toolbar {
+  margin-top: 1.25rem;
+}
+.status-label {
+  font-size: var(--fs-meta);
+  color: var(--ink-muted);
+}
+.thread-loading {
+  margin-top: 3rem;
+}
+.login-hint {
+  color: var(--ink-muted);
+}
+.login-link {
+  color: var(--clay-dark);
 }
 </style>

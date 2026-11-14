@@ -7,6 +7,7 @@ import type { ArticleListItem } from '@/api/types'
 import ArticleCard from '@/components/ArticleCard.vue'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { KEYWORD_MAX } from '@/utils/limits'
 
 const route = useRoute()
@@ -105,24 +106,28 @@ onMounted(load)
           <span class="hint">共 {{ total }} 篇</span>
         </div>
 
-        <form class="search-box" role="search" @submit.prevent="search">
-          <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索文章标题或内容…" aria-label="搜索文章">
-          <button class="btn btn-secondary" type="submit">搜索</button>
-        </form>
+        <div class="list-toolbar">
+          <form class="search-box" role="search" @submit.prevent="search">
+            <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索文章标题或内容…" aria-label="搜索文章">
+            <button class="btn btn-secondary" type="submit">搜索</button>
+          </form>
 
-        <div v-if="tag" class="filter-bar">
-          <span class="tag-filter">
-            标签：# {{ tag }}
-            <button type="button" class="tag-clear" aria-label="清除标签筛选" @click="clearTag">×</button>
-          </span>
+          <div v-if="tag" class="filter-bar">
+            <span class="tag-filter">
+              标签：# {{ tag }}
+              <button type="button" class="tag-clear" aria-label="清除标签筛选" @click="clearTag">×</button>
+            </span>
+          </div>
         </div>
 
-        <div style="height: 1.5rem" />
-
-        <div v-if="loading" class="empty">加载中…</div>
-        <EmptyState v-else-if="error" title="加载失败" :hint="error" />
+        <LoadingState v-if="loading" />
+        <EmptyState v-else-if="error" title="加载失败" :hint="error">
+          <p>
+            <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+          </p>
+        </EmptyState>
         <EmptyState v-else-if="items.length === 0" title="没有找到匹配的文章" hint="换个关键词，或者稍后再来。">
-          <p v-if="keyword || tag" style="margin-top: 1.15rem">
+          <p v-if="keyword || tag">
             <button class="btn btn-secondary" type="button" @click="clearAll">清除筛选</button>
           </p>
         </EmptyState>
@@ -143,5 +148,5 @@ onMounted(load)
 </template>
 
 <style scoped>
-.article-index { max-width: 72rem; margin-inline: auto; }
+.article-index { max-width: var(--w-list-narrow); margin-inline: auto; }
 </style>

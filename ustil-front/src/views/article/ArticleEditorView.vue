@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
 import { articlesApi } from '@/api/request'
 import { useToastStore } from '@/stores/toast'
+import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import TagInput from '@/components/TagInput.vue'
 import { TITLE_MAX, checkTags, checkTitle } from '@/utils/limits'
@@ -22,12 +24,14 @@ const title = ref('')
 const content = ref('')
 const tags = ref<string[]>([])
 const error = ref('')
+const loadError = ref('')
 const loading = ref(false)
 const submitting = ref(false)
 
-onMounted(async () => {
+async function load(): Promise<void> {
   if (!isEdit.value) return
   loading.value = true
+  loadError.value = ''
   try {
     const article = await articlesApi.get(articleId.value)
     recordId.value = article.id
@@ -43,10 +47,14 @@ onMounted(async () => {
       void router.push({ name: 'forbidden' })
       return
     }
-    error.value = describeError(err)
+    loadError.value = describeError(err)
   } finally {
     loading.value = false
   }
+}
+
+onMounted(() => {
+  void load()
 })
 
 async function submit(): Promise<void> {
@@ -99,8 +107,13 @@ async function submit(): Promise<void> {
     <h1>{{ isEdit ? '编辑文章' : '发布文章' }}</h1>
     <p class="lead">文章以 Markdown 书写，发布后由前端渲染。</p>
 
-    <div v-if="error" class="form-error" style="max-width: 56rem">{{ error }}</div>
-    <div v-if="loading" class="empty" style="max-width: 56rem">加载中…</div>
+    <div v-if="error" class="form-error form-col">{{ error }}</div>
+    <LoadingState v-if="loading" class="form-col" />
+    <EmptyState v-else-if="loadError" class="form-col" title="加载失败" :hint="loadError">
+      <p>
+        <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+      </p>
+    </EmptyState>
 
     <form v-else class="form-grid" @submit.prevent="submit">
       <div class="field">
@@ -129,12 +142,3 @@ async function submit(): Promise<void> {
     </form>
   </div>
 </template>
-
-<style scoped>
-.field-legend {
-  display: block;
-  font-size: var(--fs-meta);
-  font-weight: var(--fw-semibold);
-  margin-bottom: 0.45rem;
-}
-</style>

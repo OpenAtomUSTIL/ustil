@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { AssignmentState, IssueStatus } from '@/api/types'
+import type { ArticleStatus, AssignmentState, IssueStatus } from '@/api/types'
 
 const props = defineProps<{
-  kind: 'issue' | 'assignment'
-  value: IssueStatus | AssignmentState
+  kind: 'issue' | 'assignment' | 'article'
+  value: IssueStatus | AssignmentState | ArticleStatus
 }>()
 
 const LABELS: Record<string, string> = {
@@ -13,6 +13,10 @@ const LABELS: Record<string, string> = {
   ON_HOLD: '搁置',
   NOT_STARTED: '未开始',
   CLOSED: '已截止',
+  PENDING: '待审核',
+  PUBLISHED: '已发布',
+  REJECTED: '已驳回',
+  HIDDEN: '已隐藏',
 }
 
 const label = computed(() => {
@@ -21,6 +25,12 @@ const label = computed(() => {
 })
 
 const cls = computed(() => {
+  if (props.kind === 'article') {
+    if (props.value === 'PENDING') return 'badge-pending'
+    if (props.value === 'PUBLISHED') return 'badge-published'
+    if (props.value === 'REJECTED') return 'badge-rejected'
+    return 'badge-hidden'
+  }
   if (props.kind === 'issue') {
     if (props.value === 'ANSWERED') return 'badge-answered'
     if (props.value === 'ON_HOLD') return 'badge-hold'

@@ -109,7 +109,7 @@ function submit(): void {
 
 <style scoped>
 .announcement-form {
-  max-width: 56rem;
+  max-width: var(--prose-max);
 }
 
 .checks {

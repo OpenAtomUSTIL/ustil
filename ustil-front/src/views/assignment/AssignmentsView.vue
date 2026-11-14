@@ -9,6 +9,7 @@ import { formatCountdown, formatDateTime, timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 
 const route = useRoute()
@@ -82,8 +83,10 @@ watch(() => route.fullPath, load)
           <span class="hint">共 {{ total }} 个</span>
         </div>
 
-        <div v-if="loading" class="empty">加载中…</div>
-        <EmptyState v-else-if="error" title="加载失败" :hint="error" />
+        <LoadingState v-if="loading" />
+        <EmptyState v-else-if="error" title="加载失败" :hint="error">
+          <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+        </EmptyState>
         <EmptyState v-else-if="items.length === 0" title="暂时没有作业" hint="等待新的练习任务发布。" />
 
         <div v-else class="topic-list">
@@ -127,7 +130,7 @@ watch(() => route.fullPath, load)
                 {{ item.publisher.nickname }}
               </RouterLink>
               <span class="num">{{ timeAgo(item.createdAt) }}</span>
-              <span v-if="item.canSubmit" class="num" style="color: var(--mineral)">可提交</span>
+              <span v-if="item.canSubmit" class="num can-submit">可提交</span>
             </div>
           </div>
         </div>
@@ -143,3 +146,10 @@ watch(() => route.fullPath, load)
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 卡片底部「可提交」提示（元信息强调色） */
+.can-submit {
+  color: var(--mineral);
+}
+</style>
