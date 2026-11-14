@@ -7,6 +7,7 @@ import type { Page, LoginLogItem } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingState from '@/components/LoadingState.vue'
+import LogDetailModal from '@/components/LogDetailModal.vue'
 import { KEYWORD_MAX } from '@/utils/limits'
 import { formatDateTime } from '@/utils/format'
 
@@ -18,6 +19,7 @@ const pageSize = 20
 const data = ref<Page<LoginLogItem> | null>(null)
 const loading = ref(true)
 const error = ref('')
+const detailLog = ref<LoginLogItem | null>(null)
 
 // 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
 let loadVersion = 0
@@ -114,27 +116,46 @@ onMounted(load)
             <th>UA</th>
             <th>结果</th>
             <th>失败原因</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="log in data.items" :key="log.id">
-            <td>{{ formatDateTime(log.createdAt) }}</td>
+            <td :title="log.createdAt">{{ formatDateTime(log.createdAt) }}</td>
             <td class="mono">{{ log.email ?? '—' }}</td>
             <td class="mono">{{ log.userId ?? '—' }}</td>
             <td class="mono">{{ log.ip }}</td>
-            <td class="ua" :title="log.userAgent">{{ log.userAgent }}</td>
+            <td class="ua" :title="log.userAgent ?? undefined">{{ log.userAgent ?? '—' }}</td>
             <td>
               <span class="badge" :class="log.success ? 'badge-mineral' : 'badge-error'">
                 {{ log.success ? '成功' : '失败' }}
               </span>
             </td>
             <td class="fail-reason">{{ log.failReason ?? '—' }}</td>
+            <td>
+              <button class="btn btn-sm btn-ghost" type="button" @click="detailLog = log">详情</button>
+            </td>
           </tr>
         </tbody>
       </table>
 
       <BasePagination :page="page" :page-size="pageSize" :total="data.total" @change="changePage" />
     </div>
+
+    <LogDetailModal
+      v-if="detailLog"
+      title="登录日志详情"
+      :fields="[
+        { label: '时间', value: formatDateTime(detailLog.createdAt) },
+        { label: '登录标识', value: detailLog.email ?? '' },
+        { label: '用户 ID', value: detailLog.userId ?? '', mono: true },
+        { label: 'IP', value: detailLog.ip, mono: true },
+        { label: 'User-Agent', value: detailLog.userAgent ?? '' },
+        { label: '结果', value: detailLog.success ? '成功' : '失败' },
+        { label: '失败原因', value: detailLog.failReason ?? '' },
+      ]"
+      @close="detailLog = null"
+    />
   </div>
 </template>
 

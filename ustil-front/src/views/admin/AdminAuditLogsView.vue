@@ -7,6 +7,7 @@ import type { AuditLogItem, Page } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingState from '@/components/LoadingState.vue'
+import LogDetailModal from '@/components/LogDetailModal.vue'
 import { formatDateTime } from '@/utils/format'
 
 const TARGET_TYPES = ['USER', 'INVITE_CODE', 'ARTICLE', 'ASSIGNMENT', 'ANNOUNCEMENT', 'RESOURCE', 'ISSUE'] as const
@@ -20,10 +21,7 @@ const pageSize = 20
 const data = ref<Page<AuditLogItem> | null>(null)
 const loading = ref(true)
 const error = ref('')
-
-function formatDetail(detail: Record<string, unknown> | null): string {
-  return detail === null ? '' : JSON.stringify(detail, null, 2)
-}
+const detailLog = ref<AuditLogItem | null>(null)
 
 // 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
 let loadVersion = 0
@@ -118,7 +116,7 @@ onMounted(load)
         </thead>
         <tbody>
           <tr v-for="log in data.items" :key="log.id">
-            <td>{{ formatDateTime(log.createdAt) }}</td>
+            <td :title="log.createdAt">{{ formatDateTime(log.createdAt) }}</td>
             <td>
               <div class="actor">
                 <span>{{ log.actorEmail }}</span>
@@ -129,11 +127,7 @@ onMounted(load)
             <td><span class="badge badge-plum">{{ log.targetType }}</span></td>
             <td class="mono">{{ log.targetId }}</td>
             <td>
-              <details v-if="log.detail !== null" class="detail-fold">
-                <summary>查看</summary>
-                <pre>{{ formatDetail(log.detail) }}</pre>
-              </details>
-              <span v-else class="sub">—</span>
+              <button class="btn btn-sm btn-ghost" type="button" @click="detailLog = log">详情</button>
             </td>
           </tr>
         </tbody>
@@ -141,6 +135,22 @@ onMounted(load)
 
       <BasePagination :page="page" :page-size="pageSize" :total="data.total" @change="changePage" />
     </div>
+
+    <LogDetailModal
+      v-if="detailLog"
+      title="操作日志详情"
+      :fields="[
+        { label: '时间', value: formatDateTime(detailLog.createdAt) },
+        { label: '操作人', value: detailLog.actorEmail ?? '' },
+        { label: '操作人 ID', value: detailLog.actorId, mono: true },
+        { label: '动作', value: detailLog.action, mono: true },
+        { label: '目标类型', value: detailLog.targetType },
+        { label: '目标 ID', value: detailLog.targetId ?? '', mono: true },
+      ]"
+      :json="detailLog.detail"
+      json-label="变更明细"
+      @close="detailLog = null"
+    />
   </div>
 </template>
 
@@ -176,40 +186,5 @@ onMounted(load)
 
 .sub {
   color: var(--ink-faint);
-}
-
-.detail-fold summary {
-  cursor: pointer;
-  color: var(--clay-dark);
-  font-size: var(--fs-small);
-  font-weight: var(--fw-semibold);
-  list-style: none;
-}
-
-.detail-fold summary::-webkit-details-marker {
-  display: none;
-}
-
-.detail-fold summary::before {
-  content: '▸ ';
-}
-
-.detail-fold[open] summary::before {
-  content: '▾ ';
-}
-
-.detail-fold pre {
-  margin: 0.55rem 0 0.2rem;
-  padding: 0.75rem 0.9rem;
-  background: var(--gray-100);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-8);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  line-height: 1.6;
-  max-width: 28rem;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 </style>

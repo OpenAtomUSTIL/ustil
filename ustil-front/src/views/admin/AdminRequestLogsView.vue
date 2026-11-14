@@ -7,6 +7,7 @@ import type { Page, RequestLogItem } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingState from '@/components/LoadingState.vue'
+import LogDetailModal from '@/components/LogDetailModal.vue'
 import { formatDateTime } from '@/utils/format'
 
 const METHOD_OPTIONS = ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'] as const
@@ -19,6 +20,7 @@ const pageSize = 20
 const data = ref<Page<RequestLogItem> | null>(null)
 const loading = ref(true)
 const error = ref('')
+const detailLog = ref<RequestLogItem | null>(null)
 
 function methodBadge(method: string): string {
   switch (method) {
@@ -124,25 +126,45 @@ onMounted(load)
             <th>用户</th>
             <th>IP</th>
             <th>耗时</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="log in data.items" :key="log.id">
-            <td>{{ formatDateTime(log.createdAt) }}</td>
+            <td :title="log.createdAt">{{ formatDateTime(log.createdAt) }}</td>
             <td><span class="badge" :class="methodBadge(log.method)">{{ log.method }}</span></td>
-            <td class="path">{{ log.path }}</td>
+            <td class="path" :title="log.path">{{ log.path }}</td>
             <td>
               <span class="badge status-code" :class="statusClass(log.statusCode)">{{ log.statusCode }}</span>
             </td>
             <td class="mono">{{ log.userEmail ?? '—' }}</td>
             <td class="mono">{{ log.ip }}</td>
             <td class="mono">{{ log.durationMs }} ms</td>
+            <td>
+              <button class="btn btn-sm btn-ghost" type="button" @click="detailLog = log">详情</button>
+            </td>
           </tr>
         </tbody>
       </table>
 
       <BasePagination :page="page" :page-size="pageSize" :total="data.total" @change="changePage" />
     </div>
+
+    <LogDetailModal
+      v-if="detailLog"
+      title="请求日志详情"
+      :fields="[
+        { label: '时间', value: formatDateTime(detailLog.createdAt) },
+        { label: '方法', value: detailLog.method },
+        { label: '路径', value: detailLog.path, mono: true },
+        { label: '状态码', value: String(detailLog.statusCode) },
+        { label: '耗时', value: `${detailLog.durationMs} ms` },
+        { label: '用户', value: detailLog.userEmail ?? '' },
+        { label: '用户 ID', value: detailLog.userId ?? '', mono: true },
+        { label: 'IP', value: detailLog.ip, mono: true },
+      ]"
+      @close="detailLog = null"
+    />
   </div>
 </template>
 
