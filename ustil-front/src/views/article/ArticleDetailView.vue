@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatReadingTime } from '@/utils/reading-time'
 import { contentPathId } from '@/utils/content-path'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -115,6 +116,7 @@ onMounted(load)
             {{ article.author.nickname }} · {{ roleLabel(article.author.role) }}
           </RouterLink>
           <span class="num">{{ timeAgo(article.createdAt) }}</span>
+          <span v-if="formatReadingTime(article.readingMinutes)" class="num">{{ formatReadingTime(article.readingMinutes) }}</span>
           <span class="num">更新于 {{ formatDateTime(article.updatedAt) }}</span>
         </div>
       </div>

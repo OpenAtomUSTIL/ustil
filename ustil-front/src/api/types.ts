@@ -62,6 +62,8 @@ export interface ArticleListItem {
   id: string
   slug: string
   title: string
+  /** 后端根据完整正文估算的阅读分钟数。 */
+  readingMinutes: number
   excerpt: string
   author: UserPublic
   tags: string[]
@@ -75,6 +77,8 @@ export interface ArticleDetail {
   id: string
   slug: string
   title: string
+  /** 后端根据完整正文估算的阅读分钟数。 */
+  readingMinutes: number
   content: string
   author: UserPublic
   tags: string[]

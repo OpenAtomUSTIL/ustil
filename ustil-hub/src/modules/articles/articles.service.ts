@@ -1,3 +1,4 @@
+import { estimateReadingMinutes } from './reading-time';
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Page } from '../../common/dto/page';
 import { CurrentAuthUser } from '../../common/decorators/current-user.decorator';
@@ -68,6 +69,7 @@ export class ArticlesService {
       id: row.id,
       slug: row.slug,
       title: row.title,
+      readingMinutes: estimateReadingMinutes(row.content),
       excerpt: this.excerpt(row.content),
       tags,
       author,
@@ -82,6 +84,7 @@ export class ArticlesService {
       id: row.id,
       slug: row.slug,
       title: row.title,
+      readingMinutes: estimateReadingMinutes(row.content),
       content: row.content,
       tags,
       author,

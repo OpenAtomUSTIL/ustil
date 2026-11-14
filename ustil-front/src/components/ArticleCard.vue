@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatReadingTime } from '@/utils/reading-time'
 import { contentPathId } from '@/utils/content-path'
 import { computed } from 'vue'
 import { markdownSummary } from '@/utils/markdown'
@@ -29,6 +30,7 @@ const summary = computed(() => markdownSummary(props.article.excerpt))
         {{ article.author.nickname }}
       </RouterLink>
       <span class="num">{{ timeAgo(article.createdAt) }}</span>
+      <span v-if="formatReadingTime(article.readingMinutes)" class="num">{{ formatReadingTime(article.readingMinutes) }}</span>
     </div>
   </div>
 </template>
