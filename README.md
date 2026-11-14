@@ -64,6 +64,14 @@ docker compose --profile seed run --rm seed         # 初始 ADMIN 种子（幂�
 
 访问 `https://localhost`：nginx 托管前端静态文件并把 `/api/` 反代到后端；80 强制跳转 HTTPS（自签证书浏览器会告警，生产换 CA 证书即消失）。
 
+反代地址识别：当前链路为“浏览器 → web/nginx → api”。Compose 默认注入 `TRUST_PROXY_HOPS=1`，后端按一跳代理读取客户端 IP；Nginx 使用 `$remote_addr` 覆盖 `X-Forwarded-For`，防止客户端伪造地址。登录限流、登录日志和请求日志均使用后端解析的 IP。`api` 必须保持没有公网端口映射；本地直连使用 `ustil-hub/.env.example` 中的 `TRUST_PROXY_HOPS=0`。
+
+如果入口前增加 CDN、负载均衡或宿主机反代，需先在 Nginx 配置 `set_real_ip_from`（仅填写实际可信上游网段）及其真实 IP 请求头，并阻止外部绕过入口访问源站，再继续向后端传递校验后的 `$remote_addr`。不要直接信任所有转发头，也不要仅增加代理跳数。
+
+注册保护：后端在密码哈希前使用 Redis 原子计数，同一客户端 IP 每 15 分钟最多 10 次注册尝试（失败也计数），超限返回 429。Nginx 对注册入口另设每分钟 5 次、突发 5 次的入口限流；直连后端仍受 Redis 计数保护。同一 NAT 出口共享 IP 预算。
+
+反代或注册限流配置变更后：在 `deploy/` 执行 `docker compose up -d --build api`，再执行 `docker compose exec web nginx -t` 和 `docker compose exec web nginx -s reload`。只修改 Nginx 配置不会启用后端的代理信任。
+
 > 迁移红线：启动命令不跑迁移，迁移只由部署 job 幂等执行（避免多实例并发）。
 
 ## CI/CD（GitHub Actions）

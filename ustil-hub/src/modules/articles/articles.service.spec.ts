@@ -26,10 +26,13 @@ function row(overrides: Partial<ArticleRow> = {}): ArticleRow {
   } as ArticleRow;
 }
 
+const transaction = {};
+
 describe('ArticlesService', () => {
   let service: ArticlesService;
 
   const articlesRepository = {
+    withArticleLock: jest.fn(),
     list: jest.fn(),
     findById: jest.fn(),
     findByIdIncludingDeleted: jest.fn(),
@@ -58,6 +61,7 @@ describe('ArticlesService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    articlesRepository.withArticleLock.mockImplementation((id, operation) => articlesRepository.findById(id).then((row: ArticleRow | null) => operation(row, transaction)));
     articlesRepository.slugExists.mockResolvedValue(false);
     articlesRepository.findByIdOrSlug.mockImplementation((v) => articlesRepository.findById(v));
     const moduleRef = await Test.createTestingModule({
@@ -312,6 +316,7 @@ describe('ArticlesService', () => {
       'PUBLISHED',
       '01890a5d-ac96-7000-8000-000000000001',
       undefined,
+      transaction,
     );
   });
 

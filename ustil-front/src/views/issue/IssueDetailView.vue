@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
@@ -47,8 +48,8 @@ async function load(): Promise<void> {
     issue.value = await issuesApi.get(issueId.value)
     newStatus.value = issue.value.status
     // 旧 id 链接 → 301 到 slug 规范地址
-    if (issue.value && route.params.id !== issue.value.slug) {
-      void router.replace({ name: 'issue-detail', params: { id: issue.value.slug } })
+    if (issue.value && route.params.id !== contentPathId(issue.value)) {
+      void router.replace({ name: 'issue-detail', params: { id: contentPathId(issue.value) } })
     }
   } catch (err) {
     if (isForbidden(err)) {

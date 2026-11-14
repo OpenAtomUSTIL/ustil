@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 /* 资源库：分类 Tab + keyword 搜索 + tag 过滤 + 分页卡片；外链新窗口打开 */
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -241,7 +242,7 @@ onMounted(load)
                 打开链接 ↗
               </a>
               <template v-if="canManage(item)">
-                <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'resource-edit', params: { id: item.slug } }">
+                <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'resource-edit', params: { id: contentPathId(item) } }">
                   编辑
                 </RouterLink>
                 <template v-if="confirmDeleteId === item.id">

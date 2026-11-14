@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 import { computed } from 'vue'
 import { markdownSummary } from '@/utils/markdown'
 import type { ArticleListItem } from '@/api/types'
@@ -16,7 +17,7 @@ const summary = computed(() => markdownSummary(props.article.excerpt))
       <span class="tag tag-cat" data-tone="clay">文章</span>
     </div>
     <h3>
-      <RouterLink class="tc-title-link" :to="{ name: 'article-detail', params: { id: article.slug } }">
+      <RouterLink class="tc-title-link" :to="{ name: 'article-detail', params: { id: contentPathId(article) } }">
         {{ article.title }}
       </RouterLink>
     </h3>

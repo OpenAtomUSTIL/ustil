@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
@@ -92,7 +93,7 @@ watch(() => route.fullPath, load)
               <span v-if="item.mySubmission" class="tag tag-hash">已提交</span>
             </div>
             <h3>
-              <RouterLink class="tc-title-link" :to="{ name: 'assignment-detail', params: { id: item.slug } }">
+              <RouterLink class="tc-title-link" :to="{ name: 'assignment-detail', params: { id: contentPathId(item) } }">
                 {{ item.title }}
               </RouterLink>
             </h3>

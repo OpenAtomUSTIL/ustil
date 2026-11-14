@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
@@ -59,8 +60,8 @@ async function load(): Promise<void> {
   try {
     assignment.value = await assignmentsApi.get(assignmentId.value)
     // 旧 id 链接 → 301 到 slug 规范地址
-    if (assignment.value && route.params.id !== assignment.value.slug) {
-      void router.replace({ name: 'assignment-detail', params: { id: assignment.value.slug } })
+    if (assignment.value && route.params.id !== contentPathId(assignment.value)) {
+      void router.replace({ name: 'assignment-detail', params: { id: contentPathId(assignment.value) } })
     }
   } catch (err) {
     if (isForbidden(err)) {
@@ -170,7 +171,7 @@ onBeforeUnmount(() => {
       <div class="post-block">
         <MarkdownBody class="pb-body" :content="assignment.description" />
         <div v-if="canEdit" class="pb-actions">
-          <RouterLink class="btn btn-secondary" :to="{ name: 'assignment-edit', params: { id: assignment.slug } }">
+          <RouterLink class="btn btn-secondary" :to="{ name: 'assignment-edit', params: { id: contentPathId(assignment) } }">
             编辑
           </RouterLink>
         </div>

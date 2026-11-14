@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 /* 公告详情：MarkdownBody 渲染；作者或 WHEEL/ADMIN 显示编辑/删除（显隐为体验优化，权限以后端为准） */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -36,8 +37,8 @@ async function load(): Promise<void> {
   try {
     announcement.value = await announcementsApi.get(announcementId.value)
     // 旧 id 链接 → 301 到 slug 规范地址
-    if (route.params.id !== announcement.value.slug) {
-      void router.replace({ name: 'announcement-detail', params: { id: announcement.value.slug } })
+    if (route.params.id !== contentPathId(announcement.value)) {
+      void router.replace({ name: 'announcement-detail', params: { id: contentPathId(announcement.value) } })
     }
   } catch (err) {
     if (isForbidden(err)) {
@@ -99,7 +100,7 @@ onMounted(load)
         <div v-if="canManage" class="pb-actions">
           <RouterLink
             class="btn btn-secondary"
-            :to="{ name: 'announcement-edit', params: { id: announcement.slug } }"
+            :to="{ name: 'announcement-edit', params: { id: contentPathId(announcement) } }"
           >
             编辑
           </RouterLink>

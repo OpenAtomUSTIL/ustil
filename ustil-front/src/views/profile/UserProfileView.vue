@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 /* 个人主页：GitHub 式双栏（资料卡 + README/置顶/热力图/内容 Tab） */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, describeError, isForbidden } from '@/api/error'
 import { articlesApi, authApi, issuesApi, resourcesApi, usersApi } from '@/api/request'
@@ -99,11 +100,14 @@ const followLoading = ref(false)
 
 async function toggleFollow(): Promise<void> {
   if (!profile.value || followLoading.value) return
+  const target = userId.value
+  const targetId = profile.value.id
   followLoading.value = true
   try {
     const result = profile.value.isFollowing
       ? await usersApi.unfollow(userId.value)
       : await usersApi.follow(userId.value)
+    if (userId.value !== target || profile.value?.id !== targetId) return
     profile.value = {
       ...profile.value,
       isFollowing: result.following,
@@ -120,21 +124,42 @@ async function toggleFollow(): Promise<void> {
   }
 }
 
+let profileRequest = 0
+let activityRequest = 0
+let tabRequest = 0
+let pinRequest = 0
+onBeforeUnmount(() => { profileRequest++; activityRequest++; tabRequest++; pinRequest++ })
+const tabError = ref('')
+
 async function load(): Promise<void> {
+  const request = ++profileRequest
+  const target = userId.value
+  const current = () => request === profileRequest && target === userId.value
+
+  activityRequest++; tabRequest++; pinRequest++
+  profile.value = null
+  activity.value = []
+  tabItems.value = []
+  tabTotal.value = 0
   loading.value = true
   error.value = ''
   editing.value = false
   showSettings.value = false
   try {
     await auth.ensureReady()
-    profile.value = await usersApi.getProfile(userId.value)
+    if (!current()) return
+    const result = await usersApi.getProfile(target)
+    if (!current()) return
+    profile.value = result
     // 旧 id 链接 → 301 到 username 规范地址
     if (profile.value && route.params.id !== profile.value.username) {
       void router.replace({ name: 'user-profile', params: { id: profile.value.username } })
+      return
     }
     void loadActivity()
     void loadTab()
   } catch (err) {
+    if (!current()) return
     if (isForbidden(err)) {
       void router.push({ name: 'forbidden' })
       return
@@ -145,55 +170,75 @@ async function load(): Promise<void> {
     }
     error.value = describeError(err)
   } finally {
-    loading.value = false
+    if (current()) loading.value = false
   }
 }
 
 async function loadActivity(): Promise<void> {
+  const request = ++activityRequest
+  const target = userId.value
+  const current = () => request === activityRequest && target === userId.value
+
   activityLoading.value = true
   try {
     const result = await usersApi.getActivity(userId.value)
+    if (!current()) return
     activity.value = result.days
   } catch {
+    if (!current()) return
     // 热力图加载失败不拖垮整页
   } finally {
-    activityLoading.value = false
+    if (current()) activityLoading.value = false
   }
 }
 
 async function loadTab(): Promise<void> {
+  const request = ++tabRequest
+  const target = userId.value
+  const current = () => request === tabRequest && target === userId.value
+
+  if (!ownerId.value) return
+  tabError.value = ''
   tabLoading.value = true
   try {
     if (activeTab.value === 'articles') {
       const result = await articlesApi.list({ authorId: ownerId.value, page: tabPage.value, pageSize: tabPageSize })
+      if (!current()) return
       tabItems.value = result.items
       tabTotal.value = result.total
     } else if (activeTab.value === 'issues') {
       const result = await issuesApi.list({ authorId: ownerId.value, page: tabPage.value, pageSize: tabPageSize })
+      if (!current()) return
       tabItems.value = result.items
       tabTotal.value = result.total
     } else if (activeTab.value === 'replies') {
       const result = await usersApi.getReplies(userId.value, { page: tabPage.value, pageSize: tabPageSize })
+      if (!current()) return
       tabItems.value = result.items
       tabTotal.value = result.total
     } else if (activeTab.value === 'followers') {
       const result = await usersApi.getFollowers(userId.value, { page: tabPage.value, pageSize: tabPageSize })
+      if (!current()) return
       tabItems.value = result.items
       tabTotal.value = result.total
     } else if (activeTab.value === 'following') {
       const result = await usersApi.getFollowing(userId.value, { page: tabPage.value, pageSize: tabPageSize })
+      if (!current()) return
       tabItems.value = result.items
       tabTotal.value = result.total
     } else {
       const result = await resourcesApi.list({ creatorId: ownerId.value, page: tabPage.value, pageSize: tabPageSize })
+      if (!current()) return
       tabItems.value = result.items
       tabTotal.value = result.total
     }
-  } catch {
+  } catch (err) {
+    if (!current()) return
+    tabError.value = describeError(err)
     tabItems.value = []
     tabTotal.value = 0
   } finally {
-    tabLoading.value = false
+    if (current()) tabLoading.value = false
   }
 }
 
@@ -224,8 +269,12 @@ function toFollowUser(item: TabItem): FollowUserItem {
   return item as FollowUserItem
 }
 
+const pendingFollows = new Set<string>()
+
 /** 粉丝/关注列表内关注按钮 */
 async function toggleFollowUser(user: FollowUserItem): Promise<void> {
+  if (pendingFollows.has(user.id)) return
+  pendingFollows.add(user.id)
   try {
     const result = user.isFollowing
       ? await usersApi.unfollow(user.username)
@@ -234,6 +283,8 @@ async function toggleFollowUser(user: FollowUserItem): Promise<void> {
     toast.show(result.following ? '已关注' : '已取消关注')
   } catch (err) {
     toast.show(describeError(err))
+  } finally {
+    pendingFollows.delete(user.id)
   }
 }
 
@@ -354,23 +405,31 @@ async function uploadAvatar(file: File, onProgress: (percent: number) => void): 
 }
 
 async function loadPinOptions(): Promise<void> {
+  const request = ++pinRequest
+  const target = userId.value
+  const current = () => request === pinRequest && target === userId.value
+
   pinOptionsLoading.value = true
   pinPickId.value = ''
   try {
     if (pinType.value === 'ARTICLE') {
       const result = await articlesApi.list({ authorId: ownerId.value, page: 1, pageSize: 50 })
+      if (!current()) return
       pinOptions.value = result.items.map((i) => ({ id: i.id, title: i.title }))
     } else if (pinType.value === 'ISSUE') {
       const result = await issuesApi.list({ authorId: ownerId.value, page: 1, pageSize: 50 })
+      if (!current()) return
       pinOptions.value = result.items.map((i) => ({ id: i.id, title: i.title }))
     } else {
       const result = await resourcesApi.list({ creatorId: ownerId.value, page: 1, pageSize: 50 })
+      if (!current()) return
       pinOptions.value = result.items.map((i) => ({ id: i.id, title: i.title }))
     }
   } catch {
+    if (!current()) return
     pinOptions.value = []
   } finally {
-    pinOptionsLoading.value = false
+    if (current()) pinOptionsLoading.value = false
   }
 }
 
@@ -778,14 +837,14 @@ watch(pinType, () => {
               <RouterLink
                 v-else-if="item.type === 'ARTICLE'"
                 class="pinned-title"
-                :to="{ name: 'article-detail', params: { id: item.slug } }"
+                :to="{ name: 'article-detail', params: { id: contentPathId(item) } }"
               >
                 {{ item.title }}
               </RouterLink>
               <RouterLink
                 v-else-if="item.type === 'ISSUE'"
                 class="pinned-title"
-                :to="{ name: 'issue-detail', params: { id: item.slug } }"
+                :to="{ name: 'issue-detail', params: { id: contentPathId(item) } }"
               >
                 {{ item.title }}
               </RouterLink>
@@ -829,6 +888,7 @@ watch(pinType, () => {
           </div>
 
           <div v-if="tabLoading" class="empty-hint">加载中…</div>
+          <div v-else-if="tabError" class="empty-hint">{{ tabError }} <button type="button" @click="loadTab">重试</button></div>
           <EmptyState v-else-if="tabItems.length === 0" title="暂无内容" :hint="tabEmptyHint" />
           <div v-else-if="activeTab === 'articles'" class="tab-list">
             <ArticleCard v-for="item in tabItems" :key="item.id" :article="toArticle(item)" />
@@ -841,7 +901,7 @@ watch(pinType, () => {
               v-for="item in tabItems"
               :key="item.id"
               class="tab-item"
-              :to="{ name: 'issue-detail', params: { id: toReply(item).issueSlug } }"
+              :to="{ name: 'issue-detail', params: { id: contentPathId({ id: toReply(item).issueId, slug: toReply(item).issueSlug }) } }"
             >
               <span class="tab-item-title">{{ toReply(item).issueTitle }}</span>
               <span class="tab-item-sub">{{ toReply(item).content }}</span>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 /* 公告新建/编辑独立页：编辑页作者或 ADMIN 才可保存，403 由后端明确报错并原样展示 */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -35,8 +36,8 @@ onMounted(async () => {
     const item: AnnouncementItem = await announcementsApi.get(announcementId.value)
     recordId.value = item.id
     // 旧 id 链接 → 301 到 slug 规范地址
-    if (route.params.id !== item.slug) {
-      void router.replace({ name: 'announcement-edit', params: { id: item.slug } })
+    if (route.params.id !== contentPathId(item)) {
+      void router.replace({ name: 'announcement-edit', params: { id: contentPathId(item) } })
     }
     initial.value = { title: item.title, content: item.content, pinned: item.pinned }
   } catch (err) {

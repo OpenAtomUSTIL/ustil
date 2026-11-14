@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
@@ -31,8 +32,8 @@ onMounted(async () => {
     const article = await articlesApi.get(articleId.value)
     recordId.value = article.id
     // 旧 id 链接 → 301 到 slug 规范地址
-    if (route.params.id !== article.slug) {
-      void router.replace({ name: 'article-edit', params: { id: article.slug } })
+    if (route.params.id !== contentPathId(article)) {
+      void router.replace({ name: 'article-edit', params: { id: contentPathId(article) } })
     }
     title.value = article.title
     content.value = article.content

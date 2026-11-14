@@ -47,6 +47,8 @@ services:
     image: ${REGISTRY:-ustil}/ustil-api:${IMAGE_TAG:-latest}
     environment:
       NODE_ENV: production
+      # 仅信任入口 nginx 一跳；不要给 api 添加公网 ports 映射。
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
       DATABASE_URL: postgres://${POSTGRES_USER:-ustil}:${POSTGRES_PASSWORD:-change-me}@pg:5432/${POSTGRES_DB:-ustil}
       REDIS_URL: redis://redis:6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me}

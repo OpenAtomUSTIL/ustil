@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
@@ -109,10 +110,10 @@ onMounted(load)
               <span class="num">更新于 {{ formatDateTime(article.updatedAt) }}</span>
             </div>
             <div class="row-actions">
-              <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'article-detail', params: { id: article.slug } }">
+              <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'article-detail', params: { id: contentPathId(article) } }">
                 查看
               </RouterLink>
-              <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'article-edit', params: { id: article.slug } }">
+              <RouterLink class="btn btn-secondary btn-sm" :to="{ name: 'article-edit', params: { id: contentPathId(article) } }">
                 编辑
               </RouterLink>
               <template v-if="confirmDeleteId === article.id">

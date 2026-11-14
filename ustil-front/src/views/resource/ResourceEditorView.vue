@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 /* 资源新建/编辑独立页：编辑回填 GET /resources/:id；保存失败保留输入并展示原因 */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -37,8 +38,8 @@ onMounted(async () => {
     const item: ResourceItem = await resourcesApi.get(resourceId.value)
     recordId.value = item.id
     // 旧 id 链接 → 301 到 slug 规范地址
-    if (route.params.id !== item.slug) {
-      void router.replace({ name: 'resource-edit', params: { id: item.slug } })
+    if (route.params.id !== contentPathId(item)) {
+      void router.replace({ name: 'resource-edit', params: { id: contentPathId(item) } })
     }
     initial.value = {
       title: item.title,

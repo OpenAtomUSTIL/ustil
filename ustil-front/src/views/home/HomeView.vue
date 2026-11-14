@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -87,7 +88,7 @@ onMounted(async () => {
           <h2>最新讨论</h2>
           <p>社区里刚刚发生的问题与回答</p>
           <div class="topic-mini">
-            <RouterLink v-for="issue in issues.slice(0, 3)" :key="issue.id" :to="{ name: 'issue-detail', params: { id: issue.slug } }">
+            <RouterLink v-for="issue in issues.slice(0, 3)" :key="issue.id" :to="{ name: 'issue-detail', params: { id: contentPathId(issue) } }">
               <StatusBadge kind="issue" :value="issue.status" />
               <span class="tm-title">{{ issue.title }}</span>
             </RouterLink>
@@ -130,7 +131,7 @@ onMounted(async () => {
           v-for="item in announcements"
           :key="item.id"
           class="announce-row"
-          :to="{ name: 'announcement-detail', params: { id: item.slug } }"
+          :to="{ name: 'announcement-detail', params: { id: contentPathId(item) } }"
         >
           <span v-if="item.pinned" class="tag tag-cat" data-tone="clay">置顶</span>
           <span class="an-title">{{ item.title }}</span>

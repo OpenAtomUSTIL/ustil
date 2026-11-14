@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 import type { IssueListItem } from '@/api/types'
 import { timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
@@ -21,7 +22,7 @@ defineProps<{ issue: IssueListItem }>()
       </span>
     </div>
     <h3>
-      <RouterLink class="tc-title-link" :to="{ name: 'issue-detail', params: { id: issue.slug } }">
+      <RouterLink class="tc-title-link" :to="{ name: 'issue-detail', params: { id: contentPathId(issue) } }">
         {{ issue.title }}
       </RouterLink>
     </h3>

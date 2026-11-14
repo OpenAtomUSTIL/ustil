@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { contentPathId } from '@/utils/content-path'
 /* 公告列表：置顶优先（后端 pinned desc, createdAt desc），keyword 搜索，错误处理同文章列表 */
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -122,7 +123,7 @@ onMounted(load)
               <span class="tag tag-cat" data-tone="sky">公告</span>
             </div>
             <h3>
-              <RouterLink class="tc-title-link" :to="{ name: 'announcement-detail', params: { id: item.slug } }">
+              <RouterLink class="tc-title-link" :to="{ name: 'announcement-detail', params: { id: contentPathId(item) } }">
                 {{ item.title }}
               </RouterLink>
             </h3>
