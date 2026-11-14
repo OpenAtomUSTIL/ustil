@@ -81,7 +81,7 @@ function submit(): void {
       <MarkdownEditor
         v-model="content"
         aria-label="内容（Markdown）"
-        min-height="12rem"
+        min-height="16rem"
         placeholder="支持 **粗体**、`代码`、> 引用、列表与链接。空行分段。"
       />
       <div class="hint">支持 Markdown 语法，发布后按 Markdown 渲染。</div>

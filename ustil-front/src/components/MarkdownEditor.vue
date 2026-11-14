@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
+import { Compartment, EditorSelection, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, drawSelection, keymap, placeholder as cmPlaceholder } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import MarkdownBody from '@/components/MarkdownBody.vue'
+import { resolvedTheme } from '@/utils/theme'
 
 const props = withDefaults(
   defineProps<{
@@ -66,10 +67,20 @@ const theme = EditorView.theme({
     fontFamily: 'var(--font-mono)',
     padding: '0.75rem 1rem',
   },
-  '.cm-scroller': { maxHeight: '32rem' },
+  '.cm-scroller': { maxHeight: '65vh' },
   '.cm-cursor': { borderLeftColor: 'var(--ink)' },
-  '.cm-selectionBackground': { backgroundColor: 'var(--clay-soft)' },
+  '.cm-selectionBackground': { backgroundColor: 'var(--selection-bg)' },
+  // 覆盖 base 主题的聚焦态选中色（&.cm-focused … 选择器特异性更高，须精确匹配）
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
+    backgroundColor: 'var(--selection-bg)',
+  },
+  // base 主题占位符固定 #888，改用令牌适配深浅色
+  '.cm-placeholder': { color: 'var(--ink-faint)' },
 })
+
+/* base 主题的 &dark/&light 规则跟随 darkTheme facet，
+   用 Compartment 随 resolvedTheme 重配，避免系统/手动主题不一致 */
+const darkThemeComp = new Compartment()
 
 function wrapSelection(before: string, after: string): void {
   if (!view) return
@@ -189,6 +200,7 @@ onMounted(() => {
     EditorView.lineWrapping,
     EditorView.contentAttributes.of({ 'aria-label': props.ariaLabel }),
     theme,
+    darkThemeComp.of(EditorView.darkTheme.of(resolvedTheme.value === 'dark')),
     cmPlaceholder(props.placeholder),
     keymap.of([
       { key: 'Mod-b', run: () => (wrapSelection('**', '**'), true) },
@@ -219,6 +231,11 @@ watch(
     }
   },
 )
+
+watch(resolvedTheme, (value) => {
+  if (!view) return
+  view.dispatch({ effects: darkThemeComp.reconfigure(EditorView.darkTheme.of(value === 'dark')) })
+})
 
 onBeforeUnmount(() => {
   view?.scrollDOM.removeEventListener('scroll', onEditorScroll)
@@ -406,9 +423,15 @@ onBeforeUnmount(() => {
 }
 
 .md-preview {
-  max-height: 32rem;
+  max-height: 65vh;
   overflow: auto;
   padding: 0.75rem 1rem;
+}
+
+/* 预览行宽对齐详情页最终渲染（--text-w-prose），所见即所得 */
+.md-preview :deep(.md-body) {
+  max-width: var(--text-w-prose);
+  margin-inline: auto;
 }
 
 @media (max-width: 820px) {

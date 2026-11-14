@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { renderMarkdown } from '@/utils/markdown'
-import { themeMode } from '@/utils/theme'
+import { resolvedTheme } from '@/utils/theme'
 
 const props = defineProps<{ content: string; preview?: boolean }>()
 
@@ -9,7 +9,7 @@ const props = defineProps<{ content: string; preview?: boolean }>()
 function withThemeAssets(html: string): string {
   return html.replace(/src="([^"]*\/snake\.svg)([^"]*)"/g, (_match, base: string, query: string) => {
     const params = new URLSearchParams(query.replace(/^\?/, ''))
-    params.set('theme', themeMode.value)
+    params.set('theme', resolvedTheme.value)
     return `src="${base}?${params.toString()}"`
   })
 }
@@ -120,7 +120,7 @@ function onClick(event: MouseEvent): void {
   line-height: 1.5;
   color: var(--ink-muted);
   background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
+  border: var(--bw-sm) solid var(--border-strong);
   border-radius: var(--br-pill);
   cursor: pointer;
 }
@@ -139,7 +139,7 @@ function onClick(event: MouseEvent): void {
   font-size: var(--fs-meta);
   color: var(--ink-muted);
   background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
+  border: var(--bw-sm) solid var(--border-strong);
   border-radius: var(--br-pill);
 }
 </style>

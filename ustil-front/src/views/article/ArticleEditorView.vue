@@ -125,7 +125,7 @@ async function submit(): Promise<void> {
         <MarkdownEditor
           v-model="content"
           aria-label="正文（Markdown）"
-          min-height="20rem"
+          min-height="26rem"
           placeholder="支持 **粗体**、`代码`、> 引用、列表与链接。空行分段。"
         />
       </div>

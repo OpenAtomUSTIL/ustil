@@ -108,7 +108,7 @@ function submit(): void {
       <MarkdownEditor
         v-model="description"
         aria-label="描述"
-        min-height="7rem"
+        min-height="10rem"
         placeholder="这个资源是什么、适合谁（选填，支持 Markdown）"
       />
     </div>

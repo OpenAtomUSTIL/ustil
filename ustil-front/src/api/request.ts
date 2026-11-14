@@ -231,9 +231,9 @@ function upload<T>(
 /* ============ 接口封装（与后端契约逐字对齐） ============ */
 
 export const authApi = {
-  /** 拉取验证码图片（data URI）；未登录可调，不触发 401 跳转 */
-  getCaptcha: () =>
-    request<CaptchaResponse>('/auth/captcha', { skipAuthHandler: true, retryAuth: false }),
+  /** 拉取验证码图片（data URI）；未登录可调，不触发 401 跳转。theme 透传 query，仅 'dark' 出深色调色板，缺省浅色 */
+  getCaptcha: (theme?: 'light' | 'dark') =>
+    request<CaptchaResponse>('/auth/captcha', { query: { theme }, skipAuthHandler: true, retryAuth: false }),
   /** 注册并种下 httpOnly cookie */
   register: (payload: RegisterRequest) =>
     request<UserSelf>('/auth/register', { method: 'POST', body: payload, skipAuthHandler: true, retryAuth: false }),

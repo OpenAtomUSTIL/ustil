@@ -375,3 +375,78 @@
 - [x] 质量门：前端 lint（0 警告）+ typecheck + 22 单测 + build 全绿；纯样式/结构收敛，不改接口与业务逻辑，后端不动。
 - [x] 不操作部署环境，不自动提交 Git。
 - 验收：①各列表页卡片/筛选条/徽章同一设计语言；②admin 表格与徽章单一来源；③加载/空/错误/删除确认全部统一组件；④三档断点 × 深浅色无破版、无亮斑；⑤inline style 与重复 scoped 规则显著清零。
+
+## v8.0 - 深浅色体验优化、MD 编辑器区域左右加宽
+
+> 2026-11-15 编写。本节是待办清单，不代表已实现。两项诉求：①优化深浅色；②「发布文章等」的 MD 编辑器区域大小，左右拉长。全站巡检（tokens.css/app.css/MarkdownEditor/MarkdownBody/theme.ts + 8 处编辑器用法）关键事实：
+> **深浅色**——a) hero/footer 深色下翻成米白大块且文字不可读：两块底色读 `--bg-inverse/--ink-inverse`，深色重映射后直接翻白，tokens.css 的 `[data-theme='dark'] .theme-inverse`「暗带」修正够不到背景（hero 甚至没挂 `theme-inverse` 类），与注释意图相反；b) `--clay-soft` 一身三职（avatar 底色/链接 hover 文字/CodeMirror 选中背景），深色重映射为深褐后 hover 与选中全部失效；c) `--shadow-*` 固定黑 alpha 深色下不可见、`--ring-focus` 未做深色重映射；d) `.q-badge`/`.avatar[data-tone=cactus|plum]` 等「彩色底+gray-N 字」配对深色下对比崩；e) CodeMirror 占位符固定 `#888`、dark facet 未注册；f) 后端验证码 SVG 固定浅底，深色下亮斑（snake.svg 已有双主题先例）；g) 主题机制无「跟随系统」三态、无跨标签页同步；h) 业务组件 hex/rgba 已清零，残留集中在 app.css hero/footer 区与 `.btn-danger:hover #a53e35`。
+> **编辑器宽度**——编辑列唯一来源 `--prose-max: 56rem`；工具栏 15+3 按钮 nowrap 横滚、需求约 850px，56rem（896px）是临界态；分栏双列各约 28rem，放表格/宽代码很挤；而最终渲染正文 80ch（约 50rem）——单栏预览偏宽 10%、分栏预览偏窄 45%，预览与所见即所得不符；改 tokens.css 一处即联动 .form-grid/.form-col/AnnouncementForm/ResourceForm 全链；IssueDetail 回复 composer（整容器宽）与 README 编辑器（~65rem）本就不在 56rem 链上。
+> 实现 2026-11-15：tokens.css 新增暗带令牌（--bg-band/--ink-band/--ink-band-muted/--band-accent 等，深色下 hero/footer 为略深于页面的暗带不翻白）+ 职责拆分（--link-hover/--selection-bg/--ink-on-color/--error-hover，--clay-soft 回归单一 avatar 底色职责）+ dark 重映射（--shadow-* 加深/--ring-focus/--line-warm 0.22）；app.css hero/footer 全链切 band 令牌并补 hero CTA 对比、q-badge/头像彩底深字、::selection；theme.ts 三态（light/dark/system + storage 跨标签页同步），AppHeader 三态循环按钮（显示器图标）；MarkdownEditor 预览限 80ch 所见即所得、内部滚动 65vh、CM dark facet（Compartment 重配）+ 选中/占位符主题化；MarkdownBody 复制胶囊边界加强、snake.svg 走 resolvedTheme；min-height 上调（文章 26rem 等）；--prose-max 56rem→72rem 编辑器左右拉长；验证码 SVG 双主题（?theme=dark 深底亮字 ≥4.5:1，AuthCaptcha 跟随主题换图 latest-wins）。质量门：前端 lint/typecheck/33 单测/build + 后端 lint/190 单测/49 e2e 全绿。
+
+### P0｜反色区块（hero / footer）深浅色修复
+
+> 设计口径（推荐定稿「暗带」）：深色下反色区改为**略深于页面的暗带 + 浅字**（延续 tokens.css 注释「避免翻白断层」的既有意图），不做成米白浅块。若想保留「真反色浅块」观感，则改为校正 `--ink-muted` 文字与固定 rgba 边框（备选方案，实施前可换）。
+
+- [x] hero/footer 反色体系修正：hero 挂 `theme-inverse`（现缺失），两块底/字色改读可被 dark 重映射命中的令牌（如新增 `--bg-band` / `--ink-band` 或让 `.theme-inverse` 覆盖 `--bg-inverse/--ink-inverse` 两个别名），使 tokens.css 的暗带修正真正生效。
+- [x] hero 内固定 rgba 收编 token 随主题：`.hero::after` 光晕、`.hero-stats` 分隔线、`.hero-panel` 底/边、`.topic-mini` 边/hover 底（app.css 132/149/154-155/163/166）。
+- [x] footer 顶线 `rgba(227,218,204,0.14)`（app.css:407）与 `.footer-brand p`/`.footer-col` 文字在暗带方案下的对比度校正。
+- [x] hero 内 `--clay-soft` 文字（kicker / h1 em / tm-cat）按暗带底色校正（深褐压深底不可读）。
+- 验收：深色下 hero/footer 为比页面略深的暗带，全部文字对比度 ≥ 4.5:1，边框/光晕可见；浅色无回归。
+
+### P0｜深浅色：职责拆分与配对色修复
+
+- [x] `--clay-soft` 三重职责拆分：链接/作者 hover 文字色（6 处：app.css 263/266/268/332、AppHeader、UserProfileView）改用专用 `--link-hover`（dark 用亮陶土）；CodeMirror 选中背景改用专用 `--selection-bg`（dark 用中亮低饱和暖色，现深褐选中对比 ~1.5:1）；avatar 底色用途保留 `--clay-soft`。
+- [x] 「彩色底 + 深字」配对修复：新增不随主题翻转的稳定深字令牌（如 `--ink-on-color`），修正 `.q-badge`、`.avatar[data-tone="cactus"]`、`.avatar[data-tone="plum"]`（app.css 230-235/281/283）深色下浅底浅字。
+- [x] `.btn-danger:hover #a53e35`（app.css:117）→ token（如 `--error-hover`，dark 重映射为更深红），hover 语义随主题。
+- [x] `--ring-focus` 深色重映射（tokens.css dark 块补一条，提高不透明度/亮度），5 处焦点环（composer/field/search-box/TagInput/AuthCaptcha）统一受益。
+- 验收：深色下 hover 文字、编辑器选中、焦点环清晰可见；q-badge/头像两种主题对比达标；grep 无业务硬编码色值。
+
+### P1｜深浅色：阴影、浮层与细节
+
+- [x] `--shadow-*` 深色重映射（dark 块补一组更深 alpha 或更大幅面的阴影），恢复卡片 hover/dropdown/modal/auth-card/toast/md-tool hover 等 10 处浮层层次；`--border` 深色 0.16 暖白可读性微调。
+- [x] CodeMirror 深色适配收尾：注册 dark facet（随 data-theme 切换基类），`.cm-placeholder` 从 `#888` 改 `--ink-faint`；hljs 调色按深色微调（如 comment 亮度）；MarkdownBody 复制按钮/语言标签在深色下与 pre 底的边界感（现 `--bg-raised` 与 `--gray-100` 明度差过小）。
+- [x] 全站细节：`::selection` 定制（`--selection-bg`/`--selection-ink` 两主题）、滚动条（pre/横滚区）随主题的细样式（可选）。
+- 验收：深色下浮层有层次、编辑器占位/选中/高亮正常；浅色无回归。
+
+### P1｜验证码 SVG 深色版（后端小改）
+
+- [x] 仿 snake.svg 双主题先例：`captcha-svg.ts` 出 light/dark 两套调色板，`GET /auth/captcha?theme=dark` 选择；不传默认 light（契约向后兼容）。
+- [x] 前端 AuthCaptcha 随当前主题取图，主题切换时重取（参照 MarkdownBody `withThemeAssets` 的响应式刷新思路）；docs/API.md 补 `theme` 查询参数说明。
+- 验收：深色下验证码无亮斑、字符可辨；浅色无回归；验证码安全语义（一次性/限次/不落明文）不变。
+
+### P1｜主题机制增强
+
+- [x] 「跟随系统」三态：`theme.ts` 的 ThemeMode 扩为 `light | dark | system`，localStorage 兼容旧值；AppHeader 切换按钮循环三态或下拉选择，恢复「跟随系统」路径（现 toggle 后永久脱离）。
+- [x] 跨标签页同步：监听 `storage` 事件即时应用他标签页的主题变更；index.html 防闪烁脚本同步三态逻辑。
+- 验收：三态可自由切换且持久化；多标签页主题一致；首屏无闪烁。
+
+### P0｜MD 编辑器区域左右加宽
+
+> 设计口径：**整列加宽而非编辑器单独外凸**——`--prose-max` 56rem → **72rem**（tokens.css 一处改，与 `--w-list-narrow` 同宽），标题/标签等普通字段随列同宽（主流发布页版式）；工具栏余量从 <60px 变充裕，分栏双列从 ~28rem 升至 ~35rem。若个别字段需收窄留待后续按字段加约束。
+
+- [x] `--prose-max` 56rem → 72rem（联动 .form-grid / .form-col / AnnouncementForm / ResourceForm 全链；auth-card 25.5rem 自有封顶不受影响）。
+- [x] 所见即所得：分栏/仅预览模式的预览列内容加 `max-width: var(--text-w-prose)` 并居中，预览行宽 = 详情页最终渲染（.pb-body 80ch），消除「单栏偏宽 10%、分栏偏窄 45%」的宽度失真。
+- [x] 工具栏与分栏在 72rem 下的余量复核（15+3 按钮 + 同步复选不横滚；≤820px 竖排断点不变）。
+- 验收：发布文章/发起讨论/作业/公告/资源五类编辑页编辑区明显左右拉长；分栏预览行宽与最终渲染一致；工具栏无横向滚动。
+
+### P1｜MD 编辑器高度与用法对齐
+
+- [x] 高度适度上调并视口化：文章 20rem / 讨论 16rem / 作业 14rem / 公告 12rem / 资源 7rem 的 min-height 逐档上调（如文章 26rem）；`.cm-scroller` / `.md-preview` 的 `max-height: 32rem` 改视口联动（如 `65vh`），长文编辑少滚一层。
+- [x] 8 处用法对齐复核：IssueDetail 回复 composer（整容器宽）与 UserProfileView README（~65rem）本就宽于 56rem 链，维持各自版式；确认加宽后 8 处无溢出/错位。
+- 验收：编辑区高度更充裕；8 处用法无回归。
+
+### P2｜可选项（时间富余再做）
+
+- [ ] 主题切换过渡动画（`color-scheme` 过渡或关键属性 transition，避免生硬跳变）。（本轮未做，可选项）
+- [ ] hljs 深色专属微调（按实际观感定）。（本轮未做，可选项）
+
+### 需先讨论
+
+- **反色区块方案**：本计划按「暗带」定稿（推荐）；若你更喜欢深色下保留米白浅块 hero/footer，实施前说一声，遗留项改为校正浅块上的文字与边框。
+
+### 测试与验收
+
+- [ ] 深浅两色 × 1512 / 820 / 390 逐页走查（衔接 v7.0 留下的深色巡检与逐页走查项）：重点 hero/footer、编辑五页、详情正文/代码块、登录注册（含验证码）、个人主页、后台浮层。（已做关键页深浅两色截图预览；三宽度逐页走查仍待人工抽查）
+- [x] 质量门：前端 lint + typecheck + 单测 + build 全绿；验证码深色版涉及后端则后端 lint + 单测 + e2e 全绿。
+- [x] 不操作部署环境，不自动提交 Git。
+- 验收：①深色下全站无翻白断层、无不可读文字、无亮斑，浅色无回归；②五类编辑页编辑区左右明显加宽，预览 = 最终渲染行宽；③主题三态可用且跨标签页一致；④质量门全绿。

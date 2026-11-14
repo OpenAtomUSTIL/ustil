@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useToastStore } from '@/stores/toast'
-import { themeMode, toggleTheme } from '@/utils/theme'
+import { cycleTheme, resolvedTheme, themeMode } from '@/utils/theme'
 import AppAvatar from '@/components/AppAvatar.vue'
 
 const router = useRouter()
@@ -24,6 +24,9 @@ const avatarUrl = computed(() => auth.user?.avatarUrl ?? '')
 const userId = computed(() => auth.user?.id ?? '')
 const unreadLabel = computed(() =>
   notifications.unreadCount > 99 ? '99+' : String(notifications.unreadCount),
+)
+const themeLabel = computed(() =>
+  themeMode.value === 'system' ? '跟随系统' : themeMode.value === 'dark' ? '深色模式' : '浅色模式',
 )
 
 function onScroll(): void {
@@ -145,21 +148,28 @@ async function logout(): Promise<void> {
           <button
             class="btn btn-ghost theme-btn"
             type="button"
-            :aria-label="themeMode === 'dark' ? '切换到浅色模式' : '切换到深色模式'"
-            :title="themeMode === 'dark' ? '浅色模式' : '深色模式'"
-            @click="toggleTheme"
+            :aria-label="`${themeLabel}（点击切换）`"
+            :title="themeLabel"
+            @click="cycleTheme"
           >
-            <svg v-if="themeMode === 'dark'" class="theme-ic" viewBox="0 0 24 24" aria-hidden="true">
+            <!-- 跟随系统：显示器图标 -->
+            <svg v-if="themeMode === 'system'" class="theme-ic" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="4.5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+              <path d="M9.5 20h5M12 16.5V20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            <!-- 深色模式：月亮 -->
+            <svg v-else-if="resolvedTheme === 'dark'" class="theme-ic" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M20.2 14.4A8.6 8.6 0 0 1 9.6 3.8a8.6 8.6 0 1 0 10.6 10.6Z"
+                fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"
+              />
+            </svg>
+            <!-- 浅色模式：太阳 -->
+            <svg v-else class="theme-ic" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8" />
               <path
                 d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M5.2 18.8l1.4-1.4M17.4 6.6l1.4-1.4"
                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-              />
-            </svg>
-            <svg v-else class="theme-ic" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M20.2 14.4A8.6 8.6 0 0 1 9.6 3.8a8.6 8.6 0 1 0 10.6 10.6Z"
-                fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"
               />
             </svg>
           </button>

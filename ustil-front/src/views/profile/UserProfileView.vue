@@ -1087,7 +1087,7 @@ watch(pinType, () => {
   flex: 1;
 }
 .follow-card .follow-user:hover strong {
-  color: var(--clay-soft);
+  color: var(--link-hover);
 }
 .follow-names {
   display: flex;

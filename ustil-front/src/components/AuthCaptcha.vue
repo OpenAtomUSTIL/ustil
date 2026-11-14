@@ -1,7 +1,8 @@
 <script setup lang="ts">
-/* 验证码输入：挂载拉取一张（svg data URI），一次性消费，提交失败后由父级调 refresh() 重新拉取 */
-import { computed, onMounted, ref } from 'vue'
+/* 验证码输入：挂载拉取一张（svg data URI，随当前深浅主题取色），一次性消费，提交失败后由父级调 refresh() 重新拉取 */
+import { computed, onMounted, ref, watch } from 'vue'
 import { authApi } from '@/api/request'
+import { resolvedTheme } from '@/utils/theme'
 
 const props = defineProps<{ captchaId: string; modelValue: string }>()
 const emit = defineEmits<{ 'update:captchaId': [value: string]; 'update:modelValue': [value: string] }>()
@@ -9,6 +10,8 @@ const emit = defineEmits<{ 'update:captchaId': [value: string]; 'update:modelVal
 const image = ref('')
 const loading = ref(false)
 const failed = ref(false)
+/** 请求序号：换主题/连点时只认最新一次响应，过期响应丢弃 */
+let loadSeq = 0
 
 const code = computed({
   get: () => props.modelValue,
@@ -16,19 +19,21 @@ const code = computed({
 })
 
 async function load(): Promise<void> {
-  if (loading.value) return
+  const seq = ++loadSeq
   loading.value = true
   failed.value = false
   try {
-    const data = await authApi.getCaptcha()
+    const data = await authApi.getCaptcha(resolvedTheme.value)
+    if (seq !== loadSeq) return
     image.value = data.image
     emit('update:captchaId', data.captchaId)
   } catch {
+    if (seq !== loadSeq) return
     image.value = ''
     emit('update:captchaId', '')
     failed.value = true
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
@@ -37,6 +42,11 @@ async function refresh(): Promise<void> {
   emit('update:modelValue', '')
   await load()
 }
+
+/** 深浅主题切换：换对应配色的图；图与码绑定，换图即换码，同步清空已输码 */
+watch(resolvedTheme, () => {
+  void refresh()
+})
 
 onMounted(() => {
   void load()

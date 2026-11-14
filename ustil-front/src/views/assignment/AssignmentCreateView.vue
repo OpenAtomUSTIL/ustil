@@ -83,7 +83,7 @@ async function submit(): Promise<void> {
         <MarkdownEditor
           v-model="description"
           aria-label="任务说明（Markdown）"
-          min-height="14rem"
+          min-height="18rem"
           placeholder="说明任务目标、要求与提交物格式"
         />
       </div>
