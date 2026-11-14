@@ -230,3 +230,148 @@
 - [x] 后台文章审核页用不存在的 `--text-muted` 等变量（fallback `#888/#999/#ccc` 不随主题翻转）｜ AdminArticleReviewView 改用语义令牌 `--ink-muted`/`--ink-faint`/`--accent`/`--border`(-`-strong`)。
 - [x] README 贪吃蛇 SVG 深浅两套未跟随主题（`snake.svg?theme=dark` 后端已有，前端从不传，深色下仍显示浅色蛇）｜ MarkdownBody 渲染时对 `src="…/snake.svg"` 注入当前 `theme` 参数并随主题切换重算（stats-badge.svg 为中性彩底徽章无需主题）。
 - 验收：✅ 深色模式下我的文章/文章详情状态徽章、主页热力图、后台审核卡、主页 README 贪吃蛇均正确配色；浅色模式无回归；lint + typecheck + 22 单测 + build 全绿。
+
+
+## v6.0 - 后台查询 ID 寻址放宽、敏感操作图形验证码、注册密码确认与格式检测
+
+> 2026-11-14 编写。本节是待办清单，不代表已实现。四项诉求：①后台查询 ID 不一定非得是 UUID，可以采用 email 等；②添加图形验证码（全部敏感操作，自建）；③注册添加密码确认；④邮箱/手机号/密码格式检测（密码加复杂度）。
+> 注：v2.0「验证码功能已废弃」指旧邮箱/短信验证码（找回流程用），与本轮图形验证码是两回事；仓库现无任何验证码代码。
+> 实现 2026-11-15：`users.repository.findByIdentifier` 解析链（uuid → username 含历史 → email → phone，形状判定防歧义）+ `resolveRowByIdentifier`；5 个查询过滤与 5 个用户操作路径参数全放宽（过滤未命中→空列表、路径未命中→404），listForAdmin keyword 补 username，audit↔users 模块 forwardRef 解环；新增 `modules/captcha`（自绘 SVG、sha256 存 Redis 不落明文、TTL 5 分钟、Lua 原子一次性消费、单 id 失败 3 次作废、统一 400「验证码错误或已失效」，GET /auth/captcha），5 个敏感 DTO extends `CaptchaFields`；RegisterDto 加 `passwordConfirm`（@IsSameAs）与 `@IsPasswordComplex`（8~128 + 四类至少两类，仅注册/改密新密码）；前端 AuthCaptcha 组件接入 5 处敏感表单 + limits.ts 复杂度/邮箱/手机校验 + limits.test.ts；docs/API.md 与两份 AGENTS.md 契约同步（§2 发信验证 🔴 项不动）。质量门：后端 lint + 187 单测（23 套件）+ 49 e2e（4 套件），前端 lint/typecheck + 33 单测 + build，全绿。
+
+### P0｜后台查询 ID 寻址放宽：uuid 之外支持 email / username / 手机号
+
+> 根因：后台各「按 ID 查询」入口均为 uuid 硬校验（`uuidParamPipe` / `@IsUUID`），管理员按人过滤/操作时只能翻库拿 UUID；而 users 表 email / username / phone 均唯一，auth 登录已有 `findByEmailOrPhone`，前台已有 uuid-or-username 寻址先例（`findByIdOrUsername`）。
+> 设计口径：解析式寻址——uuid → username（含历史 handle）→ email → phone，uuid 与其余标识不撞形，顺序即优先级；解析出 userId 后查询/校验逻辑不变。仅限用户寻址参数，内容实体 id 不在范围。
+
+- [x] `users.repository` 增加统一解析入口（如 `findByIdentifier`）：uuid → username（含 `user_username_history` 历史 handle）→ email → phone 顺序命中；service 侧封装 resolve 供各调用方复用（仿 `findByIdOrUsername` / `findByEmailOrPhone` 既有形态）。
+- [x] 错误语义与防歧义：解析不到返回 null 由调用方定语义（过滤类→空列表，路径参数类→404）；email 形状判定复用 auth 侧 `isEmail`，phone 判定与注册口径一致（`isMobilePhone` zh-CN）。
+
+#### 查询参数类（@IsUUID 放宽 → 解析成 userId 再 eq 过滤）
+
+- [x] 请求日志 `userId`（`audit/dto/request-logs-query.dto.ts`）｜前端 AdminRequestLogsView「用户 ID」搜索框
+- [x] 操作日志 `actorId`（`audit/dto/audit-logs-query.dto.ts`）｜前端 AdminAuditLogsView「操作人 ID」搜索框
+- [x] 文章列表 `authorId`（`articles/dto/articles-query.dto.ts`）
+- [x] 讨论列表 `authorId`（`issues/dto/issue.dto.ts` IssuesQueryDto）
+- [x] 资源列表 `creatorId`（`resources/dto/resources-query.dto.ts`）
+- [x] 落地方式：查询层先解析 userId 再 `eq(...)` 直查；标识解析不到 → 返回空列表（过滤语义不报错）。
+
+#### 路径参数类（uuidParamPipe → 解析式寻址）
+
+- [x] `PATCH /admin/users/:id/role`、`POST /admin/users/:id/promote`、`DELETE /admin/users/:id`（`admin/admin-users.controller.ts`）
+- [x] `POST /users/:id/ban`、`POST /users/:id/unban`（`users/users.controller.ts`，现契约「仅 uuid 寻址」需同步放宽）
+- [x] 解析不到用户 → 404；`requireNonAdmin`、角色校验等 service 层既有规则不变。
+
+#### 前端与契约同步
+
+- [x] AdminRequestLogsView / AdminAuditLogsView 搜索框文案与占位符改为「UUID / 邮箱 / 用户名 / 手机号」，输入直传后端。
+- [x] AdminUsersView keyword 模糊搜索补 username 列（`users.repository` `listForAdmin` 现仅昵称/邮箱/手机号）。
+- [x] `ustil-hub/docs/API.md` 寻址契约更新（「仅 uuid 寻址」表述改为 uuid / username / email / phone，uuid 优先）；两份 AGENTS.md 相关约定同步。
+
+### P0｜敏感操作图形验证码（自建，无第三方）
+
+> 设计口径：服务端生成图片验证码（字符扭曲/算术题，优先轻量 SVG 方案或自绘，不引入极验/Turnstile 等第三方服务），答案存 Redis 短 TTL（约 5 分钟）一次性消费；与现有 IP 限流（注册 10 次/15 分钟、登录失败 5 次/15 分钟）叠加而非替代。
+
+- [x] 新增 `GET /api/v1/auth/captcha`：返回 captchaId + 图片（SVG 或 base64），答案写 Redis（TTL、单 captchaId 校验失败限次、用后即焚）。
+- [x] 敏感操作请求体增加 `captchaId` + `captchaCode` 并校验：注册、登录、改密、换绑邮箱/手机、邀请码转正（统一校验入口/拦截器，便于后续敏感接口一键接入）；校验失败统一文案（不泄露「验证码错」还是「账号错」之外的细节）。
+- [x] 前端 AuthCaptcha 组件（图片 + 刷新按钮 + 输入框），接入 RegisterView / LoginView / 改密与换绑表单（UserProfileView 设置区）/ 邀请码转正入口。
+- [x] 防滥用：captchaId 一次性消费、答案比对限次、过期重取；错误不区分「过期/错」过多细节，配合既有 Redis 限流。
+- [x] 文档：`docs/API.md` 新增 captcha 端点与各敏感接口请求体字段；AGENTS.md:25「邮箱验证码注册验证」为后续发信验证（与图形验证码无关），表述区分不改其规划。
+
+### P0｜注册添加密码确认
+
+- [x] RegisterView 增加「确认密码」字段（必填），两次不一致前端拦截提示（沿用 UserProfileView 改密表单 `newPassword2` 先例）。
+- [x] `RegisterDto` 同步增加 `passwordConfirm` 一致性校验（与 `password` 相等），`docs/API.md` §1.1 注册请求体同步。
+
+### P1｜邮箱 / 手机号 / 密码格式检测
+
+> 现状：后端注册 identifier 已有 `IsEmailOrPhone`（isEmail + isMobilePhone zh-CN），密码仅长度 8~128；前端仅 trim、无任何格式校验。本项补齐前端镜像校验并给密码加复杂度（前后端同步，仅新注册/改密生效，存量密码不强制）。
+
+- [x] 密码复杂度：8~128 位且至少含 大写/小写/数字/符号 中两类——后端 `RegisterDto` / `ChangePasswordDto` 加自定义校验（@Matches 组合或自定义 validator），前端 `limits.ts` `checkPassword` 同步规则；错误提示明确列出要求。
+- [x] 前端格式校验补齐：`limits.ts` 增加邮箱/手机校验（镜像后端 isEmail / isMobilePhone zh-CN），RegisterView identifier 提交前校验、换绑表单输入校验。
+- [x] 边界：LoginView identifier 不加格式限制（登录允许任意输入，后端统一「账号或密码错误」）；换绑后端已有校验（users.service）不变，仅补前端镜像。
+- [x] 文档：`docs/API.md` 密码「8~128 位」表述补充复杂度规则；AGENTS.md 若有密码约定同步。
+
+### 测试与验收
+
+- [x] 单测：`findByIdentifier` 解析顺序（uuid 优先）、旧 handle 命中、email/phone 命中、未命中 null；密码复杂度规则边界（两类临界、单类拒绝）；`limits.ts` 校验函数（新建 `src/utils/__tests__/limits.test.ts`，对齐 vitest 约定）。
+- [x] e2e（`test/register.e2e-spec.ts` 追加）：注册确认密码不一致 400、弱密码 400、格式非法 400、验证码缺失/错误/过期 400、正确验证码全链路成功；登录/改密/换绑/转正带验证码路径；验证码一次性（复用即失败）。
+- [x] e2e（寻址）：日志筛选按 email/username/手机号 命中；用户管理改角色/封禁/删除用 email 寻址；uuid 路径回归不变。
+- 验收：①后台所有按 ID 查询处输入 email/username/手机号 均可命中，uuid 行为不变；②注册/登录/改密/换绑/转正无正确图形验证码均被拒，正确输入可通，验证码一次性；③注册两次密码不一致被拦；④前端格式检测与后端一致，弱密码注册被拒；质量门全绿（后端 lint+单测+e2e，前端 lint/typecheck/单测/build）。（2026-11-15 全数验证通过：e2e 覆盖①②③④全链路含一次性与过期语义；后端 lint 0 问题 / 187 单测 / 49 e2e，前端 lint 0 / typecheck / 33 单测 / build 全绿）
+
+## v7.0 - 各界面布局样式统一优化
+
+> 2026-11-14 编写。本节是待办清单，不代表已实现。诉求：逐个界面优化布局与样式。全站巡检（`ustil-front/src/styles/tokens.css`、`app.css` + 22 个视图）归纳六类问题：①内容列宽与间距节奏不一（列表 88rem 通栏 / ArticlesView 自设 72rem / 表单 56rem 靠 inline style 复制 8 处）；②卡片三轨制（ArticleCard/IssueCard 组件、五处手写 `.topic-card`、通知/审核等完全自定义卡片）；③徽章状态色散落（文章状态两套重复、admin 六七类自写徽章、role-badge 两处不一致）；④admin 表格整套样式 12 份逐字复制；⑤加载/空/错误/删除确认态不统一（35 处裸 `.empty` 当加载占位、6 页错误无重试、删除确认两套 + `window.confirm`）；⑥断点散落（1080/820/480 + 两处 768）与残留硬编码色值。原则：不引入 UI 库，继续手写 CSS + 令牌（AGENTS.md §10）；纯样式/结构收敛，不改业务逻辑与接口，后端不动。
+> 实现 2026-11-14：tokens.css 收编列宽（`--w-list-narrow`）/间距节奏/tint 透明底/热力图 `--hm-*`/断点约定；app.css 全局化 `.list-toolbar`/`.form-col`/`.row-actions`/`.field-legend`/加载与模态体系/徽章色调基元 + 角色与文章状态徽章/后台共享表格块（`.admin-filters`+`.admin-table` 套件，12 份 scoped 复制清零）；新增 LoadingState / ModalOverlay / ConfirmModal，StatusBadge 扩文章状态；22 视图 inline style 清零、35 处加载占位组件化、错误态补齐重试、删除确认统一模态；hero 面板窄屏不再 display:none；`.side/.panel`/`.pd-links` 死代码删除。
+
+### P0｜布局骨架统一：列宽、间距、列表工具条
+
+> 设计口径：宽度收敛为令牌而非强改观感——阅读型列表（文章列表）保留 72rem 窄列但 token 化；表单列宽度只认 `--prose-max`（56rem）单一来源；错误/加载块与所在列同宽，禁止 inline max-width 复制。
+
+- [x] 列宽令牌化：tokens.css 增加列宽档位（如 `--w-list-narrow: 72rem` 阅读型列表、通栏沿用 `--page-max`）；ArticlesView `.article-index` 自设 `max-width: 72rem` 改引令牌；ArticleEditorView / IssueCreateView / AssignmentCreateView / AssignmentEditView / AnnouncementEditorView / ResourceEditorView 共 8 处 `style="max-width: 56rem"` 改为与 `.form-grid` 同宽的公共 class。
+- [x] 间距节奏收敛：`.layout` / `.thread` / `.compose-page` 三套 `padding-block` 收敛为统一节奏（token 化）；`.row-actions` 两份不同 gap（MyArticlesView 0.55rem vs MySubmissionsView 0.85rem）、`.field-legend` 三份复制（ArticleEditorView / IssueCreateView / ResourceForm）各收敛为 app.css 单一全局类。
+- [x] 列表工具条统一：新增统一 `.list-toolbar`（搜索框 + 筛选 chips + 间隔），替换 `style="height: 1.5rem"` 占位 div（ArticlesView、AnnouncementsView）与 `style="margin-top: 1.25rem"`（IssuesView、ResourcesView）；`.search-box`（现 max 26rem）与内容列宽度比例复核定稿。
+- [x] 首页 hero 窄屏不再丢内容：`@media 1080px` 下 `.hero-panel` 现直接 `display: none`（移动端丢失「最新讨论」），改为折叠或移入 feeds 下方保留。
+- 验收：全站无 inline `max-width`/间距占位；各页主列宽来自令牌；窄屏首页不丢内容。
+
+### P0｜卡片与列表项样式统一
+
+- [x] 卡片收敛：MyArticlesView / MySubmissionsView / AssignmentsView / AnnouncementsView / ResourcesView 五处手写 `.topic-card` 对齐 ArticleCard/IssueCard 的统一结构与样式（抽共享列表项组件或统一变体类），圆角/边框/内边距/hover 走 token。
+- [x] 摘要截断统一：ResourcesView 将 `.tc-excerpt`（2 行 `<p>` 截断样式）套在 MarkdownBody 上的误用修正；与 ArticleCard `.article-summary`（3 行）的截断行数二选一定稿并全局一致。
+- [x] 特殊卡片对齐视觉语言：NotificationsView `.notice-card`（未读高亮现硬编码 rgba）、AdminArticleReviewView `.review-card`、HomeView `.announce-row`、UserProfileView `.pinned-card/.follow-card/.tab-item` 的圆角/边框/间距改走 token。
+- 验收：列表卡片同一视觉语言；摘要截断一致；通知/审核/置顶/关注卡片无孤立样式。
+
+### P0｜徽章与状态色体系统一
+
+- [x] StatusBadge 扩展为全站唯一徽章来源：覆盖文章状态（pending/published/rejected/hidden）、HTTP 方法、状态码、文件类型、权限、角色等，替换 MyArticlesView `.st-chip`、ArticleDetailView `.status-banner`（两处同值 rgba 重复定义）及 admin 自写徽章（`.state-badge` / `.result-badge` / `.type-badge` / `.ref-badge` / `.method` / `.perm-badge` / `.status-code`）。
+- [x] 文章状态横幅抽公共组件（StatusBanner 或 StatusBadge 变体），MyArticlesView 与 ArticleDetailView 不再各写一套。
+- [x] `role-badge` 两处合一：UserProfileView（pill 彩底白字，`color: #fff` ×5）与 AdminOnlineUsersView（方角灰底）统一为一种，白色改 `--ink-inverse` 类 token。
+- [x] tint 收编：散布的调色板透明底（`rgba(217,119,87,0.12)` 等）收编为 `--clay-tint` 等语义 token（MyArticlesView / ArticleDetailView / NotificationsView / TagsChips / TagInput / admin 各页 / app.css 徽章区），深色模式随 token 一并校正对比度。
+- 验收：徽章/状态色只有一处定义；深浅两色下状态语义一致、对比度达标。
+
+### P0｜admin 表格与筛选条收敛（消 12 份复制）
+
+- [x] 抽公共来源：`.admin-table` / `.table-wrap` / `.mono` / `.ops` / `.state-box` 整套规则从 12 个 admin 视图 scoped（AdminApiRegistryView、AdminAnnouncementsView、AdminAuditLogsView、AdminFilesView、AdminCommentsView、AdminInviteCodesView、AdminRequestLogsView、AdminLoginLogsView、AdminOnlineUsersView、AdminResourcesView、AdminTrashView、AdminUsersView）收敛为共享样式或 `AdminTable.vue` 包装组件，各视图只留业务差异（如 InviteCodes 行 hover）。
+- [x] 命名冲突清理：admin scoped `.filter-bar`（gap 0.65rem + 输入框覆盖）与全局 `.filter-bar`（app.css，配 `.chip`）同名不同义 → admin 侧改名（如 `.admin-filters`），并统一输入控件高度/间距。
+- [x] admin 各页徽章并入统一徽章体系（见上节）。
+- 验收：admin 表格样式单一来源，12 视图无重复规则；`.filter-bar` 无同名异义。
+
+### P1｜加载 / 空 / 错误态统一
+
+- [x] 加载态组件化：新增 LoadingState（spinner 或骨架），替换 35 处 `<div class="empty">加载中…</div>`，`.empty` 语义回归纯空态。
+- [x] 错误态统一「重试」：补齐现无重试按钮的 6 页（ArticlesView、IssuesView、AssignmentsView、ArticleDetailView、IssueDetailView、AssignmentDetailView），与已有重试的 8 处（MyArticlesView / MySubmissionsView / AnnouncementsView / ResourcesView / NotificationsView / AnnouncementDetailView / UserProfileView / AdminArticleReviewView）统一按钮样式与间距。
+- [x] EmptyState 增强：支持操作按钮 slot 与统一内间距，消十余处 `style="margin-top: 1.15rem"` 复制；UserProfileView `.empty-hint` 并入。
+- 验收：任何页面加载/空/错误三态组件唯一、交互一致；错误态必有重试。
+
+### P1｜删除确认与弹层交互统一
+
+- [x] 新增 ConfirmModal 公共组件：统一前台行内「删除→确认删除？/取消」两套（MyArticlesView、ResourcesView、ArticleDetailView、AnnouncementDetailView）与 admin `window.confirm`（AdminUsersView），危险操作统一 btn-danger 语言。
+- [x] 弹层抽公共 Modal/Overlay：AdminFilesView 手写 `.preview-overlay/.preview-panel` 图片预览迁移到公共组件，遮罩 `rgba(32,30,28,0.55)` 改 token。
+- 验收：全站删除确认同一交互；无 `window.confirm`、无手写遮罩。
+
+### P1｜响应式断点归一与移动端补齐
+
+- [x] 断点归一：定稿三档 1080 / 820 / 480 并在 tokens.css 登记约定；UserProfileView 与 MarkdownEditor 两处 768px 并入 820px 档；清理 `.pd-links` 残留媒体查询（引用类已不存在）。
+- [x] admin 表格窄屏方案：现仅 `overflow-x: auto` + `nowrap` 横滚——补次要列折叠或 sticky 首列优化；820px 侧栏转顶部横排后的主区排版复核。
+- [ ] 小屏细节走查：<480px 下 `.thread-head` 元信息行、`.meta-rows`、`.auth-card`、hero-stats 不破版不溢出。（浏览器人工走查项，待抽查）
+- 验收：390 / 820 / 1512 三宽度逐页可读可用；断点只剩三档。
+
+### P1｜深浅色硬编码色值收尾
+
+- [x] UserProfileView 热力图绿阶收编 token 单源：现浅色 4 个 hex + 手补 `[data-theme='dark']` 8 个 hex 双份维护，改为按主题一组变量（沿 v5.0 配色修复口径：暗面越亮贡献越多）。
+- [x] 其余硬编码：AdminFilesView 预览遮罩 rgba、MarkdownEditor 两处阴影 rgba 改 token；热力图/角色徽章 hex 全部走变量。
+- [ ] 深色巡检复核：tint 令牌化后各徽章/卡片/表格在深色下的对比度。（代码层已收编并 grep 清零；目视对比度复核待浏览器走查）
+- 验收：业务组件内 grep 无 hex/rgba 硬编码（tokens.css 与必要 SVG 除外）；深浅两色目视无亮斑/糊底。
+
+### P2｜死代码与小件清理
+
+- [x] 删除无使用样式：`.side` / `.panel`（app.css，全站无引用）、`.pd-links` 媒体查询。
+- [x] inline style 清零：AssignmentDetailView（9 处，全站最多）、IssueDetailView（6 处）等归入 class；IssueDetailView 裸 `<select>` 状态选择器改统一控件样式。
+- [x] 小件归属复核：`.tc-excerpt`、`.countdown`、`.meta-rows` 等命名与归属统一。
+- 验收：视图模板内基本无裸 style 属性；app.css 无死规则。
+
+### 测试与验收
+
+- [ ] 逐页走查清单（深浅两色 × 1512 / 820 / 390）：首页、文章（列表/详情/编辑/我的文章）、讨论（列表/详情/发起）、作业（列表/详情/编辑/我的提交）、公告（列表/详情/编辑）、资源（列表/编辑）、通知、个人主页（含 Tab/设置区）、登录/注册、错误页、admin 15 页。（浏览器人工走查项，待抽查）
+- [x] 质量门：前端 lint（0 警告）+ typecheck + 22 单测 + build 全绿；纯样式/结构收敛，不改接口与业务逻辑，后端不动。
+- [x] 不操作部署环境，不自动提交 Git。
+- 验收：①各列表页卡片/筛选条/徽章同一设计语言；②admin 表格与徽章单一来源；③加载/空/错误/删除确认全部统一组件；④三档断点 × 深浅色无破版、无亮斑；⑤inline style 与重复 scoped 规则显著清零。

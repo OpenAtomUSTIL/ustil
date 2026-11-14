@@ -29,11 +29,42 @@ export function checkTitle(value: string): string | null {
 }
 
 /** 密码长度校验，通过返回 null */
-export function checkPassword(value: string): string | null {
+export function checkPasswordLength(value: string): string | null {
   if (value.length < PASSWORD_MIN || value.length > PASSWORD_MAX) {
     return `密码长度需为 ${PASSWORD_MIN}-${PASSWORD_MAX} 个字符`
   }
   return null
+}
+
+/** 新密码校验（注册新密码与改密新密码）：长度 + 大写/小写/数字/符号至少两类，通过返回 null */
+export function checkPassword(value: string): string | null {
+  const lengthProblem = checkPasswordLength(value)
+  if (lengthProblem) return lengthProblem
+  const classes =
+    (/[A-Z]/.test(value) ? 1 : 0) +
+    (/[a-z]/.test(value) ? 1 : 0) +
+    (/[0-9]/.test(value) ? 1 : 0) +
+    (/[^A-Za-z0-9]/.test(value) ? 1 : 0)
+  if (classes < 2) return '密码需包含大写字母、小写字母、数字、符号中的至少两类'
+  return null
+}
+
+/** 邮箱格式校验（镜像后端 isEmail），通过返回 null */
+export function checkEmail(value: string): string | null {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return '邮箱格式不正确'
+  return null
+}
+
+/** 手机号格式校验（zh-CN，镜像后端 isMobilePhone），通过返回 null */
+export function checkPhone(value: string): string | null {
+  if (!/^1[3-9]\d{9}$/.test(value.trim())) return '手机号格式不正确'
+  return null
+}
+
+/** 邮箱或手机号任一通过即通过（注册 identifier），通过返回 null */
+export function checkIdentifier(value: string): string | null {
+  if (checkEmail(value) === null || checkPhone(value) === null) return null
+  return '请输入正确的邮箱或手机号'
 }
 
 /** 单个标签长度校验（按 trim 后计），通过返回 null */

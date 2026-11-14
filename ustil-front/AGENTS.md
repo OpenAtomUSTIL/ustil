@@ -47,6 +47,8 @@
 | 时间 | ISO 8601 UTC 字符串，展示时本地格式化，`MUST NOT` 假设它是本地时区 |
 | 字段名 | JSON 一律 `camelCase` |
 | 主键 | `uuid` 字符串，`MUST NOT` 当 `number` 处理 |
+| 用户寻址 | 用户 `:id` 管理类路径参数（封禁/解封/改角色/提拔/剔除等）与查询过滤参数（`userId` / `actorId` / `authorId` / `creatorId` 等）支持 uuid / username（含历史 handle）/ email / phone（按 uuid → username → email → phone 顺序解析）；路径参数解析不到 → 404「用户不存在」，查询过滤参数解析不到 → 空列表。内容实体与用户资料页读接口维持「uuid 或 slug/username」不变 |
+| 敏感操作验证码 | 注册 / 登录 / 改密 / 换绑 / 持码转正的请求体 `MUST` 额外携带 `captchaId` + `captchaCode`（取自 `GET /api/v1/auth/captcha`，一次性消费），校验失败统一 400「验证码错误或已失效」 |
 
 ## 5. 鉴权状态
 

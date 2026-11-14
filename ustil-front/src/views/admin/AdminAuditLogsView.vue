@@ -6,6 +6,7 @@ import { adminApi } from '@/api/request'
 import type { AuditLogItem, Page } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { formatDateTime } from '@/utils/format'
 
 const TARGET_TYPES = ['USER', 'INVITE_CODE', 'ARTICLE', 'ASSIGNMENT', 'ANNOUNCEMENT', 'RESOURCE', 'ISSUE'] as const
@@ -82,7 +83,7 @@ onMounted(load)
       <span v-if="data" class="hint">共 {{ data.total }} 条</span>
     </div>
 
-    <form class="filter-bar" role="search" @submit.prevent="search">
+    <form class="admin-filters" role="search" @submit.prevent="search">
       <div class="field">
         <input v-model="actionFilter" type="search" placeholder="动作，如 user.role.change" aria-label="动作">
       </div>
@@ -93,14 +94,14 @@ onMounted(load)
         </select>
       </div>
       <div class="field">
-        <input v-model="actorIdFilter" type="search" placeholder="操作人 ID" aria-label="操作人 ID">
+        <input v-model="actorIdFilter" type="search" placeholder="UUID / 邮箱 / 用户名 / 手机号" aria-label="UUID / 邮箱 / 用户名 / 手机号">
       </div>
       <button class="btn btn-secondary" type="submit">搜索</button>
       <button class="btn btn-ghost" type="button" @click="reset">重置</button>
     </form>
 
     <div v-if="error" class="form-error">{{ error }}</div>
-    <div v-else-if="loading" class="empty">加载中…</div>
+    <LoadingState v-else-if="loading" />
     <EmptyState v-else-if="!data || data.items.length === 0" title="没有匹配的日志" hint="换个筛选条件试试" />
 
     <div v-else class="table-wrap">
@@ -125,7 +126,7 @@ onMounted(load)
               </div>
             </td>
             <td><code class="action">{{ log.action }}</code></td>
-            <td><span class="badge badge-role">{{ log.targetType }}</span></td>
+            <td><span class="badge badge-plum">{{ log.targetType }}</span></td>
             <td class="mono">{{ log.targetId }}</td>
             <td>
               <details v-if="log.detail !== null" class="detail-fold">
@@ -144,64 +145,13 @@ onMounted(load)
 </template>
 
 <style scoped>
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  align-items: center;
-  margin-bottom: 1.25rem;
-}
-
-.filter-bar .field {
-  margin: 0;
-}
-
-.filter-bar input,
-.filter-bar select {
-  min-width: 11rem;
-  padding: 0.5rem 0.75rem;
-  border: var(--bw-sm) solid var(--border-strong);
-  border-radius: var(--br-8);
-  background: var(--bg-raised);
-  font-size: var(--fs-meta);
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
-  font-size: var(--fs-meta);
-}
-
-.admin-table th,
+/* 业务需要：详情折叠块展开后行高变高，单元格顶对齐（全局为 middle） */
 .admin-table td {
-  padding: 0.75rem 0.9rem;
-  text-align: left;
-  border-bottom: var(--bw-sm) solid var(--border);
   vertical-align: top;
 }
 
-.admin-table th {
-  font-size: var(--fs-small);
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-}
-
-.admin-table tr:last-child td {
-  border-bottom: none;
-}
-
+/* 业务需要：ID 类 mono 字号比全局 .mono 更小 */
 .mono {
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-muted);
   font-size: 0.78rem;
 }
 

@@ -4,7 +4,9 @@ import { describeError } from '@/api/error'
 import { adminApi, usersApi } from '@/api/request'
 import type { AdminUser, Page, UpdateUserRoleRequest } from '@/api/types'
 import BasePagination from '@/components/BasePagination.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatDate, roleLabel } from '@/utils/format'
@@ -23,6 +25,7 @@ const data = ref<Page<AdminUser> | null>(null)
 const loading = ref(true)
 const error = ref('')
 const busyId = ref('')
+const pendingDelete = ref<AdminUser | null>(null)
 
 const ROLE_OPTIONS: UpdateUserRoleRequest['role'][] = ['VISITOR', 'MEMBER', 'ALUMNI', 'WHEEL']
 
@@ -111,7 +114,13 @@ function toggleBan(user: AdminUser): void {
 }
 
 function remove(user: AdminUser): void {
-  if (!window.confirm(`确定剔除「${user.nickname}」？该账号及其讨论/提交将被删除，不可恢复。`)) return
+  pendingDelete.value = user
+}
+
+function confirmRemove(): void {
+  const user = pendingDelete.value
+  if (!user) return
+  pendingDelete.value = null
   void runAction(user.id, () => adminApi.deleteUser(user.id), '已剔除')
 }
 
@@ -125,9 +134,9 @@ onMounted(load)
       <span v-if="data" class="hint">共 {{ data.total }} 人</span>
     </div>
 
-    <form class="filter-bar" role="search" @submit.prevent="search">
+    <form class="admin-filters" role="search" @submit.prevent="search">
       <div class="field">
-        <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索昵称 / 邮箱 / 手机号">
+        <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索昵称 / 用户名 / 邮箱 / 手机号">
       </div>
       <div class="field">
         <select v-model="roleFilter">
@@ -151,7 +160,7 @@ onMounted(load)
     </form>
 
     <div v-if="error" class="form-error">{{ error }}</div>
-    <div v-else-if="loading" class="empty">加载中…</div>
+    <LoadingState v-else-if="loading" />
     <EmptyState v-else-if="!data || data.items.length === 0" title="没有匹配的用户" hint="换个筛选条件试试" />
 
     <div v-else class="table-wrap">
@@ -171,10 +180,10 @@ onMounted(load)
             <td>{{ user.nickname }}</td>
             <td class="mono">{{ user.contact ?? '—' }}</td>
             <td>
-              <span class="badge badge-role">{{ roleLabel(user.role) }}</span>
+              <span class="badge badge-role" :data-role="user.role">{{ roleLabel(user.role) }}</span>
             </td>
             <td>
-              <span class="badge" :class="user.status === 'BANNED' ? 'badge-closed' : 'badge-answered'">
+              <span class="badge" :class="user.status === 'BANNED' ? 'badge-error' : 'badge-mineral'">
                 {{ user.status === 'BANNED' ? '已封禁' : '正常' }}
               </span>
             </td>
@@ -222,81 +231,14 @@ onMounted(load)
 
       <BasePagination :page="page" :page-size="pageSize" :total="data.total" @change="changePage" />
     </div>
+
+    <ConfirmModal
+      v-if="pendingDelete"
+      title="剔除用户"
+      :message="`确定剔除「${pendingDelete.nickname}」？该账号及其讨论/提交将被删除，不可恢复。`"
+      confirm-text="剔除"
+      @confirm="confirmRemove"
+      @cancel="pendingDelete = null"
+    />
   </div>
 </template>
-
-<style scoped>
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  align-items: center;
-  margin-bottom: 1.25rem;
-}
-
-.filter-bar .field {
-  margin: 0;
-}
-
-.filter-bar input,
-.filter-bar select {
-  min-width: 11rem;
-  padding: 0.5rem 0.75rem;
-  border: var(--bw-sm) solid var(--border-strong);
-  border-radius: var(--br-8);
-  background: var(--bg-raised);
-  font-size: var(--fs-meta);
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--bg-raised);
-  border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
-  font-size: var(--fs-meta);
-}
-
-.admin-table th,
-.admin-table td {
-  padding: 0.75rem 0.9rem;
-  text-align: left;
-  border-bottom: var(--bw-sm) solid var(--border);
-  white-space: nowrap;
-}
-
-.admin-table th {
-  font-size: var(--fs-small);
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  font-weight: var(--fw-semibold);
-}
-
-.admin-table tr:last-child td {
-  border-bottom: none;
-}
-
-.mono {
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-muted);
-}
-
-.ops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  align-items: center;
-}
-
-.role-select {
-  padding: 0.32rem 0.5rem;
-  border: var(--bw-sm) solid var(--border-strong);
-  border-radius: var(--br-8);
-  background: var(--bg-sunken);
-  font-size: var(--fs-small);
-}
-</style>

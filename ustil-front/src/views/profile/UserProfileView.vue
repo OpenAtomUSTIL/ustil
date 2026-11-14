@@ -25,16 +25,20 @@ import {
   PASSWORD_MAX,
   PASSWORD_MIN,
   README_MAX,
+  checkEmail,
   checkNickname,
   checkPassword,
+  checkPhone,
 } from '@/utils/limits'
 import { AVATAR_EXTENSIONS } from '@/utils/upload'
 import AppAvatar from '@/components/AppAvatar.vue'
 import ArticleCard from '@/components/ArticleCard.vue'
+import AuthCaptcha from '@/components/AuthCaptcha.vue'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FileUploader from '@/components/FileUploader.vue'
 import IssueCard from '@/components/IssueCard.vue'
+import LoadingState from '@/components/LoadingState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
 import MarkdownEditor from '@/components/MarkdownEditor.vue'
 import TagsChips from '@/components/TagsChips.vue'
@@ -90,6 +94,15 @@ const savingRedeem = ref(false)
 const editUsername = ref('')
 const usernameError = ref('')
 const savingUsername = ref(false)
+const pwCaptchaId = ref('')
+const pwCaptchaCode = ref('')
+const pwCaptchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
+const idCaptchaId = ref('')
+const idCaptchaCode = ref('')
+const idCaptchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
+const redeemCaptchaId = ref('')
+const redeemCaptchaCode = ref('')
+const redeemCaptchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
 
 const userId = computed(() => String(route.params.id))
 /** authorId/creatorId 过滤必须用 UUID（路由参数可能是 username） */
@@ -328,12 +341,18 @@ function openSettings(): void {
   newPassword.value = ''
   newPassword2.value = ''
   passwordError.value = ''
+  pwCaptchaId.value = ''
+  pwCaptchaCode.value = ''
   identifierType.value = 'email'
   identifierValue.value = ''
   identifierPassword.value = ''
   identifierError.value = ''
+  idCaptchaId.value = ''
+  idCaptchaCode.value = ''
   inviteCode.value = ''
   redeemError.value = ''
+  redeemCaptchaId.value = ''
+  redeemCaptchaCode.value = ''
   editUsername.value = profile.value?.username ?? ''
   usernameError.value = ''
 }
@@ -475,6 +494,8 @@ async function changePassword(): Promise<void> {
     await authApi.changePassword({
       currentPassword: currentPassword.value,
       newPassword: newPassword.value,
+      captchaId: pwCaptchaId.value,
+      captchaCode: pwCaptchaCode.value,
     })
     // 改密成功后旧 token 全部失效：清理登录态并回登录页，避免假在线
     toast.show('密码已修改，请重新登录')
@@ -482,6 +503,9 @@ async function changePassword(): Promise<void> {
     await router.push({ name: 'login' })
   } catch (err) {
     passwordError.value = describeError(err)
+    // 验证码一次性消费：提交失败后重新拉取
+    pwCaptchaCode.value = ''
+    void pwCaptchaRef.value?.refresh()
   } finally {
     savingPassword.value = false
   }
@@ -490,19 +514,33 @@ async function changePassword(): Promise<void> {
 async function bindIdentifier(): Promise<void> {
   if (savingIdentifier.value) return
   identifierError.value = ''
+  const valueProblem = identifierType.value === 'email'
+    ? checkEmail(identifierValue.value)
+    : checkPhone(identifierValue.value)
+  if (valueProblem) {
+    identifierError.value = valueProblem
+    return
+  }
   savingIdentifier.value = true
   try {
     const updated = await usersApi.updateIdentifier({
       type: identifierType.value,
       value: identifierValue.value.trim(),
       password: identifierPassword.value,
+      captchaId: idCaptchaId.value,
+      captchaCode: idCaptchaCode.value,
     })
     auth.setUser(updated)
     identifierValue.value = ''
     identifierPassword.value = ''
     toast.show('绑定成功')
+    // 验证码一次性消费：表单仍可继续使用，换一张
+    void idCaptchaRef.value?.refresh()
   } catch (err) {
     identifierError.value = describeError(err)
+    // 验证码一次性消费：提交失败后重新拉取
+    idCaptchaCode.value = ''
+    void idCaptchaRef.value?.refresh()
   } finally {
     savingIdentifier.value = false
   }
@@ -513,11 +551,18 @@ async function redeem(): Promise<void> {
   redeemError.value = ''
   savingRedeem.value = true
   try {
-    const updated = await authApi.redeemInviteCode({ inviteCode: inviteCode.value.trim() })
+    const updated = await authApi.redeemInviteCode({
+      inviteCode: inviteCode.value.trim(),
+      captchaId: redeemCaptchaId.value,
+      captchaCode: redeemCaptchaCode.value,
+    })
     auth.setUser(updated)
     toast.show('已转正为学习成员')
   } catch (err) {
     redeemError.value = describeError(err)
+    // 验证码一次性消费：提交失败后重新拉取
+    redeemCaptchaCode.value = ''
+    void redeemCaptchaRef.value?.refresh()
   } finally {
     savingRedeem.value = false
   }
@@ -571,10 +616,10 @@ watch(pinType, () => {
 
 <template>
   <div class="container">
-    <div v-if="loading" class="empty" style="margin-top: 3rem">加载中…</div>
+    <LoadingState v-if="loading" class="profile-loading" />
     <EmptyState v-else-if="error" title="加载失败" :hint="error">
-      <p style="margin-top: 1.15rem">
-        <button class="btn btn-secondary" type="button" @click="load">重试</button>
+      <p class="empty-action">
+        <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
       </p>
     </EmptyState>
 
@@ -696,7 +741,7 @@ watch(pinType, () => {
                   <button class="btn-icon btn-icon-danger" type="button" aria-label="取消置顶" @click="removePin(idx)">×</button>
                 </span>
               </div>
-              <p v-if="editPinned.length === 0" class="empty-hint">还没有置顶内容。</p>
+              <EmptyState v-if="editPinned.length === 0" title="还没有置顶内容。" />
               <div class="pin-add">
                 <select v-model="pinType" aria-label="置顶类型">
                   <option value="ARTICLE">文章</option>
@@ -716,7 +761,7 @@ watch(pinType, () => {
                   添加置顶
                 </button>
               </div>
-              <p class="empty-hint">最多置顶 6 项，仅限本人内容，顺序即展示顺序。</p>
+              <p class="hint">最多置顶 6 项，仅限本人内容，顺序即展示顺序。</p>
             </div>
           </div>
           <div class="edit-actions">
@@ -757,10 +802,15 @@ watch(pinType, () => {
               <div class="field">
                 <label for="pw-new">新密码</label>
                 <input id="pw-new" v-model="newPassword" type="password" autocomplete="new-password" required :minlength="PASSWORD_MIN" :maxlength="PASSWORD_MAX">
+                <span class="hint">{{ PASSWORD_MIN }}-{{ PASSWORD_MAX }} 位，需包含大写字母、小写字母、数字、符号中的至少两类</span>
               </div>
               <div class="field">
                 <label for="pw-new2">确认新密码</label>
                 <input id="pw-new2" v-model="newPassword2" type="password" autocomplete="new-password" required :minlength="PASSWORD_MIN" :maxlength="PASSWORD_MAX">
+              </div>
+              <div class="field">
+                <span class="field-legend">验证码</span>
+                <AuthCaptcha ref="pwCaptchaRef" v-model:captcha-id="pwCaptchaId" v-model="pwCaptchaCode" />
               </div>
               <button class="btn btn-primary" type="submit" :disabled="savingPassword">
                 {{ savingPassword ? '提交中…' : '修改密码' }}
@@ -787,6 +837,10 @@ watch(pinType, () => {
                 <label for="id-password">当前密码（验证身份）</label>
                 <input id="id-password" v-model="identifierPassword" type="password" autocomplete="current-password" required>
               </div>
+              <div class="field">
+                <span class="field-legend">验证码</span>
+                <AuthCaptcha ref="idCaptchaRef" v-model:captcha-id="idCaptchaId" v-model="idCaptchaCode" />
+              </div>
               <button class="btn btn-primary" type="submit" :disabled="savingIdentifier">
                 {{ savingIdentifier ? '提交中…' : '确认绑定' }}
               </button>
@@ -802,6 +856,10 @@ watch(pinType, () => {
                 <label for="pd-invite">邀请码</label>
                 <input id="pd-invite" v-model="inviteCode" type="text" :maxlength="INVITE_CODE_MAX" required placeholder="输入邀请码">
               </div>
+              <div class="field">
+                <span class="field-legend">验证码</span>
+                <AuthCaptcha ref="redeemCaptchaRef" v-model:captcha-id="redeemCaptchaId" v-model="redeemCaptchaCode" />
+              </div>
               <button class="btn btn-clay" type="submit" :disabled="savingRedeem">
                 {{ savingRedeem ? '提交中…' : '转正为学习成员' }}
               </button>
@@ -816,7 +874,7 @@ watch(pinType, () => {
         <!-- README 个人介绍（GitHub 式：置顶裸渲染，不加节标题） -->
         <section v-if="!editing && (profile.profileReadme || isSelf)" class="profile-section profile-readme">
           <MarkdownBody v-if="profile.profileReadme" :content="profile.profileReadme" />
-          <p v-else-if="isSelf" class="empty-hint">写一段 Markdown 介绍自己吧。</p>
+          <EmptyState v-else-if="isSelf" title="写一段 Markdown 介绍自己吧。" />
         </section>
 
         <!-- 置顶内容 -->
@@ -858,7 +916,7 @@ watch(pinType, () => {
         <!-- 活跃热力图 -->
         <section v-if="!editing" class="profile-section">
           <h2>活跃度 <span class="section-hint">近一年 {{ activityTotal }} 次贡献</span></h2>
-          <div v-if="activityLoading" class="empty-hint">加载中…</div>
+          <LoadingState v-if="activityLoading" />
           <div v-else class="heatmap">
             <div v-for="(week, wi) in heatmapWeeks" :key="wi" class="heatmap-week">
               <div
@@ -887,8 +945,12 @@ watch(pinType, () => {
             </button>
           </div>
 
-          <div v-if="tabLoading" class="empty-hint">加载中…</div>
-          <div v-else-if="tabError" class="empty-hint">{{ tabError }} <button type="button" @click="loadTab">重试</button></div>
+          <LoadingState v-if="tabLoading" />
+          <EmptyState v-else-if="tabError" title="加载失败" :hint="tabError">
+            <p class="empty-action">
+              <button class="btn btn-sm btn-secondary" type="button" @click="loadTab">重试</button>
+            </p>
+          </EmptyState>
           <EmptyState v-else-if="tabItems.length === 0" title="暂无内容" :hint="tabEmptyHint" />
           <div v-else-if="activeTab === 'articles'" class="tab-list">
             <ArticleCard v-for="item in tabItems" :key="item.id" :article="toArticle(item)" />
@@ -960,13 +1022,16 @@ watch(pinType, () => {
 </template>
 
 <style scoped>
+.profile-loading {
+  margin-top: var(--gap-lg);
+}
 .profile-layout {
   display: grid;
   grid-template-columns: clamp(14rem, 24%, 18.5rem) minmax(0, 1fr);
   gap: var(--gap-sm);
   margin-top: var(--gap-md);
 }
-@media (max-width: 768px) {
+@media (max-width: 820px) {
   .profile-layout {
     grid-template-columns: 1fr;
   }
@@ -1010,7 +1075,7 @@ watch(pinType, () => {
   padding: 0.85rem 1rem;
   background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-12);
+  border-radius: var(--br-16);
 }
 .follow-card .follow-user {
   display: flex;
@@ -1042,19 +1107,6 @@ watch(pinType, () => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.role-badge {
-  display: inline-block;
-  padding: 0.15rem 0.65rem;
-  border-radius: var(--br-pill);
-  font-size: var(--fs-small);
-  font-weight: var(--fw-semibold);
-  background: var(--bg-sunken);
-}
-.role-admin { background: var(--error); color: #fff; }
-.role-wheel { background: var(--clay-dark); color: #fff; }
-.role-alumni { background: var(--mineral); color: #fff; }
-.role-member { background: var(--sky); color: #fff; }
-.role-visitor { background: var(--gray-500); color: #fff; }
 .profile-bio {
   color: var(--ink-muted);
   font-size: var(--fs-meta);
@@ -1141,10 +1193,6 @@ watch(pinType, () => {
   font-size: var(--fs-small);
   font-weight: var(--fw-regular);
   color: var(--ink-faint);
-}
-.empty-hint {
-  color: var(--ink-faint);
-  font-size: var(--fs-meta);
 }
 .hint {
   color: var(--ink-faint);
@@ -1267,7 +1315,7 @@ watch(pinType, () => {
 .pinned-card {
   background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-8);
+  border-radius: var(--br-16);
   padding: 0.75rem 1rem;
 }
 .pinned-type {
@@ -1305,14 +1353,10 @@ watch(pinType, () => {
   border-radius: var(--br-2);
   background: var(--gray-200);
 }
-.heatmap-cell.level-1 { background: #9be9a8; }
-.heatmap-cell.level-2 { background: #40c463; }
-.heatmap-cell.level-3 { background: #30a14e; }
-.heatmap-cell.level-4 { background: #216e39; }
-[data-theme='dark'] .heatmap-cell.level-1 { background: #0e4429; }
-[data-theme='dark'] .heatmap-cell.level-2 { background: #006d32; }
-[data-theme='dark'] .heatmap-cell.level-3 { background: #26a641; }
-[data-theme='dark'] .heatmap-cell.level-4 { background: #39d353; }
+.heatmap-cell.level-1 { background: var(--hm-1); }
+.heatmap-cell.level-2 { background: var(--hm-2); }
+.heatmap-cell.level-3 { background: var(--hm-3); }
+.heatmap-cell.level-4 { background: var(--hm-4); }
 .tab-bar {
   display: flex;
   flex-wrap: wrap;
@@ -1346,7 +1390,7 @@ watch(pinType, () => {
   padding: 0.65rem 1rem;
   background: var(--bg-raised);
   border: var(--bw-sm) solid var(--border);
-  border-radius: var(--br-8);
+  border-radius: var(--br-16);
   text-decoration: none;
   color: var(--ink);
 }

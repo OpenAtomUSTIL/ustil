@@ -24,6 +24,7 @@ import type {
   AssignmentWriteRequest,
   AuditLogItem,
   BanResult,
+  CaptchaResponse,
   CommentItem,
   CreateIssueRequest,
   CreateReplyRequest,
@@ -45,6 +46,7 @@ import type {
   PasswordChangeRequest,
   PinnedItem,
   ProfileReplyItem,
+  RedeemInviteCodeRequest,
   RegisterRequest,
   RequestLogItem,
   ResourceItem,
@@ -229,6 +231,9 @@ function upload<T>(
 /* ============ 接口封装（与后端契约逐字对齐） ============ */
 
 export const authApi = {
+  /** 拉取验证码图片（data URI）；未登录可调，不触发 401 跳转 */
+  getCaptcha: () =>
+    request<CaptchaResponse>('/auth/captcha', { skipAuthHandler: true, retryAuth: false }),
   /** 注册并种下 httpOnly cookie */
   register: (payload: RegisterRequest) =>
     request<UserSelf>('/auth/register', { method: 'POST', body: payload, skipAuthHandler: true, retryAuth: false }),
@@ -241,7 +246,7 @@ export const authApi = {
   /** 恢复登录态的唯一来源；未登录返回 401，不触发跳转 */
   me: () => request<UserSelf>('/auth/me', { skipAuthHandler: true }),
   /** 持码转正：VISITOR 提交邀请码升级为 MEMBER，换发双 token */
-  redeemInviteCode: (payload: { inviteCode: string }) =>
+  redeemInviteCode: (payload: RedeemInviteCodeRequest) =>
     request<UserSelf>('/auth/invite-code', { method: 'POST', body: payload }),
 }
 

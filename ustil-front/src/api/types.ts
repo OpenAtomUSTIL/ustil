@@ -163,22 +163,39 @@ export interface ReplyView {
 
 /* ============ 请求体 ============ */
 
+/** 验证码图片（GET /auth/captcha）；image 为 data:image/svg+xml;base64,... data URI，可直接作 <img src> */
+export interface CaptchaResponse {
+  captchaId: string
+  image: string
+}
+
 export interface RegisterRequest {
   identifier: string
   password: string
+  /** 重复密码，与 password 不一致时后端 400「两次输入的密码不一致」 */
+  passwordConfirm: string
   nickname: string
   /** 可选邀请码：有效则注册为 MEMBER，无码注册为 VISITOR */
   inviteCode?: string
+  /** 验证码（一次性消费，提交失败后需重新拉取） */
+  captchaId: string
+  captchaCode: string
 }
 
 export interface LoginRequest {
   identifier: string
   password: string
+  /** 验证码（一次性消费，提交失败后需重新拉取） */
+  captchaId: string
+  captchaCode: string
 }
 
 export interface PasswordChangeRequest {
   currentPassword: string
   newPassword: string
+  /** 验证码（一次性消费，提交失败后需重新拉取） */
+  captchaId: string
+  captchaCode: string
 }
 
 export interface UpdateProfileRequest {
@@ -190,6 +207,17 @@ export interface UpdateIdentifierRequest {
   type: 'email' | 'phone'
   value: string
   password: string
+  /** 验证码（一次性消费，提交失败后需重新拉取） */
+  captchaId: string
+  captchaCode: string
+}
+
+/** 邀请码转正请求体（POST /auth/invite-code） */
+export interface RedeemInviteCodeRequest {
+  inviteCode: string
+  /** 验证码（一次性消费，提交失败后需重新拉取） */
+  captchaId: string
+  captchaCode: string
 }
 
 export interface ArticleWriteRequest {

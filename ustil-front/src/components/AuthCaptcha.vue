@@ -1,0 +1,133 @@
+<script setup lang="ts">
+/* 验证码输入：挂载拉取一张（svg data URI），一次性消费，提交失败后由父级调 refresh() 重新拉取 */
+import { computed, onMounted, ref } from 'vue'
+import { authApi } from '@/api/request'
+
+const props = defineProps<{ captchaId: string; modelValue: string }>()
+const emit = defineEmits<{ 'update:captchaId': [value: string]; 'update:modelValue': [value: string] }>()
+
+const image = ref('')
+const loading = ref(false)
+const failed = ref(false)
+
+const code = computed({
+  get: () => props.modelValue,
+  set: (value: string) => emit('update:modelValue', value),
+})
+
+async function load(): Promise<void> {
+  if (loading.value) return
+  loading.value = true
+  failed.value = false
+  try {
+    const data = await authApi.getCaptcha()
+    image.value = data.image
+    emit('update:captchaId', data.captchaId)
+  } catch {
+    image.value = ''
+    emit('update:captchaId', '')
+    failed.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 换一张 / 提交失败后重拉：旧验证码作废，清空已输入的验证码 */
+async function refresh(): Promise<void> {
+  emit('update:modelValue', '')
+  await load()
+}
+
+onMounted(() => {
+  void load()
+})
+
+defineExpose({ refresh })
+</script>
+
+<template>
+  <div class="auth-captcha">
+    <div class="ac-media">
+      <img v-if="image && !failed && !loading" class="ac-img" :src="image" alt="验证码图片">
+      <div v-else-if="loading" class="ac-img ac-placeholder" aria-hidden="true" />
+      <button v-else type="button" class="ac-img ac-retry" @click="refresh">加载失败，点击重试</button>
+      <button type="button" class="ac-refresh" :disabled="loading" @click="refresh">换一张</button>
+    </div>
+    <input v-model="code" type="text" autocomplete="off" aria-label="验证码" maxlength="16" placeholder="输入验证码" required>
+  </div>
+</template>
+
+<style scoped>
+.auth-captcha {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.ac-media {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.ac-img {
+  height: 2.6rem;
+  min-width: 7.5rem;
+  border: var(--bw-sm) solid var(--border-strong);
+  border-radius: var(--br-8);
+  background: var(--bg-raised);
+}
+
+img.ac-img {
+  width: auto;
+}
+
+.ac-placeholder {
+  background: var(--bg-sunken);
+}
+
+.ac-retry {
+  padding: 0 0.75rem;
+  font-size: var(--fs-small);
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.ac-retry:hover {
+  border-color: var(--clay);
+  color: var(--clay);
+}
+
+.ac-refresh {
+  font-size: var(--fs-small);
+  font-weight: var(--fw-medium);
+  color: var(--clay);
+}
+
+.ac-refresh:hover {
+  text-decoration: underline;
+}
+
+.ac-refresh:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-captcha input {
+  width: 100%;
+  padding: 0.72rem 0.95rem;
+  border: var(--bw-sm) solid var(--border-strong);
+  border-radius: var(--br-12);
+  background: var(--bg-raised);
+  font: inherit;
+  color: var(--ink);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+
+.auth-captcha input:focus {
+  outline: 0;
+  border-color: var(--clay);
+  box-shadow: 0 0 0 3px var(--ring-focus);
+}
+</style>
