@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError, isForbidden } from '@/api/error'
 import { articlesApi } from '@/api/request'
+import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingState from '@/components/LoadingState.vue'
@@ -14,6 +15,7 @@ import { TITLE_MAX, checkTags, checkTitle } from '@/utils/limits'
 const route = useRoute()
 const router = useRouter()
 const toast = useToastStore()
+const auth = useAuthStore()
 
 const isEdit = computed(() => route.name === 'article-edit')
 const articleId = computed(() => String(route.params.id ?? ''))
@@ -29,7 +31,7 @@ const loading = ref(false)
 const submitting = ref(false)
 
 async function load(): Promise<void> {
-  if (!isEdit.value) return
+  if (!auth.canPublishArticle || !isEdit.value) return
   loading.value = true
   loadError.value = ''
   try {
@@ -58,7 +60,7 @@ onMounted(() => {
 })
 
 async function submit(): Promise<void> {
-  if (submitting.value) return
+  if (!auth.canPublishArticle || submitting.value) return
   error.value = ''
   const titleProblem = checkTitle(title.value)
   if (titleProblem) {
@@ -105,17 +107,29 @@ async function submit(): Promise<void> {
 <template>
   <div class="container compose-page">
     <h1>{{ isEdit ? '编辑文章' : '发布文章' }}</h1>
-    <p class="lead">文章以 Markdown 书写，发布后由前端渲染。</p>
+    <p v-if="auth.canPublishArticle" class="lead">文章以 Markdown 书写，发布后由前端渲染。</p>
 
-    <div v-if="error" class="form-error form-col">{{ error }}</div>
-    <LoadingState v-if="loading" class="form-col" />
-    <EmptyState v-else-if="loadError" class="form-col" title="加载失败" :hint="loadError">
+    <EmptyState
+      v-if="!auth.canPublishArticle"
+      class="form-col"
+      title="转为学习成员后可发布文章"
+      hint="你目前是临时访客，暂不能发布或编辑文章。使用邀请码转正后即可发布，学习成员的文章需审核通过后公开。"
+    >
+      <div class="form-actions">
+        <RouterLink class="btn btn-clay" :to="{ name: 'user-profile', params: { id: auth.user?.username }, query: { settings: 'invite' } }">使用邀请码转正</RouterLink>
+        <RouterLink class="btn btn-secondary" :to="{ name: 'articles' }">返回文章列表</RouterLink>
+      </div>
+    </EmptyState>
+
+    <div v-if="auth.canPublishArticle && error" class="form-error form-col">{{ error }}</div>
+    <LoadingState v-if="auth.canPublishArticle && loading" class="form-col" />
+    <EmptyState v-else-if="auth.canPublishArticle && loadError" class="form-col" title="加载失败" :hint="loadError">
       <p>
         <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
       </p>
     </EmptyState>
 
-    <form v-else class="form-grid" @submit.prevent="submit">
+    <form v-else-if="auth.canPublishArticle" class="form-grid" @submit.prevent="submit">
       <div class="field">
         <label for="article-title">标题</label>
         <input id="article-title" v-model="title" type="text" required :maxlength="TITLE_MAX" placeholder="一句话说清这篇文章讲什么">

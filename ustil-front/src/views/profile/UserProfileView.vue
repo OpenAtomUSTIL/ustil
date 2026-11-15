@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { contentPathId } from '@/utils/content-path'
 /* 个人主页：GitHub 式双栏（资料卡 + README/置顶/热力图/内容 Tab） */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ApiError, describeError, isForbidden } from '@/api/error'
 import { articlesApi, authApi, issuesApi, resourcesApi, usersApi } from '@/api/request'
@@ -169,6 +169,7 @@ async function load(): Promise<void> {
       void router.replace({ name: 'user-profile', params: { id: profile.value.username } })
       return
     }
+    revealInviteSettings()
     void loadActivity()
     void loadTab()
   } catch (err) {
@@ -355,6 +356,13 @@ function openSettings(): void {
   redeemCaptchaCode.value = ''
   editUsername.value = profile.value?.username ?? ''
   usernameError.value = ''
+}
+
+// 从发布权限提示进入时直接展开本人转正表单，并把焦点移到邀请码输入。
+function revealInviteSettings(): void {
+  if (route.query.settings !== 'invite' || !profile.value?.isSelf || auth.user?.role !== 'VISITOR') return
+  openSettings()
+  void nextTick(() => document.getElementById('pd-invite')?.focus())
 }
 
 async function saveUsername(): Promise<void> {
@@ -609,6 +617,7 @@ onMounted(load)
 watch(() => route.params.id, () => {
   if (route.name === 'user-profile') void load()
 })
+watch(() => route.query.settings, revealInviteSettings)
 watch(pinType, () => {
   if (editing.value) void loadPinOptions()
 })

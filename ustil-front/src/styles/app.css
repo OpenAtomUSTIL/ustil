@@ -485,7 +485,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   .dropdown { position: static; translate: none; transform: none; box-shadow: none; border: 0; padding: 0 0 0 0.65rem; display: none; }
   .nav-item.open .dropdown { display: block; opacity: 1; visibility: visible; }
   .nav-toggle { display: inline-flex; margin-left: auto; }
-  .nav-actions .btn-ghost { display: none; }
+  .nav-actions .btn-ghost:not(.theme-btn) { display: none; }
   .hero-stats { gap: 1.5rem; }
   .footer-grid { grid-template-columns: 1fr; }
 }
