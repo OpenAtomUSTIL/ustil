@@ -142,6 +142,45 @@ describe('renderMarkdown', () => {
     expect(html).toContain('md-img-row-multi')
   })
 
+  it('theme 重写 picture source：当前主题无条件命中，另一支 not all（Safari/Firefox 跟手）', () => {
+    const source =
+      '<picture><source media="(prefers-color-scheme: dark)" srcset="https://x/dark.png"><source media="(prefers-color-scheme: light)" srcset="https://x/light.png"><img src="https://x/fallback.png" alt="x"></picture>'
+
+    const darkDoc = new DOMParser().parseFromString(
+      `<body>${renderMarkdown(source, { theme: 'dark' })}</body>`,
+      'text/html',
+    )
+    const darkSources = darkDoc.body.querySelectorAll('source')
+    expect(darkSources[0].getAttribute('media')).toBeNull()
+    expect(darkSources[1].getAttribute('media')).toBe('not all')
+
+    const lightDoc = new DOMParser().parseFromString(
+      `<body>${renderMarkdown(source, { theme: 'light' })}</body>`,
+      'text/html',
+    )
+    const lightSources = lightDoc.body.querySelectorAll('source')
+    expect(lightSources[0].getAttribute('media')).toBe('not all')
+    expect(lightSources[1].getAttribute('media')).toBeNull()
+  })
+
+  it('不传 theme 时保留原始 media（跟随系统）', () => {
+    const source =
+      '<picture><source media="(prefers-color-scheme: dark)" srcset="https://x/dark.png"><img src="https://x/f.png" alt="x"></picture>'
+    const html = renderMarkdown(source)
+    expect(html).toContain('media="(prefers-color-scheme: dark)"')
+  })
+
+  it('顶层裸 picture/img 归入图行（README 尾部横幅可占满）', () => {
+    const html = renderMarkdown(
+      '<picture><img src="https://x/banner.png" alt="banner"></picture>\n\n<img src="https://x/tail.png" alt="tail">',
+    )
+    const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+    const rows = doc.body.querySelectorAll('.md-img-row')
+    expect(rows).toHaveLength(2)
+    expect(rows[0].querySelector('img')?.getAttribute('alt')).toBe('banner')
+    expect(rows[1].querySelector('img')?.getAttribute('alt')).toBe('tail')
+  })
+
   it('br 分隔的图段落按行拆分为多个图行', () => {
     const source =
       '<p><img src="https://x/a.png" alt="a"><img src="https://x/b.png" alt="b"><br><img src="https://x/c.png" alt="c"><br><picture><img src="https://x/d.png" alt="d"></picture></p>'

@@ -428,10 +428,9 @@ onBeforeUnmount(() => {
   padding: 0.75rem 1rem;
 }
 
-/* 预览行宽对齐详情页最终渲染（--text-w-prose），所见即所得 */
+/* 预览行宽对齐详情页最终渲染（随容器满宽），所见即所得 */
 .md-preview :deep(.md-body) {
-  max-width: var(--text-w-prose);
-  margin-inline: auto;
+  max-width: none;
 }
 
 @media (max-width: 820px) {

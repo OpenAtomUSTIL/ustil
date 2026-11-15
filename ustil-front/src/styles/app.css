@@ -291,14 +291,14 @@ ul { margin: 0; padding: 0; list-style: none; }
 .crumbs { display: flex; align-items: center; gap: 0.45rem; font-size: var(--fs-small); color: var(--ink-faint); margin-bottom: 1.35rem; flex-wrap: wrap; }
 .crumbs a:hover { color: var(--clay); text-decoration: underline; text-underline-offset: 3px; }
 
-.thread-head h1 { font-size: var(--fs-h2); line-height: 1.25; letter-spacing: -0.01em; max-width: var(--text-w-title); }
+.thread-head h1 { font-size: var(--fs-h2); line-height: 1.25; letter-spacing: -0.01em; }
 .thread-head .tc-meta { margin-top: 1rem; }
 
 .post-block {
   background: var(--bg-raised); border: var(--bw-sm) solid var(--border);
   border-radius: var(--br-16); padding: 1.65rem 1.75rem; margin-top: 1.5rem;
 }
-.post-block .pb-body { max-width: var(--text-w-prose); line-height: 1.85; color: var(--gray-800); }
+.post-block .pb-body { line-height: 1.85; color: var(--gray-800); }
 .post-block .pb-body p + p { margin-top: 1.05rem; }
 .post-block .pb-body pre {
   background: var(--gray-100); border: var(--bw-sm) solid var(--border); border-radius: var(--br-8);
@@ -336,7 +336,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 .reply a.r-name:hover { color: var(--link-hover); }
 .reply .r-time { font-size: var(--fs-small); color: var(--ink-faint); }
 .reply .r-floor { margin-left: auto; font-size: var(--fs-small); color: var(--ink-faint); font-variant-numeric: tabular-nums; }
-.reply .r-body { color: var(--gray-800); line-height: 1.8; max-width: var(--text-w-prose); }
+.reply .r-body { color: var(--gray-800); line-height: 1.8; }
 
 /* ============ 回复编辑器 ============ */
 .composer {
@@ -665,6 +665,10 @@ ul { margin: 0; padding: 0; list-style: none; }
 .md-body .md-img-row > img, .md-body .md-img-row > a, .md-body .md-img-row > picture { margin: 0; }
 .md-body .md-img-row img { height: auto; margin: 0; }
 .md-body .md-img-row-multi img { max-width: calc(50% - 0.25rem); }
+/* 宽媒体占满：单图行大图（README 横幅等，≥700px 判定见 MarkdownBody）拉伸占满行宽 */
+.md-img-row.md-img-fill > a,
+.md-img-row.md-img-fill > picture { display: block; width: 100%; }
+.md-img-row.md-img-fill img { width: 100%; }
 .md-body hr { border: 0; border-top: var(--bw-sm) solid var(--border); margin: 1.35rem 0; }
 .md-body table { border-collapse: collapse; margin: 1rem 0; width: 100%; font-size: var(--fs-meta); }
 .md-body th, .md-body td { border: var(--bw-sm) solid var(--border); padding: 0.45rem 0.75rem; text-align: left; }

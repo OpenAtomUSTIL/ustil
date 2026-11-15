@@ -147,8 +147,24 @@ function isImageLike(el: Element): boolean {
   return false
 }
 
+/** 按站内主题重写 picture>source 的 prefers-color-scheme（Safari/Firefox 不随 CSS color-scheme 走，
+    站内强制主题时需显式指定：匹配当前主题的 source 去掉 media 无条件命中，另一支改 not all 永不命中） */
+function applyPictureTheme(doc: Document, theme: 'light' | 'dark'): void {
+  for (const source of Array.from(doc.body.querySelectorAll('picture > source'))) {
+    const media = source.getAttribute('media') ?? ''
+    const isDark = /prefers-color-scheme:\s*dark/.test(media)
+    const isLight = /prefers-color-scheme:\s*light/.test(media)
+    if (!isDark && !isLight) continue
+    if ((theme === 'dark') === isDark) {
+      source.removeAttribute('media')
+    } else {
+      source.setAttribute('media', 'not all')
+    }
+  }
+}
+
 /** 预览模式去掉链接与复制按钮（列表卡片可嵌在 RouterLink 内），纯图段落标记为图行便于并排布局，br 分隔的图组拆分为多个图行 */
-function processHtml(html: string, preview: boolean): string {
+function processHtml(html: string, preview: boolean, theme?: 'light' | 'dark'): string {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
   for (const table of Array.from(doc.body.querySelectorAll('table'))) {
     const wrap = doc.createElement('div')
@@ -225,15 +241,28 @@ function processHtml(html: string, preview: boolean): string {
     }
     parent.removeChild(el)
   }
+  // 顶层裸媒体（HTML 块级 picture/img/a，如 README 尾部横幅）同样归入图行，便于居中与宽媒体占满
+  for (const el of Array.from(doc.body.children)) {
+    if (!isImageLike(el) || el.classList.contains('md-img-row')) continue
+    const row = doc.createElement('div')
+    row.className = 'md-img-row'
+    el.replaceWith(row)
+    row.appendChild(el)
+  }
+  if (theme) applyPictureTheme(doc, theme)
   return doc.body.innerHTML
 }
 
-export function renderMarkdown(source: string, options: { preview?: boolean } = {}): string {
+export function renderMarkdown(
+  source: string,
+  options: { preview?: boolean; theme?: 'light' | 'dark' } = {},
+): string {
   try {
     const raw = marked.parse(source, { async: false })
     return processHtml(
       DOMPurify.sanitize(enhanceCodeBlocks(raw), PURIFY_CONFIG),
       options.preview ?? false,
+      options.theme,
     )
   } catch {
     return source

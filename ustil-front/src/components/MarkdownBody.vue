@@ -1,9 +1,26 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { renderMarkdown } from '@/utils/markdown'
 import { resolvedTheme } from '@/utils/theme'
 
 const props = defineProps<{ content: string; preview?: boolean }>()
+
+const root = ref<HTMLElement | null>(null)
+
+/* 宽媒体占满（v7.0 追加）：单图行加载后自然宽 ≥700px 视为横幅拉伸占满行宽；
+   打字 SVG、徽章等小图保持自然宽度居中（与 GitHub 个人主页观感一致） */
+function refineMediaRows(): void {
+  if (!root.value) return
+  for (const row of Array.from(root.value.querySelectorAll('.md-img-row:not(.md-img-row-multi)'))) {
+    const img = row.querySelector('img')
+    if (!img) continue
+    const apply = (): void => {
+      if (img.naturalWidth >= 700) row.classList.add('md-img-fill')
+    }
+    if (img.complete) apply()
+    else img.addEventListener('load', apply, { once: true })
+  }
+}
 
 /* README 等处引用的 snake.svg 有深浅两套（?theme=dark），按当前主题改写图片地址 */
 function withThemeAssets(html: string): string {
@@ -15,7 +32,17 @@ function withThemeAssets(html: string): string {
 }
 
 const html = computed(() =>
-  withThemeAssets(renderMarkdown(props.content, { preview: props.preview ?? false })),
+  withThemeAssets(
+    renderMarkdown(props.content, { preview: props.preview ?? false, theme: resolvedTheme.value }),
+  ),
+)
+
+onMounted(refineMediaRows)
+watch(
+  () => html.value,
+  () => {
+    void nextTick(refineMediaRows)
+  },
 )
 
 const resetTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>()
@@ -69,7 +96,7 @@ function onClick(event: MouseEvent): void {
 
 <template>
   <!-- 渲染产物已经 DOMPurify 消毒 -->
-  <div class="md-body" @click="onClick" v-html="html" />
+  <div ref="root" class="md-body" @click="onClick" v-html="html" />
 </template>
 
 <style scoped>

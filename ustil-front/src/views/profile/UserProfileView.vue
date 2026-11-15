@@ -688,10 +688,10 @@ watch(pinType, () => {
           <div v-if="isSelf" class="profile-self-actions">
             <div v-if="profile.email" class="contact-line">邮箱：{{ profile.email }}</div>
             <div v-if="profile.phone" class="contact-line">手机：{{ profile.phone }}</div>
-            <button class="btn btn-secondary" type="button" @click="startEdit">编辑资料</button>
-            <button class="btn btn-ghost" type="button" @click="openSettings">设置</button>
-            <RouterLink class="quick-link" :to="{ name: 'my-articles' }">我的文章</RouterLink>
-            <RouterLink v-if="auth.canViewAssignments" class="quick-link" :to="{ name: 'my-submissions' }">
+            <button class="btn btn-outline" type="button" @click="startEdit">编辑资料</button>
+            <button class="btn btn-outline" type="button" @click="openSettings">设置</button>
+            <RouterLink class="btn btn-outline" :to="{ name: 'my-articles' }">我的文章</RouterLink>
+            <RouterLink v-if="auth.canViewAssignments" class="btn btn-outline" :to="{ name: 'my-submissions' }">
               我的作业提交
             </RouterLink>
           </div>
@@ -1161,15 +1161,6 @@ watch(pinType, () => {
 .contact-line {
   font-size: var(--fs-small);
   color: var(--ink-muted);
-}
-.quick-link {
-  font-size: var(--fs-small);
-  color: var(--clay-dark);
-  text-decoration: none;
-}
-.quick-link:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 .profile-main {
   min-width: 0;
