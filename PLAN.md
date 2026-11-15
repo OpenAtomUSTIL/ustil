@@ -471,3 +471,13 @@
 
 - [x] 正文列宽填充（追加诉求「正文等留白过多」，覆盖 v7.0「不动阅读宽度」的旧口径）：详情页 `.pb-body` / 回复 `.r-body` 与 `.thread-head h1` 解除 80ch/45ch 限宽、随卡片满宽；编辑器预览同步（所见即所得）；徽章/打字等小图行为不变。
 - 验收：文章详情正文、回复、标题占满卡片宽度，右侧无大段留白；编辑预览与详情一致；深浅两色正常。
+
+### 修复（2026-11-16）｜剔除用户 500（RESTRICT 外键）
+
+> 根因：`DELETE /admin/users/:id` 只删 users 行，而 articles/announcements/resources/assignments 以 `ON DELETE RESTRICT` 引用 `users.id`——名下有内容（含回收站软删行）即被数据库拒绝 → 500。修复语义（拍板）：账号与其文章/公告/资料/作业随剔除一并硬删（含回收站行）；已有他人提交的作业改派给执行者，不连带删他人提交；无他人提交的作业连同提交一并删除；无需迁移。
+
+- [x] `users.repository.deleteById` 重写为单事务 purge：①FOR UPDATE 锁行+角色校验最先 ②taggings 先于内容删除（子查询定位）③作业改派先于作业删除 ④本人提交显式先删（附件 RESTRICT 顺序不确定性）。
+- [x] `removeByAdmin` 传 `actor.id` 执行改派；taggings 清理并入事务后 `cleanupIssuesOfAuthor` 死代码链（tags.service/repository + 测试）一并删除，UsersService/Module 退役 TagsService 依赖。
+- [x] AdminUsersView 剔除弹窗文案同步（含回收站/改派语义）；docs/API.md §11.4 与软删除语义注、AGENTS.md 剔除语义同步。
+- [x] 测试：users.service.spec（deleteById 两参断言 + 剔除用例改写）、addressing.e2e（两参）、新增 users.repository.spec deleteById purge 顺序用例（锁校验短路 / 13 步语句序 / 改派载荷）。
+- 验收：后端 lint + 195 单测 + 50 e2e、前端 lint/typecheck/36 单测/build 全绿；真实 Postgres 冒烟 10/10（含回收站文章连删、他人提交作业改派且提交保留、taggings 零残留）；线上 `hhh` 手工回归待部署后执行。

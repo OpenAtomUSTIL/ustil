@@ -235,7 +235,7 @@ onMounted(load)
     <ConfirmModal
       v-if="pendingDelete"
       title="剔除用户"
-      :message="`确定剔除「${pendingDelete.nickname}」？该账号及其讨论/提交将被删除，不可恢复。`"
+      :message="`确定剔除「${pendingDelete.nickname}」？该账号及其讨论、提交、发布的文章/公告/资料/作业将被删除（含回收站中的），不可恢复；其发布且已有他人提交的作业会转由你继续发布。`"
       confirm-text="剔除"
       @confirm="confirmRemove"
       @cancel="pendingDelete = null"

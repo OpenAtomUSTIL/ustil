@@ -374,7 +374,7 @@ describe('解析式寻址（v6.0 e2e）', () => {
       .delete('/admin/users/a@example.com')
       .set('Cookie', [`access_token=${admin}`])
       .expect(204);
-    expect(usersRepository.deleteById).toHaveBeenCalledWith(TARGET_ID);
+    expect(usersRepository.deleteById).toHaveBeenCalledWith(TARGET_ID, 'user-admin');
   });
 
   it('封禁 / 解封：email 寻址成功', async () => {
