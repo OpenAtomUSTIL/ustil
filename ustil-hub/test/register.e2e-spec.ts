@@ -76,6 +76,7 @@ describe('敏感操作验证码 + 注册流程（邀请码分支 e2e）', () => 
 
   const usersRepository = {
     withUsernameLock: jest.fn(),
+    withUserLock: jest.fn(),
     usernameExists: jest.fn(),
     insert: jest.fn(),
     findIdentifierCandidates: jest.fn(),
@@ -210,6 +211,7 @@ describe('敏感操作验证码 + 注册流程（邀请码分支 e2e）', () => 
     jest.clearAllMocks();
     fakeRedis.clear();
     usersRepository.withUsernameLock.mockImplementation((operation) => operation({}));
+    usersRepository.withUserLock.mockImplementation(async (id, operation) => operation(await usersRepository.findById(id), {}));
     usersRepository.usernameExists.mockResolvedValue(false);
     usersRepository.insert.mockResolvedValue(row());
     usersRepository.findById.mockResolvedValue(row());

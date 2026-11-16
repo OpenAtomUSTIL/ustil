@@ -60,6 +60,7 @@ describe('UsersService', () => {
 
   const usersRepository = {
     withUsernameLock: jest.fn(),
+    withUserLock: jest.fn(),
     findIdentifierCandidates: jest.fn(),
     insert: jest.fn(),
     findById: jest.fn(),
@@ -128,6 +129,7 @@ describe('UsersService', () => {
     usersRepository.findIdentifierCandidates.mockReset().mockResolvedValue([]);
     usersRepository.insert.mockReset();
     usersRepository.withUsernameLock.mockImplementation((operation) => operation(transaction));
+    usersRepository.withUserLock.mockImplementation(async (id, operation) => operation(await usersRepository.findById(id), transaction));
     usersRepository.findByIdOrUsername.mockImplementation((v: string) =>
       usersRepository.findById(v),
     );
@@ -582,7 +584,7 @@ describe('UsersService', () => {
       location: 'v1.test.辽宁沈阳',
       link: 'v1.test.geminimortal.cn',
       socials: ['v1.test.https://github.com/GeminiMortal', null],
-    });
+    }, transaction);
   });
 
   it('置顶：超过 6 项或重复返回 400', async () => {
@@ -641,7 +643,7 @@ describe('UsersService', () => {
       location: undefined,
       link: undefined,
       socials: undefined,
-    });
+    }, transaction);
   });
 
   it('活跃度：VISITOR 访他人 403', async () => {
@@ -918,5 +920,52 @@ describe('UpdateProfilePageDto.socials 校验（v10.0 修复）', () => {
     const dto = plainToInstance(UpdateProfilePageDto, { socials: ['  a  ', '', '   ', 'b'] });
     expect(dto.socials).toEqual(['a', 'b']);
     expect(await validate(dto)).toEqual([]);
+  });
+});
+
+
+describe('用户加密标识并发回归', () => {
+  it('换绑等待期间资料已初始化 cryptoId，仍保留两边的可解密数据', async () => {
+    const crypto = new CryptoService(Buffer.alloc(32, 7).toString('base64'));
+    const initial = row({ cryptoId: null, passwordHash: await hashPassword('Password123') });
+    const live = { ...initial };
+    const id = crypto.newCryptoId();
+    const repository = {
+      findById: async () => ({ ...initial }),
+      findIdentifierCandidates: async () => [],
+      withUsernameLock: async (fn: (tx: typeof transaction) => Promise<unknown>) => {
+        live.cryptoId = id;
+        live.bio = crypto.seal('profile', 'saved bio', id);
+        return fn(transaction);
+      },
+      withUserLock: async (_id: string, fn: (row: UserRow, tx: typeof transaction) => Promise<unknown>) => fn({ ...live }, transaction),
+      updateIdentifier: async (_id: string, patch: Partial<UserRow>) => Object.assign(live, patch),
+    };
+    const service = new UsersService(repository as unknown as UsersRepository, crypto, {} as UploadsService, {} as NotificationsService, {} as AuditLogService, { validate: async () => {} } as unknown as CaptchaService, {} as never);
+    await service.changeIdentifier(live.id, { type: 'email', value: 'new@example.com', password: 'Password123', captchaId: 'c', captchaCode: 'c' });
+    expect(live.cryptoId).toBe(id);
+    expect(crypto.open('profile', live.bio, id)).toBe('saved bio');
+    expect(crypto.open('email', live.email, id)).toBe('new@example.com');
+  });
+
+  it('两个并发资料保存共用第一次初始化的 cryptoId', async () => {
+    const crypto = new CryptoService(Buffer.alloc(32, 7).toString('base64'));
+    const live = row({ cryptoId: null });
+    let queue = Promise.resolve();
+    const repository = {
+      withUserLock: (_id: string, fn: (row: UserRow, tx: typeof transaction) => Promise<unknown>) => {
+        const result = queue.then(() => fn({ ...live }, transaction));
+        queue = result.then(() => undefined, () => undefined);
+        return result;
+      },
+      updateProfilePage: async (_id: string, patch: Partial<UserRow>) => {
+        for (const [key, value] of Object.entries(patch)) if (value !== undefined) Object.assign(live, { [key]: value });
+        return { ...live };
+      },
+    };
+    const service = new UsersService(repository as unknown as UsersRepository, crypto, {} as UploadsService, {} as NotificationsService, {} as AuditLogService, {} as CaptchaService, {} as never);
+    await Promise.all([service.updateProfilePage(live.id, { bio: 'bio' }), service.updateProfilePage(live.id, { company: 'company' })]);
+    expect(crypto.open('profile', live.bio, live.cryptoId!)).toBe('bio');
+    expect(crypto.open('profile', live.company, live.cryptoId!)).toBe('company');
   });
 });

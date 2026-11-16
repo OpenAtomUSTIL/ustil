@@ -86,6 +86,18 @@ export class UsersRepository {
     });
   }
 
+  /** 加密字段的读取、cryptoId 初始化和写入必须持有同一用户行锁。 */
+  async withUserLock<T>(
+    id: string,
+    operation: (row: UserRow | null, tx: DatabaseTransaction) => Promise<T>,
+    connection: Database | DatabaseTransaction = db,
+  ): Promise<T> {
+    return connection.transaction(async (tx) => {
+      const [row] = await tx.select().from(users).where(eq(users.id, id)).for('update');
+      return operation(row ?? null, tx);
+    });
+  }
+
   async insert(row: {
     email: string | null;
     phone: string | null;
@@ -583,8 +595,9 @@ export class UsersRepository {
       socials?: (string | null)[] | null;
       cryptoId?: string;
     },
+    connection: Database | DatabaseTransaction = db,
   ): Promise<UserRow | null> {
-    const rows = await db
+    const rows = await connection
       .update(users)
       .set({
         ...patch,

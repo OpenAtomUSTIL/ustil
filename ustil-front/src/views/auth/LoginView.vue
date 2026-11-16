@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError } from '@/api/error'
+import { resolveAuthRedirect } from '@/utils/auth-redirect'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { PASSWORD_MAX, PASSWORD_MIN, checkPasswordLength } from '@/utils/limits'
@@ -38,8 +39,9 @@ async function submit(): Promise<void> {
       captchaCode: captchaCode.value,
     })
     toast.show('登录成功')
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
-    await router.push(redirect)
+    const redirect = resolveAuthRedirect(route.query.redirect, window.location.origin)
+    if (redirect.external) window.location.assign(redirect.target)
+    else await router.push(redirect.target)
   } catch (err) {
     error.value = describeError(err)
     // 验证码一次性消费：提交失败后重新拉取

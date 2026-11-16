@@ -282,13 +282,18 @@ export class UsersService {
       // 注册与换绑共用同一事务锁，避免旧账号缺少 HMAC 时被并发占用。
       updated = await this.usersRepository.withUsernameLock(async (tx) => {
         await this.ensureIdentifierAvailable(dto.type === 'email' ? value : null, dto.type === 'phone' ? value : null, tx, id);
-        const cryptoId = row.cryptoId ?? this.crypto.newCryptoId();
-        return this.usersRepository.updateIdentifier(id, {
-          email: dto.type === 'email' ? this.crypto.seal('email', value, cryptoId) : null,
-          phone: dto.type === 'phone' ? this.crypto.seal('phone', value, cryptoId) : null,
-          emailHmac: dto.type === 'email' ? hmac : null,
-          phoneHmac: dto.type === 'phone' ? hmac : null,
-          ...(row.cryptoId ? {} : { cryptoId }),
+        return this.usersRepository.withUserLock(id, async (current, lockedTx) => {
+          if (!current) throw new NotFoundException('用户不存在');
+          if (current.role === Role.ADMIN) throw new ForbiddenException('管理员账号初始化后不可修改');
+          if (current.passwordHash !== row.passwordHash) throw new BadRequestException('密码已变更，请重试');
+          const cryptoId = current.cryptoId ?? this.crypto.newCryptoId();
+          return this.usersRepository.updateIdentifier(id, {
+            email: dto.type === 'email' ? this.crypto.seal('email', value, cryptoId) : null,
+            phone: dto.type === 'phone' ? this.crypto.seal('phone', value, cryptoId) : null,
+            emailHmac: dto.type === 'email' ? hmac : null,
+            phoneHmac: dto.type === 'phone' ? hmac : null,
+            ...(current.cryptoId ? {} : { cryptoId }),
+          }, lockedTx);
         }, tx);
       });
     } catch (error) {
@@ -741,31 +746,32 @@ export class UsersService {
       }
     }
     // 信封加密（v10.0）：资料字段共用 'profile' 用途域，socials 逐条 'social'（空串 seal 为 null 条目，读取侧过滤）
-    const row = await this.usersRepository.findById(userId);
-    if (!row) {
-      throw new NotFoundException('用户不存在');
-    }
-    const cryptoId = row.cryptoId ?? this.crypto.newCryptoId();
-    const sealProfile = (value: string | null | undefined): string | null | undefined =>
-      value === undefined ? undefined : this.crypto.seal('profile', value, cryptoId);
-    const updated = await this.usersRepository.updateProfilePage(userId, {
-      bio: sealProfile(dto.bio),
-      profileReadme: sealProfile(dto.profileReadme),
-      pinnedItems: dto.pinnedItems,
-      company: sealProfile(dto.company),
-      location: sealProfile(dto.location),
-      link: sealProfile(dto.link),
-      socials:
-        dto.socials === undefined
-          ? undefined
-          : dto.socials === null
-            ? null
-            : dto.socials.map((item) => this.crypto.seal('social', item, cryptoId)),
-      ...(row.cryptoId ? {} : { cryptoId }),
+    await this.usersRepository.withUserLock(userId, async (row, tx) => {
+      if (!row) {
+        throw new NotFoundException('用户不存在');
+      }
+      const cryptoId = row.cryptoId ?? this.crypto.newCryptoId();
+      const sealProfile = (value: string | null | undefined): string | null | undefined =>
+        value === undefined ? undefined : this.crypto.seal('profile', value, cryptoId);
+      const updated = await this.usersRepository.updateProfilePage(userId, {
+        bio: sealProfile(dto.bio),
+        profileReadme: sealProfile(dto.profileReadme),
+        pinnedItems: dto.pinnedItems,
+        company: sealProfile(dto.company),
+        location: sealProfile(dto.location),
+        link: sealProfile(dto.link),
+        socials:
+          dto.socials === undefined
+            ? undefined
+            : dto.socials === null
+              ? null
+              : dto.socials.map((item) => this.crypto.seal('social', item, cryptoId)),
+        ...(row.cryptoId ? {} : { cryptoId }),
+      }, tx);
+      if (!updated) {
+        throw new NotFoundException('用户不存在');
+      }
     });
-    if (!updated) {
-      throw new NotFoundException('用户不存在');
-    }
   }
 
   async getActivity(idOrUsername: string, viewer: CurrentAuthUser): Promise<ActivityView> {
