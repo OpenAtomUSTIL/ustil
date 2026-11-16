@@ -163,7 +163,7 @@ export interface ReplyView {
 
 /* ============ 请求体 ============ */
 
-/** 验证码图片（GET /auth/captcha）；image 为 data:image/svg+xml;base64,... data URI，可直接作 <img src> */
+/** 验证码图片（GET /auth/captcha）；image 为 data:image/png;base64,... data URI，可直接作 <img src> */
 export interface CaptchaResponse {
   captchaId: string
   image: string

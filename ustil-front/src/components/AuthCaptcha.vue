@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/* 验证码输入：挂载拉取一张（svg data URI，随当前深浅主题取色），一次性消费，提交失败后由父级调 refresh() 重新拉取 */
+/* 验证码输入：挂载拉取一张（PNG data URI，随当前深浅主题取色），一次性消费，提交失败后由父级调 refresh() 重新拉取 */
 import { computed, onMounted, ref, watch } from 'vue'
 import { authApi } from '@/api/request'
 import { resolvedTheme } from '@/utils/theme'
