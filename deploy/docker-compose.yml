@@ -62,6 +62,10 @@ services:
       R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
       UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-10485760}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
+      # 个人信息信封加密主密钥（v10.0，必填）：32 字节 base64；缺它 api 启动即拒——
+      # 生成：node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+      # 丢钥=存量个人数据永久不可解；轮换走 AGENTS.md §11.5 先解密再重封
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       # cookie 域（v11.0，可选）：如 .openatomustil.cn——主站会话对 docs 子域可见（文档站试调）
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
     volumes:
@@ -115,8 +119,28 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://${POSTGRES_USER:-ustil}:${POSTGRES_PASSWORD:-change-me}@pg:5432/${POSTGRES_DB:-ustil}
+      # seed 落库要写信封（v10.0）：与 api 同一把主密钥，必填
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      pg:
+        condition: service_healthy
+
+  backfill:
+    build:
+      context: ../ustil-hub
+      target: runtime
+    image: ${REGISTRY:-ustil}/ustil-api:${IMAGE_TAG:-latest}
+    # 个人信息信封回填（v10.0，幂等）：部署后、放流量前跑一次（存量明文就地加密）：
+    #   docker compose --profile backfill run --rm backfill
+    # 换主密钥后同样用它重封（按 AGENTS.md §11.5 流程）
+    profiles: ["backfill"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-ustil}:${POSTGRES_PASSWORD:-change-me}@pg:5432/${POSTGRES_DB:-ustil}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+    command: ["node", "dist/scripts/backfill-pii.js"]
     depends_on:
       pg:
         condition: service_healthy
