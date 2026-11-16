@@ -481,3 +481,33 @@
 - [x] AdminUsersView 剔除弹窗文案同步（含回收站/改派语义）；docs/API.md §11.4 与软删除语义注、AGENTS.md 剔除语义同步。
 - [x] 测试：users.service.spec（deleteById 两参断言 + 剔除用例改写）、addressing.e2e（两参）、新增 users.repository.spec deleteById purge 顺序用例（锁校验短路 / 13 步语句序 / 改派载荷）。
 - 验收：后端 lint + 195 单测 + 50 e2e、前端 lint/typecheck/36 单测/build 全绿；真实 Postgres 冒烟 10/10（含回收站文章连删、他人提交作业改派且提交保留、taggings 零残留）；线上 `hhh` 手工回归待部署后执行。
+
+## v10.0 - 用户个人信息对称加密（信封加密）
+
+> 2026-11-16 编写。诉求：用户个人信息加密，采用「用户标识 + 加密信息 + 哈希」的对称加密结构（含时间戳）。设计翻译（安全口径）：该结构即标准 **AEAD 信封格式**——用户标识（keyId）定位密钥、加密信息为 AES-256-GCM 密文、哈希为完整性校验（GCM 认证标签 / HMAC），三层由 AEAD 一步完成而非自拼；**时间戳不作密钥**（可预测），改为随密文 AAD 内嵌 `encryptedAt`（审计与轮换版本），支持按时间轮换主密钥后旧信封仍可解（标识定位派生参数）。
+
+### 设计口径
+
+- **用户标识（crypto_id）**：每用户新增 `crypto_id`（16 字节随机 → 32 位十六进制小写，库级唯一索引，生成后永不变）；参与每用户密钥派生并作为信封 keyId。
+- **信封 token 格式**：`v1.<cryptoId>.<base64url(iv|ciphertext|tag)>`（版本段预留轮换）；解密校验 token 内 cryptoId 与行一致，不一致拒解（防跨用户挪信封）。
+- **密钥派生**：`HKDF-SHA256(masterKey, salt=cryptoId, info='ustil-pii-v1')` → 每用户独立数据密钥；masterKey 32 字节来自环境变量 `APP_ENCRYPTION_KEY`（base64），不入库、不进日志；`.env.example` 登记。
+- **时间戳与防替换**：AAD 携带 `encryptedAt`（ISO UTC）与用途域（`email`/`phone`/`profile`），解密校验 AAD，防跨字段/跨用户替换。
+- **检索兼容**：精确查（登录/寻址/换绑的 findByEmailOrPhone、findByIdentifier）配 `email_hmac`/`phone_hmac` 查找列（HMAC-SHA256(masterKey) 确定性、不可逆）；后台 keyword 模糊搜的加密列退出（改搜昵称/用户名），或保留脱敏展示列（见决策）。
+
+### 改动清单（骨架，随决策细化）
+
+- [x] 迁移 0018：users 加 `crypto_id`（唯一）+ 范围内字段的加密列与 hmac 查找列；存量行回填（幂等任务：生成 crypto_id、加密、写 hmac）。（唯一性约束随迁到 hmac 列——token 含随机 IV 恒唯一，原列约束失效）
+- [x] `CryptoService`：`seal(用途, 明文, cryptoId)` / `open(用途, token, cryptoId)`，HKDF 派生 + AES-256-GCM + AAD + token 编解码；单测覆盖：篡改密文/标签、跨用户挪用、跨用途替换、错误 keyId、空值直通。
+- [x] 存取链改造（按范围）：写入 seal、读取 open、精确查询换 hmac 列；登录/寻址/换绑/后台搜索/资料展示适配。（解析链移入 users.service.resolveRowByIdentifier，对外签名不变；keyword 模糊搜收窄昵称/用户名；连带修复 presence/admin-files 两处密文直出、seed-admin insert 适配、DTO socials 静默丢弃）
+- [x] 文档：`APP_ENCRYPTION_KEY` 生成与轮换说明（AGENTS.md §11.5 + §16 红线第 8 条）；token 只存在于库内不走接口，API 契约不变（响应仍明文）。
+- 验收：库 dump 抽查目标字段无明文；登录/寻址/换绑/资料展示功能回归不变；篡改/跨用户/跨用途均解密失败；质量门全绿。（2026-11-16 实测：后端 lint/211 单测/50 e2e 全绿；dev 库回填 6 行后冒烟 6/6——无明文残留、可解密还原、crypto_id 唯一、hmac 精确查命中/未命中、跨用户挪用拒绝；回填幂等复跑 0 更新）
+
+### 需先讨论（决策点）
+
+> **已拍板（2026-11-16）**：加密范围 = **全部个人字段**；主密钥 = **环境变量 `APP_ENCRYPTION_KEY` + HKDF**；模糊搜索 = **只搜昵称/用户名**（邮箱/手机号退出 keyword 模糊搜，精确查走 hmac 列）。
+
+- **加密范围**：①联系方式（email/phone——PII 核心，需配 hmac 查找列）②展示资料（bio/company/location/link/socials/README——纯展示零检索代价）③全部个人字段。
+- **主密钥来源**：环境变量主密钥 + HKDF（推荐，密钥不出部署环境）vs 每用户独立随机密钥入库（仅防局部泄漏，整库泄露即失守）。
+- **模糊搜索取舍**：加密后后台 keyword 模糊搜邮箱/手机号不可行——接受「只搜昵称/用户名」还是保留脱敏列参与展示（脱敏列本身泄露部分信息）。
+
+**范围边界（定稿注）**：加密 = `email`/`phone`（配 `email_hmac`/`phone_hmac` 查找列）+ `bio`/`company`/`location`/`link`/`socials`/`profileReadme`；**明文保留** = `username`（寻址/唯一）、`nickname`（模糊搜）、`avatarUrl`（渲染路径）、系统字段（role/status/时间戳）；密码哈希本就单向不涉及。登录/请求/审计日志里的邮箱快照为**系统记录**，本期不动（P1 可改脱敏/hmac）。明文列升 TEXT 承载信封 token（`v1.` 前缀识别，回填幂等）。
