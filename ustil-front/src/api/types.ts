@@ -508,6 +508,21 @@ export interface PinnedItem {
   url?: string
 }
 
+/** 更新个人主页请求（PUT /users/me/profile-page；长度校验镜像后端契约） */
+export interface UpdateProfilePageRequest {
+  bio?: string | null
+  profileReadme?: string | null
+  pinnedItems?: Pick<PinnedItem, 'type' | 'id'>[]
+  /** 公司/学校（≤100） */
+  company?: string | null
+  /** 所在地（≤100） */
+  location?: string | null
+  /** 个人链接（≤200，可裸域名；展示时无协议自动补 https://） */
+  link?: string | null
+  /** 社交账户链接（≤4 条、每条 ≤200，可裸域名） */
+  socials?: string[]
+}
+
 /** 个人主页视图 */
 export interface UserProfile {
   id: string
@@ -516,6 +531,14 @@ export interface UserProfile {
   avatarUrl: string | null
   role: Role
   bio: string | null
+  /** 公司/学校（≤100，公开可见） */
+  company?: string | null
+  /** 所在地（≤100，公开可见） */
+  location?: string | null
+  /** 个人链接（≤200，可裸域名，公开可见） */
+  link?: string | null
+  /** 社交账户链接（≤4 条、每条 ≤200，可裸域名，公开可见） */
+  socials?: string[]
   profileReadme: string | null
   createdAt: string
   stats: {

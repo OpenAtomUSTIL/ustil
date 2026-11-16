@@ -79,6 +79,12 @@ export function roleLabel(role: string): string {
   }
 }
 
+/** 外链 href（展示契约）：http/https 原样透传，其余（含裸域名）一律补 https:// 前缀 */
+export function externalHref(raw: string): string {
+  const value = raw.trim()
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`
+}
+
 /** 昵称首字缩写（无头像时的占位） */
 export function initialsOf(nickname: string): string {
   const trimmed = nickname.trim()

@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { checkEmail, checkIdentifier, checkPassword, checkPasswordLength, checkPhone } from '../limits'
+import {
+  checkCompany,
+  checkEmail,
+  checkIdentifier,
+  checkLink,
+  checkLocation,
+  checkPassword,
+  checkPasswordLength,
+  checkPhone,
+  checkSocials,
+} from '../limits'
 
 describe('checkPassword', () => {
   it('两类字符组合通过（两两组合边界）', () => {
@@ -85,5 +95,49 @@ describe('checkIdentifier', () => {
     expect(problem).not.toBeNull()
     expect(problem).toContain('邮箱')
     expect(problem).toContain('手机号')
+  })
+})
+
+describe('checkCompany / checkLocation', () => {
+  it('可空，100 字符（trim 后）通过', () => {
+    expect(checkCompany('')).toBeNull()
+    expect(checkLocation('')).toBeNull()
+    expect(checkCompany('x'.repeat(100))).toBeNull()
+    expect(checkLocation(` ${'x'.repeat(100)} `)).toBeNull() // 按 trim 后计
+  })
+
+  it('超过 100 字符拒绝', () => {
+    expect(checkCompany('x'.repeat(101))).toContain('100')
+    expect(checkLocation('x'.repeat(101))).toContain('100')
+  })
+})
+
+describe('checkLink', () => {
+  it('可空，200 字符（trim 后）通过，允许裸域名', () => {
+    expect(checkLink('')).toBeNull()
+    expect(checkLink('geminimortal.cn')).toBeNull()
+    expect(checkLink('x'.repeat(200))).toBeNull()
+  })
+
+  it('超过 200 字符拒绝', () => {
+    expect(checkLink('x'.repeat(201))).toContain('200')
+  })
+})
+
+describe('checkSocials', () => {
+  it('空数组与空条目忽略', () => {
+    expect(checkSocials([])).toBeNull()
+    expect(checkSocials(['', '  ', '', ''])).toBeNull()
+    expect(checkSocials(['https://a.cn', '', 'b.cn'])).toBeNull()
+  })
+
+  it('4 条通过、5 条拒绝', () => {
+    expect(checkSocials(['1', '2', '3', '4'])).toBeNull()
+    expect(checkSocials(['1', '2', '3', '4', '5'])).toContain('4')
+  })
+
+  it('单条超 200 字符拒绝（空条目不计）', () => {
+    expect(checkSocials(['x'.repeat(200), ''])).toBeNull()
+    expect(checkSocials(['x'.repeat(201)])).toContain('200')
   })
 })

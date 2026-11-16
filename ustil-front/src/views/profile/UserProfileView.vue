@@ -17,18 +17,26 @@ import type {
 } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
-import { formatDate, roleLabel, timeAgo } from '@/utils/format'
+import { externalHref, formatDate, roleLabel, timeAgo } from '@/utils/format'
 import {
   BIO_MAX,
+  COMPANY_MAX,
   INVITE_CODE_MAX,
+  LINK_MAX,
+  LOCATION_MAX,
   NICKNAME_MAX,
   PASSWORD_MAX,
   PASSWORD_MIN,
   README_MAX,
+  SOCIALS_MAX,
+  checkCompany,
   checkEmail,
+  checkLink,
+  checkLocation,
   checkNickname,
   checkPassword,
   checkPhone,
+  checkSocials,
 } from '@/utils/limits'
 import { AVATAR_EXTENSIONS } from '@/utils/upload'
 import AppAvatar from '@/components/AppAvatar.vue'
@@ -69,6 +77,11 @@ const saving = ref(false)
 const editError = ref('')
 const editNickname = ref('')
 const editBio = ref('')
+const editCompany = ref('')
+const editLocation = ref('')
+const editLink = ref('')
+/** 社交账户 4 个独立输入框（不足补空串） */
+const editSocials = ref<string[]>(['', '', '', ''])
 const editReadme = ref('')
 const editPinned = ref<{ type: PinnedItem['type']; id: string; title: string }[]>([])
 
@@ -108,6 +121,10 @@ const userId = computed(() => String(route.params.id))
 /** authorId/creatorId 过滤必须用 UUID（路由参数可能是 username） */
 const ownerId = computed(() => profile.value?.id ?? '')
 const isSelf = computed(() => profile.value?.isSelf ?? false)
+/** 社交账户展示行：空值不显示对应信息行 */
+const visibleSocials = computed(() => (profile.value?.socials ?? []).filter((s) => s.trim().length > 0))
+/** VISITOR 无提交，统计行不显示提交项 */
+const showSubmissionStat = computed(() => profile.value?.role !== 'VISITOR')
 
 const followLoading = ref(false)
 
@@ -327,6 +344,11 @@ const tabEmptyHint = computed(() => {
 function startEdit(): void {
   editNickname.value = profile.value?.nickname ?? ''
   editBio.value = profile.value?.bio ?? ''
+  editCompany.value = profile.value?.company ?? ''
+  editLocation.value = profile.value?.location ?? ''
+  editLink.value = profile.value?.link ?? ''
+  const socials = profile.value?.socials ?? []
+  editSocials.value = [0, 1, 2, 3].map((i) => socials[i] ?? '')
   editReadme.value = profile.value?.profileReadme ?? ''
   editPinned.value = (profile.value?.pinnedItems ?? []).map((p) => ({ type: p.type, id: p.id, title: p.title }))
   editError.value = ''
@@ -395,6 +417,18 @@ async function saveProfile(): Promise<void> {
     editError.value = nicknameProblem
     return
   }
+  // 字数校验镜像后端契约：company/location ≤100、link/socials 每条 ≤200、socials ≤4
+  const profileProblems = [
+    checkCompany(editCompany.value),
+    checkLocation(editLocation.value),
+    checkLink(editLink.value),
+    checkSocials(editSocials.value),
+  ]
+  const profileProblem = profileProblems.find((p): p is string => p !== null)
+  if (profileProblem) {
+    editError.value = profileProblem
+    return
+  }
   if (editReadme.value.length > README_MAX) {
     editError.value = `个人介绍不能超过 ${README_MAX} 个字符`
     return
@@ -411,6 +445,10 @@ async function saveProfile(): Promise<void> {
       bio: editBio.value.trim() || null,
       profileReadme: editReadme.value.trim() || null,
       pinnedItems: editPinned.value.map((p) => ({ type: p.type, id: p.id })),
+      company: editCompany.value.trim() || null,
+      location: editLocation.value.trim() || null,
+      link: editLink.value.trim() || null,
+      socials: editSocials.value.map((s) => s.trim()).filter((s) => s.length > 0),
     })
     toast.show('资料已更新')
     editing.value = false
@@ -636,6 +674,7 @@ watch(pinType, () => {
       <!-- 左栏 · 资料卡 -->
       <aside class="profile-sidebar">
         <div class="profile-card">
+          <!-- 1. 头像 -->
           <div class="profile-avatar">
             <AppAvatar
               :nickname="profile.nickname"
@@ -644,14 +683,22 @@ watch(pinType, () => {
               size="xl"
             />
           </div>
+          <!-- 2. 昵称 -->
           <h1 class="profile-name">{{ profile.nickname }}</h1>
-          <div class="profile-handle">@{{ profile.username }}</div>
-          <span class="role-badge" :class="`role-${profile.role.toLowerCase()}`">{{ roleLabel(profile.role) }}</span>
+          <!-- 3. @username · 角色徽章 -->
+          <div class="profile-handle-row">
+            <span class="profile-handle">@{{ profile.username }}</span>
+            <span class="handle-dot" aria-hidden="true">·</span>
+            <span class="role-badge" :class="`role-${profile.role.toLowerCase()}`">{{ roleLabel(profile.role) }}</span>
+          </div>
+          <!-- 4. 简介 -->
           <p v-if="profile.bio" class="profile-bio">{{ profile.bio }}</p>
 
+          <!-- 5. 编辑资料（自视图）/ 关注（访客视图） -->
+          <button v-if="isSelf" class="btn btn-outline profile-wide-btn" type="button" @click="startEdit">编辑资料</button>
           <button
-            v-if="!isSelf && auth.isLoggedIn && auth.user?.role !== 'VISITOR'"
-            class="btn follow-btn"
+            v-else-if="auth.isLoggedIn && auth.user?.role !== 'VISITOR'"
+            class="btn profile-wide-btn"
             :class="profile.isFollowing ? 'btn-ghost' : 'btn-clay'"
             type="button"
             :disabled="followLoading"
@@ -660,120 +707,201 @@ watch(pinType, () => {
             {{ profile.isFollowing ? '已关注' : '关注' }}
           </button>
 
+          <!-- 6. 内容统计紧凑行 -->
           <div class="profile-stats">
-            <button class="stat-item" type="button" @click="switchTab('articles')">
-              <strong>{{ profile.stats.articles }}</strong> 文章
-            </button>
-            <button class="stat-item" type="button" @click="switchTab('issues')">
-              <strong>{{ profile.stats.issues }}</strong> 讨论
-            </button>
-            <button class="stat-item" type="button" @click="switchTab('replies')">
-              <strong>{{ profile.stats.replies }}</strong> 回复
-            </button>
-            <RouterLink
-              v-if="isSelf && auth.canViewAssignments"
-              class="stat-item"
-              :to="{ name: 'my-submissions' }"
-            >
-              <strong>{{ profile.stats.submissions }}</strong> 提交
-            </RouterLink>
-            <span v-else class="stat-item">
-              <strong>{{ profile.stats.submissions }}</strong> 提交
-            </span>
-            <button class="stat-item" type="button" @click="switchTab('followers')">
-              <strong>{{ profile.followerCount }}</strong> 粉丝
-            </button>
-            <button class="stat-item" type="button" @click="switchTab('following')">
-              <strong>{{ profile.followingCount }}</strong> 关注
-            </button>
+            <button class="stat-item" type="button" @click="switchTab('articles')">文章 <strong>{{ profile.stats.articles }}</strong></button>
+            <button class="stat-item" type="button" @click="switchTab('issues')">讨论 <strong>{{ profile.stats.issues }}</strong></button>
+            <button class="stat-item" type="button" @click="switchTab('replies')">回复 <strong>{{ profile.stats.replies }}</strong></button>
+            <template v-if="showSubmissionStat">
+              <RouterLink v-if="isSelf && auth.canViewAssignments" class="stat-item" :to="{ name: 'my-submissions' }">
+                提交 <strong>{{ profile.stats.submissions }}</strong>
+              </RouterLink>
+              <span v-else class="stat-item">提交 <strong>{{ profile.stats.submissions }}</strong></span>
+            </template>
           </div>
 
-          <div class="profile-meta">
-            <span>加入于 {{ formatDate(profile.createdAt) }}</span>
+          <!-- 7. 粉丝 / 关注行 -->
+          <div class="follow-stats">
+            <svg class="meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15.5 20.5v-1.8a3.7 3.7 0 0 0-3.7-3.7H6.2a3.7 3.7 0 0 0-3.7 3.7v1.8" />
+              <circle cx="9" cy="7.5" r="3.7" />
+              <path d="M21.5 20.5v-1.8a3.7 3.7 0 0 0-2.8-3.6M15.5 4.1a3.7 3.7 0 0 1 0 7" />
+            </svg>
+            <button class="follow-stat" type="button" @click="switchTab('followers')"><strong>{{ profile.followerCount }}</strong> 粉丝</button>
+            <span class="handle-dot" aria-hidden="true">·</span>
+            <button class="follow-stat" type="button" @click="switchTab('following')"><strong>{{ profile.followingCount }}</strong> 关注</button>
           </div>
 
-          <TagsChips v-if="profile.topTags.length > 0" :tags="profile.topTags.map((t) => t.name)" target="articles" />
+          <!-- 8-9. 带图标信息行 -->
+          <hr class="profile-divider">
+          <ul class="meta-list">
+            <li v-if="profile.company" class="meta-row">
+              <svg class="meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21" />
+                <path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V21" />
+                <path d="M2.5 21h19" />
+                <path d="M7.5 8h3M7.5 12h3M7.5 16h3" />
+                <path d="M16.75 14h.01M16.75 17.5h.01" />
+              </svg>
+              <span>{{ profile.company }}</span>
+            </li>
+            <li v-if="profile.location" class="meta-row">
+              <svg class="meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 21.5s6.75-5.6 6.75-11a6.75 6.75 0 1 0-13.5 0c0 5.4 6.75 11 6.75 11Z" />
+                <circle cx="12" cy="10.5" r="2.6" />
+              </svg>
+              <span>{{ profile.location }}</span>
+            </li>
+            <li v-if="profile.link" class="meta-row">
+              <svg class="meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10.5 13.5a4.5 4.5 0 0 0 6.4.4l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4l-1.5 1.5" />
+                <path d="M13.5 10.5a4.5 4.5 0 0 0-6.4-.4l-2.6 2.6a4.5 4.5 0 0 0 6.4 6.4l1.5-1.5" />
+              </svg>
+              <a :href="externalHref(profile.link)" target="_blank" rel="noopener noreferrer">{{ profile.link }}</a>
+            </li>
+            <li v-for="(social, i) in visibleSocials" :key="`social-${i}`" class="meta-row">
+              <svg class="meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10.5 13.5a4.5 4.5 0 0 0 6.4.4l2.6-2.6a4.5 4.5 0 0 0-6.4-6.4l-1.5 1.5" />
+                <path d="M13.5 10.5a4.5 4.5 0 0 0-6.4-.4l-2.6 2.6a4.5 4.5 0 0 0 6.4 6.4l1.5-1.5" />
+              </svg>
+              <a :href="externalHref(social)" target="_blank" rel="noopener noreferrer">{{ social }}</a>
+            </li>
+            <li class="meta-row">
+              <svg class="meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3.5" y="5" width="17" height="15.5" rx="2" />
+                <path d="M3.5 9.5h17M8 3v4M16 3v4" />
+              </svg>
+              <span>加入于 {{ formatDate(profile.createdAt) }}</span>
+            </li>
+            <li v-if="isSelf && profile.email" class="meta-row">
+              <svg class="meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2.5" y="5" width="19" height="14" rx="2" />
+                <path d="m3 6.8 9 6.2 9-6.2" />
+              </svg>
+              <span>邮箱：{{ profile.email }}</span>
+            </li>
+            <li v-if="isSelf && profile.phone" class="meta-row">
+              <svg class="meta-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21.5 16.9v2.6a2 2 0 0 1-2.2 2 19.6 19.6 0 0 1-8.5-3 19.3 19.3 0 0 1-5.9-5.9 19.6 19.6 0 0 1-3-8.6 2 2 0 0 1 2-2.2h2.6a2 2 0 0 1 2 1.7c.1.8.3 1.6.6 2.4a2 2 0 0 1-.5 2.1L8 9.4a15.9 15.9 0 0 0 5.9 5.9l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.6.5 2.4.6a2 2 0 0 1 1.7 2Z" />
+              </svg>
+              <span>手机：{{ profile.phone }}</span>
+            </li>
+          </ul>
 
-          <div v-if="isSelf" class="profile-self-actions">
-            <div v-if="profile.email" class="contact-line">邮箱：{{ profile.email }}</div>
-            <div v-if="profile.phone" class="contact-line">手机：{{ profile.phone }}</div>
-            <button class="btn btn-outline" type="button" @click="startEdit">编辑资料</button>
-            <button class="btn btn-outline" type="button" @click="openSettings">设置</button>
-            <RouterLink class="btn btn-outline" :to="{ name: 'my-articles' }">我的文章</RouterLink>
-            <RouterLink v-if="auth.canViewAssignments" class="btn btn-outline" :to="{ name: 'my-submissions' }">
+          <!-- 10. 擅长标签 -->
+          <template v-if="profile.topTags.length > 0">
+            <hr class="profile-divider">
+            <h2 class="profile-subheading">擅长标签</h2>
+            <TagsChips :tags="profile.topTags.map((t) => t.name)" target="articles" />
+          </template>
+
+          <!-- 11. 管理入口（自视图） -->
+          <nav v-if="isSelf" class="profile-admin-links">
+            <button class="btn btn-ghost btn-sm" type="button" @click="openSettings">设置</button>
+            <RouterLink class="btn btn-ghost btn-sm" :to="{ name: 'my-articles' }">我的文章</RouterLink>
+            <RouterLink v-if="auth.canViewAssignments" class="btn btn-ghost btn-sm" :to="{ name: 'my-submissions' }">
               我的作业提交
             </RouterLink>
-          </div>
+          </nav>
         </div>
       </aside>
 
       <!-- 右栏 -->
       <main class="profile-main">
-        <!-- 编辑态 -->
+        <!-- 编辑态（GitHub 表单式） -->
         <div v-if="editing && isSelf" class="edit-panel">
           <h3>编辑资料</h3>
           <div v-if="editError" class="form-error">{{ editError }}</div>
-          <label class="edit-label">
-            昵称
-            <input v-model="editNickname" type="text" required :maxlength="NICKNAME_MAX">
-          </label>
-          <div class="edit-label">
-            <span class="edit-label-text">头像</span>
-            <FileUploader
-              :extensions="AVATAR_EXTENSIONS"
-              :upload="uploadAvatar"
-              button-text="更换头像"
-            />
-          </div>
-          <label class="edit-label">
-            简介（{{ editBio.length }}/{{ BIO_MAX }}）
-            <input v-model="editBio" :maxlength="BIO_MAX" placeholder="一句话介绍自己">
-          </label>
-          <div class="edit-label">
-            <span class="edit-label-text">个人介绍 README（Markdown，{{ editReadme.length }}/{{ README_MAX }}）</span>
-            <MarkdownEditor
-              v-model="editReadme"
-              aria-label="个人介绍 README（Markdown）"
-              min-height="18rem"
-              placeholder="用 Markdown 介绍自己，支持 LaTeX 公式"
-            />
-          </div>
-          <div class="edit-label">
-            <span class="edit-label-text">置顶管理（{{ editPinned.length }}/6）</span>
-            <div class="pin-manage">
-              <div v-for="(p, idx) in editPinned" :key="`${p.type}:${p.id}`" class="pin-row">
-                <span class="pinned-type">{{ pinTypeLabel(p.type) }}</span>
-                <span class="pin-title">{{ p.title }}</span>
-                <span class="pin-actions">
-                  <button class="btn-icon" type="button" :disabled="idx === 0" aria-label="上移" @click="movePin(idx, -1)">↑</button>
-                  <button class="btn-icon" type="button" :disabled="idx === editPinned.length - 1" aria-label="下移" @click="movePin(idx, 1)">↓</button>
-                  <button class="btn-icon btn-icon-danger" type="button" aria-label="取消置顶" @click="removePin(idx)">×</button>
-                </span>
+          <div class="edit-form">
+            <div class="field">
+              <span class="field-legend">头像</span>
+              <FileUploader
+                :extensions="AVATAR_EXTENSIONS"
+                :upload="uploadAvatar"
+                button-text="更换头像"
+              />
+            </div>
+            <div class="field">
+              <label for="ep-nickname">昵称</label>
+              <input id="ep-nickname" v-model="editNickname" type="text" required :maxlength="NICKNAME_MAX">
+            </div>
+            <div class="field">
+              <label for="ep-bio">简介</label>
+              <textarea id="ep-bio" v-model="editBio" :maxlength="BIO_MAX" rows="3" />
+              <span class="hint">一句话介绍自己 · {{ editBio.length }}/{{ BIO_MAX }}</span>
+            </div>
+            <div class="field">
+              <label for="ep-company">公司/学校</label>
+              <input id="ep-company" v-model="editCompany" type="text" :maxlength="COMPANY_MAX">
+            </div>
+            <div class="field">
+              <label for="ep-location">所在地</label>
+              <input id="ep-location" v-model="editLocation" type="text" :maxlength="LOCATION_MAX">
+            </div>
+            <div class="field">
+              <label for="ep-link">个人链接</label>
+              <input id="ep-link" v-model="editLink" type="text" :maxlength="LINK_MAX" placeholder="geminimortal.cn">
+            </div>
+            <div class="field">
+              <span class="field-legend">社交账户</span>
+              <input
+                v-for="(_, i) in editSocials"
+                :key="i"
+                v-model="editSocials[i]"
+                class="social-input"
+                type="text"
+                :maxlength="LINK_MAX"
+                :placeholder="`链接 ${i + 1}`"
+                :aria-label="`社交账户链接 ${i + 1}`"
+              >
+              <span class="hint">最多 {{ SOCIALS_MAX }} 条，可填裸域名</span>
+            </div>
+            <div class="field">
+              <span class="field-legend">个人介绍 README（Markdown，{{ editReadme.length }}/{{ README_MAX }}）</span>
+              <MarkdownEditor
+                v-model="editReadme"
+                aria-label="个人介绍 README（Markdown）"
+                min-height="18rem"
+                placeholder="用 Markdown 介绍自己，支持 LaTeX 公式"
+              />
+            </div>
+            <div class="field">
+              <span class="field-legend">置顶管理（{{ editPinned.length }}/6）</span>
+              <div class="pin-manage">
+                <div v-for="(p, idx) in editPinned" :key="`${p.type}:${p.id}`" class="pin-row">
+                  <span class="pinned-type">{{ pinTypeLabel(p.type) }}</span>
+                  <span class="pin-title">{{ p.title }}</span>
+                  <span class="pin-actions">
+                    <button class="btn-icon" type="button" :disabled="idx === 0" aria-label="上移" @click="movePin(idx, -1)">↑</button>
+                    <button class="btn-icon" type="button" :disabled="idx === editPinned.length - 1" aria-label="下移" @click="movePin(idx, 1)">↓</button>
+                    <button class="btn-icon btn-icon-danger" type="button" aria-label="取消置顶" @click="removePin(idx)">×</button>
+                  </span>
+                </div>
+                <EmptyState v-if="editPinned.length === 0" title="还没有置顶内容。" />
+                <div class="pin-add">
+                  <select v-model="pinType" aria-label="置顶类型">
+                    <option value="ARTICLE">文章</option>
+                    <option value="ISSUE">讨论</option>
+                    <option value="RESOURCE">资源</option>
+                  </select>
+                  <select v-model="pinPickId" aria-label="选择要置顶的内容" :disabled="pinOptionsLoading">
+                    <option value="" disabled>{{ pinOptionsLoading ? '加载中…' : '选择要置顶的内容' }}</option>
+                    <option v-for="o in addablePinOptions" :key="o.id" :value="o.id">{{ o.title }}</option>
+                  </select>
+                  <button
+                    class="btn btn-secondary"
+                    type="button"
+                    :disabled="!pinPickId || editPinned.length >= 6"
+                    @click="addPin"
+                  >
+                    添加置顶
+                  </button>
+                </div>
+                <p class="hint">最多置顶 6 项，仅限本人内容，顺序即展示顺序。</p>
               </div>
-              <EmptyState v-if="editPinned.length === 0" title="还没有置顶内容。" />
-              <div class="pin-add">
-                <select v-model="pinType" aria-label="置顶类型">
-                  <option value="ARTICLE">文章</option>
-                  <option value="ISSUE">讨论</option>
-                  <option value="RESOURCE">资源</option>
-                </select>
-                <select v-model="pinPickId" aria-label="选择要置顶的内容" :disabled="pinOptionsLoading">
-                  <option value="" disabled>{{ pinOptionsLoading ? '加载中…' : '选择要置顶的内容' }}</option>
-                  <option v-for="o in addablePinOptions" :key="o.id" :value="o.id">{{ o.title }}</option>
-                </select>
-                <button
-                  class="btn btn-secondary"
-                  type="button"
-                  :disabled="!pinPickId || editPinned.length >= 6"
-                  @click="addPin"
-                >
-                  添加置顶
-                </button>
-              </div>
-              <p class="hint">最多置顶 6 项，仅限本人内容，顺序即展示顺序。</p>
             </div>
           </div>
-          <div class="edit-actions">
+          <div class="form-actions">
             <button class="btn btn-clay" type="button" :disabled="saving" @click="saveProfile">
               {{ saving ? '保存中…' : '保存' }}
             </button>
@@ -1062,20 +1190,31 @@ watch(pinType, () => {
   font-size: 4.25rem;
 }
 .profile-name {
-  margin: 1.15rem 0 0.25rem;
-  font-family: var(--font-serif);
-  font-size: var(--fs-h3);
-  font-weight: var(--fw-regular);
+  margin: 1.15rem 0 0.15rem;
+  font-family: var(--font-sans);
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  line-height: 1.25;
+  word-break: break-word;
+}
+.profile-handle-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
 }
 .profile-handle {
-  color: var(--ink-faint);
+  color: var(--ink-muted);
   font-size: var(--fs-meta);
-  margin-bottom: 0.55rem;
   word-break: break-all;
 }
-.follow-btn {
+.handle-dot {
+  color: var(--ink-faint);
+}
+.profile-wide-btn {
   width: 100%;
-  margin: 0.85rem 0 0.25rem;
+  margin: 0.85rem 0 0.55rem;
 }
 .follow-card {
   display: flex;
@@ -1125,7 +1264,8 @@ watch(pinType, () => {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  margin: 0.85rem 0;
+  margin: 0.85rem 0 0.55rem;
+  font-size: var(--fs-small);
 }
 .stat-item {
   background: none;
@@ -1150,26 +1290,95 @@ watch(pinType, () => {
   font-weight: var(--fw-semibold);
   color: var(--ink);
 }
-.profile-meta {
-  font-size: var(--fs-small);
-  color: var(--ink-faint);
-  margin: 0.75rem 0;
+.follow-stats {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.95rem;
+  font-size: var(--fs-meta);
+  color: var(--ink-muted);
 }
-.profile-self-actions {
+.follow-stats .meta-ic {
+  margin-top: 0;
+}
+.follow-stat {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+.follow-stat:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.follow-stat strong {
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+.profile-divider {
+  border: none;
+  border-top: var(--bw-sm) solid var(--border);
+  margin: 0.95rem 0;
+}
+.meta-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.meta-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+  font-size: var(--fs-meta);
+  color: var(--ink-muted);
+}
+.meta-row > span,
+.meta-row > a {
+  min-width: 0;
+  word-break: break-word;
+}
+.meta-row a {
+  color: var(--clay);
+  text-decoration: none;
+}
+.meta-row a:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.meta-ic {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: var(--ink-faint);
+}
+.profile-subheading {
+  font-family: var(--font-sans);
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+  margin: 0 0 0.55rem;
+}
+.profile-admin-links {
   margin-top: 1.15rem;
-  padding-top: 1.15rem;
+  padding-top: 1.05rem;
   border-top: var(--bw-sm) solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
   align-items: stretch;
+  gap: 0.15rem;
 }
-.profile-self-actions .btn {
+.profile-admin-links .btn {
   width: 100%;
-}
-.contact-line {
-  font-size: var(--fs-small);
-  color: var(--ink-muted);
+  justify-content: flex-start;
 }
 .profile-main {
   min-width: 0;
@@ -1227,25 +1436,18 @@ watch(pinType, () => {
 .settings-section .form-grid {
   gap: 1.05rem;
 }
-.edit-label {
-  display: block;
-  margin-bottom: 1rem;
-  font-size: var(--fs-meta);
-  font-weight: var(--fw-medium);
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.05rem;
 }
-.edit-label-text {
-  display: block;
-  margin-bottom: 0.35rem;
+.edit-form .field textarea {
+  min-height: 4.25rem;
+  resize: vertical;
+  line-height: 1.6;
 }
-.edit-label input,
-.edit-label select {
-  display: block;
-  width: 100%;
-  margin-top: 0.35rem;
-  padding: 0.5rem 0.75rem;
-  border: var(--bw-sm) solid var(--border-strong);
-  border-radius: var(--br-8);
-  font-size: var(--fs-meta);
+.social-input + .social-input {
+  margin-top: 0.55rem;
 }
 .edit-actions {
   display: flex;

@@ -44,7 +44,6 @@ import type {
   Page,
   PageQuery,
   PasswordChangeRequest,
-  PinnedItem,
   ProfileReplyItem,
   RedeemInviteCodeRequest,
   RegisterRequest,
@@ -57,6 +56,7 @@ import type {
   TrashType,
   UpdateIdentifierRequest,
   UpdateIssueStatusRequest,
+  UpdateProfilePageRequest,
   UpdateProfileRequest,
   UpdateUserRoleRequest,
   UserPublic,
@@ -255,8 +255,8 @@ export const usersApi = {
   getUser: (idOrUsername: string) => request<UserPublic>(`/users/${idOrUsername}`),
   /** 个人主页（含统计/标签/置顶/关注态） */
   getProfile: (idOrUsername: string) => request<UserProfile>(`/users/${idOrUsername}/profile`),
-  /** 更新个人主页（bio/readme/置顶） */
-  updateProfilePage: (payload: { bio?: string | null; profileReadme?: string | null; pinnedItems?: Pick<PinnedItem, 'type' | 'id'>[] }) =>
+  /** 更新个人主页（bio/公司/所在地/链接/社交/README/置顶） */
+  updateProfilePage: (payload: UpdateProfilePageRequest) =>
     request<void>('/users/me/profile-page', { method: 'PUT', body: payload }),
   /** 改主页用户名（handle） */
   updateUsername: (payload: { username: string }) =>

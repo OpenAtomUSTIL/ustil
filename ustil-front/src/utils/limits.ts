@@ -13,6 +13,10 @@ export const INVITE_CODE_MAX = 64
 export const TAG_MAX = 30
 export const TAGS_MAX = 10
 export const RESOURCE_URL_MAX = 2048
+export const COMPANY_MAX = 100
+export const LOCATION_MAX = 100
+export const LINK_MAX = 200
+export const SOCIALS_MAX = 4
 
 /** 昵称长度校验（按 trim 后计），通过返回 null */
 export function checkNickname(value: string): string | null {
@@ -79,6 +83,37 @@ export function checkTags(values: string[]): string | null {
   if (values.length > TAGS_MAX) return `标签最多 ${TAGS_MAX} 个`
   for (const value of values) {
     const problem = checkTag(value)
+    if (problem) return problem
+  }
+  return null
+}
+
+/** 可空文本长度校验（按 trim 后计），通过返回 null */
+function checkOptionalMax(value: string, max: number, label: string): string | null {
+  return value.trim().length > max ? `${label}长度不能超过 ${max} 个字符` : null
+}
+
+/** 公司/学校校验（可空，≤100），通过返回 null */
+export function checkCompany(value: string): string | null {
+  return checkOptionalMax(value, COMPANY_MAX, '公司/学校')
+}
+
+/** 所在地校验（可空，≤100），通过返回 null */
+export function checkLocation(value: string): string | null {
+  return checkOptionalMax(value, LOCATION_MAX, '所在地')
+}
+
+/** 个人链接校验（可空，≤200，可裸域名），通过返回 null */
+export function checkLink(value: string): string | null {
+  return checkOptionalMax(value, LINK_MAX, '个人链接')
+}
+
+/** 社交账户校验（≤4 条、每条 ≤200，空条目忽略），通过返回 null */
+export function checkSocials(values: string[]): string | null {
+  const items = values.map((v) => v.trim()).filter((v) => v.length > 0)
+  if (items.length > SOCIALS_MAX) return `社交账户最多 ${SOCIALS_MAX} 条`
+  for (const item of items) {
+    const problem = checkOptionalMax(item, LINK_MAX, '社交账户链接')
     if (problem) return problem
   }
   return null
