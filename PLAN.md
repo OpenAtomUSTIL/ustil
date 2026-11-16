@@ -502,6 +502,25 @@
 - [x] 文档：`APP_ENCRYPTION_KEY` 生成与轮换说明（AGENTS.md §11.5 + §16 红线第 8 条）；token 只存在于库内不走接口，API 契约不变（响应仍明文）。
 - 验收：库 dump 抽查目标字段无明文；登录/寻址/换绑/资料展示功能回归不变；篡改/跨用户/跨用途均解密失败；质量门全绿。（2026-11-16 实测：后端 lint/211 单测/50 e2e 全绿；dev 库回填 6 行后冒烟 6/6——无明文残留、可解密还原、crypto_id 唯一、hmac 精确查命中/未命中、跨用户挪用拒绝；回填幂等复跑 0 更新）
 
+## v11.0 - API 文档站：docs 子域名自托管（学员可读、校友可试调）
+
+> 2026-11-16 编写。诉求：API 文档单独挂在主域名子域名上；**学员（MEMBER）及以上可见**；**校友（ALUMNI）及以上可直接试调**（以本人身份、权限天然受服务端 RBAC 约束）；主域名旧文档路径默认跳转子域名。已拍板：子域名 `docs.openatomustil.cn`；鉴权**复用主站登录态**（nginx auth_request + cookie 域放宽）；跳转 = 主域名 `/docs` 路径 302 到子域。本路线替代 Postman 公开文档托管（OpenAPI 规范仍入库作内容源）。
+
+### 设计口径
+
+- **内容源**：`ustil-hub/docs/openapi.yaml`（OpenAPI 3.1，从 docs/API.md 契约全量导出，入库可审）；文档站用 **Scalar** 静态单页 + 交互式 playground（试调）。
+- **可见性门禁（MEMBER+）**：nginx `auth_request` 转发 cookie 到 `GET /api/v1/auth/docs-probe`——登录且 `MEMBER/ALUMNI/WHEEL/ADMIN` → `204` 放行；`VISITOR` → `403`；未登录 → `401`；拒绝时 302 到主站登录页并带回跳。
+- **试调（ALUMNI+）**：①cookie 域放宽——新增环境变量 `COOKIE_DOMAIN`（如 `.openatomustil.cn`，缺省不设 = host-only，本地开发不受影响），使 docs 子域的 fetch 带上主站会话；②CORS——`CORS_ORIGIN` 支持逗号分隔多 origin，加入 `https://docs.openatomustil.cn`（带 credentials）；③页面脚本查 `/auth/me` 角色，`< ALUMNI` 隐藏试调区（显示只读文档）；服务端 RBAC 仍是最终约束（试调越权照常 403）。
+- **nginx**：docs 子域独立 server block（静态托管文档站 + auth_request + 文档 no-store）；主站 `location = /docs` 与 `/docs/*` → 302 `https://docs.openatomustil.cn/`；证书 SAN 扩展含新子域（init-certs.sh 同步）。
+
+### 改动清单
+
+- [ ] 后端：`GET /api/v1/auth/docs-probe`（按角色返状态码）；`COOKIE_DOMAIN` 进 cookies.ts 与 env 校验（可选）；`CORS_ORIGIN` 列表化；API.md/AGENTS.md 同步。
+- [ ] `docs/openapi.yaml`：全部端点/模式/示例/错误语义（docs/API.md 全量导出，含验证码/寻址/信封加密后的语义）。
+- [ ] 文档站静态页：Scalar 引用 + 中文标题说明 + 角色自适应隐藏试调（<ALUMNI）。
+- [ ] 部署：nginx vhost（docs 子域）+ `/docs` 302 + compose 静态卷/证书 SAN。
+- 验收：本地验证门禁链路（未登录→登录页、VISITOR→403、MEMBER 只读、ALUMNI 可试调）；试调以本人身份命中真实 API 且越权 403；主域 /docs 跳子域；质量门全绿。
+
 ### 需先讨论（决策点）
 
 > **已拍板（2026-11-16）**：加密范围 = **全部个人字段**；主密钥 = **环境变量 `APP_ENCRYPTION_KEY` + HKDF**；模糊搜索 = **只搜昵称/用户名**（邮箱/手机号退出 keyword 模糊搜，精确查走 hmac 列）。

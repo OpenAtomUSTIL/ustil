@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>USTIL 开放论坛 · API 文档</title>
+  <meta name="description" content="USTIL 开放论坛 API 文档：契约、示例与在线试调（学员及以上可见，校友及以上可试调）。">
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  <style>
+    /* 页首说明条 */
+    .docs-banner {
+      padding: 0.65rem 1.15rem;
+      font: 14px/1.6 var(--scalar-font, -apple-system, "Segoe UI", "Noto Sans SC", sans-serif);
+      color: var(--scalar-color-1, #3d3d3a);
+      background: var(--scalar-background-1, #faf9f5);
+      border-bottom: 1px solid var(--scalar-border-color, #e3dacc);
+    }
+    .docs-banner b { font-weight: 600; }
+    #api-docs { min-height: 60vh; }
+  </style>
+</head>
+<body>
+  <div class="docs-banner">
+    <b>USTIL 开放论坛 API</b> —— 学员（MEMBER）及以上可见；校友（ALUMNI）及以上可在本人权限内
+    <b>在线试调</b>（以登录身份执行，权限由服务端按角色约束）。
+    试调不生效时请确认已登录主站且浏览器未限制跨子域 Cookie。
+  </div>
+  <div id="api-docs"></div>
+  <script>
+    /* 手动初始化（新版 Scalar 仅暴露 createApiReference，无 #api-reference 自动引导）；
+       规范文本自取后经 content 注入，不依赖服务器 YAML MIME */
+    fetch('./openapi.yaml')
+      .then(function (res) {
+        if (!res.ok) throw new Error('openapi.yaml ' + res.status)
+        return res.text()
+      })
+      .then(function (content) {
+        window.Scalar.createApiReference('#api-docs', {
+          spec: { content: content },
+          metaData: { title: 'USTIL 开放论坛 · API 文档' },
+        })
+      })
+      .catch(function (error) {
+        document.getElementById('api-docs').textContent = '规范加载失败：' + error.message
+      })
+  </script>
+  <script>
+    /* 隐藏 Scalar 自带商业 CTA（Deploy API / Generate SDK）——自托管文档无需入口 */
+    (function () {
+      function hideCtas() {
+        document.querySelectorAll('button, a').forEach(function (el) {
+          var text = (el.textContent || '').trim();
+          if (text === 'Deploy API' || text === 'Generate SDK') el.style.display = 'none';
+        });
+        document.querySelectorAll('.generate-sdk-button').forEach(function (el) {
+          el.style.display = 'none';
+        });
+      }
+      hideCtas();
+      new MutationObserver(hideCtas).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+  </script>
+  <script>
+    /* 角色自适应（v11.0）：<ALUMNI 隐藏试调入口（纯 UX，服务端 RBAC 为最终约束） */
+    (function () {
+      var MAIN = location.host.replace(/^docs\./, '');
+      var PROTO = location.protocol;
+      function hideTryButtons() {
+        // Scalar 的试调入口随版本变化，多选择器兜底 + 持续观察新节点
+        var selectors = [
+          '[data-testid="test-request-button"]',
+          '.api-client-btn-test',
+          '.api-client-button',
+          'button[class*="test"]',
+        ];
+        document.querySelectorAll(selectors.join(',')).forEach(function (el) {
+          el.style.display = 'none';
+        });
+      }
+      var observer = null;
+      function gate() {
+        hideTryButtons();
+        if (!observer) {
+          observer = new MutationObserver(hideTryButtons);
+          observer.observe(document.documentElement, { childList: true, subtree: true });
+        }
+      }
+      fetch(PROTO + '//' + MAIN + '/api/v1/auth/me', { credentials: 'include' })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (me) {
+          var role = me && me.role;
+          var canTry = role === 'ALUMNI' || role === 'WHEEL' || role === 'ADMIN';
+          if (!canTry) gate();
+        })
+        .catch(function () {
+          // 取不到身份（网络/未登录）：保守隐藏试调
+          gate();
+        });
+    })();
+  </script>
+</body>
+</html>

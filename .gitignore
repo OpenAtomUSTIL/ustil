@@ -167,3 +167,6 @@ $RECYCLE.BIN/
 
 # ===== Compose 可视化伴侣产物 =====
 .compose/
+
+# 本地调试工具（不上传：文档站预览/真库冒烟脚本等，见 deploy/local/）
+deploy/local/

@@ -13,6 +13,7 @@ fi
 
 openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
   -keyout privkey.pem -out fullchain.pem \
-  -subj "/CN=localhost"
+  -subj "/CN=localhost" \
+  -addext "subjectAltName=DNS:localhost,DNS:openatomustil.cn,DNS:docs.openatomustil.cn,IP:127.0.0.1"
 
 echo "自签证书已生成：nginx/certs/{fullchain.pem,privkey.pem}"
