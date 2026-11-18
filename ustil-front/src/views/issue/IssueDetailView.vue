@@ -244,4 +244,25 @@ onMounted(load)
 .login-link {
   color: var(--clay-dark);
 }
+
+@media (max-width: 480px) {
+  /* 回复头部 meta 行：长昵称换行，不挤掉楼层号 */
+  .r-head {
+    flex-wrap: wrap;
+    row-gap: 0.15rem;
+  }
+  .r-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  /* 状态工具条与重试小控件触控高度 ≥40px */
+  .select-sm,
+  .btn-sm {
+    min-height: 40px;
+  }
+  /* 面包屑小链接加高触控区 */
+  .crumbs a {
+    padding: 0.65rem 0.35rem;
+  }
+}
 </style>

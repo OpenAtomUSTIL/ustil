@@ -169,4 +169,12 @@ function onClick(event: MouseEvent): void {
   border: var(--bw-sm) solid var(--border-strong);
   border-radius: var(--br-pill);
 }
+
+@media (max-width: 820px) {
+  /* 复制按钮点按高度 ≥40px（宽度仍小于 data-lang 标签的 4.25rem 避让位） */
+  .md-body :deep(.md-copy) {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.75rem;
+  }
+}
 </style>

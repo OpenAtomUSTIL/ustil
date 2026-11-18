@@ -27,3 +27,12 @@ function go(page: number): void {
     <button v-if="pageCount > 1" type="button" class="chip" :disabled="page >= pageCount" @click="go(page + 1)">下一页</button>
   </nav>
 </template>
+
+<style scoped>
+@media (max-width: 820px) {
+  /* 翻页按钮点按高度 ≥40px；.pagination 自带 flex-wrap，行内放不下会自动换行 */
+  .pagination .chip {
+    min-height: 2.5rem;
+  }
+}
+</style>

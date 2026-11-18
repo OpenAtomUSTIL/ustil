@@ -208,6 +208,22 @@ onMounted(load)
   border: var(--bw-sm) solid var(--border-strong);
   border-radius: var(--br-6);
   font-size: 0.85rem;
+  /* 弹性宽度：容器不足 220px 时不溢出（配合 480px 档整行占满） */
   width: 220px;
+  max-width: 100%;
+}
+
+@media (max-width: 820px) {
+  /* 字号锁定 16px：小于 16px 时 iOS 聚焦会自动放大页面 */
+  .reject-input {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 窄屏拒绝原因输入整行占满，按钮换行另起 */
+  .reject-input {
+    width: 100%;
+  }
 }
 </style>

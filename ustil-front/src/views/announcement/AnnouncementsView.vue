@@ -145,3 +145,12 @@ onMounted(load)
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 窄屏触控目标：小按钮点按高度 ≥40px */
+@media (max-width: 820px) {
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+}
+</style>

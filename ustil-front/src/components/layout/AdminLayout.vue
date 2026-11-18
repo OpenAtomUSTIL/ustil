@@ -205,5 +205,32 @@
     flex-basis: 100%;
     margin-top: 0.35rem;
   }
+
+  /* 顶排模式下「返回站点」触控高度补到 ≥40px */
+  .admin-back {
+    padding-block: 0.65rem;
+  }
+
+  /* 后台操作控件触控目标 ≥40px：统一覆盖各视图表格 .ops 内
+     .btn-sm 按钮与角色下拉（.btn-sm 基础高约 30px、下拉约 28px） */
+  .admin-main :deep(.btn-sm) {
+    padding-block: 0.75rem;
+  }
+
+  .admin-main :deep(.role-select),
+  .admin-main :deep(.select-sm) {
+    min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 区块内边距适度收窄，把宽度留给内容 */
+  .admin-shell {
+    padding-block: 1.5rem 2.5rem;
+  }
+
+  .admin-grid {
+    gap: var(--gap-sm);
+  }
 }
 </style>

@@ -233,4 +233,11 @@ onMounted(load)
 .sub {
   color: var(--ink-faint);
 }
+
+@media (max-width: 480px) {
+  /* 窄屏卡片内边距收窄（对齐全站 480px 档卡片口径） */
+  .inline-form {
+    padding: 1.05rem 1.1rem;
+  }
+}
 </style>

@@ -165,4 +165,20 @@ onMounted(load)
 .st-hint {
   font-size: 0.85rem;
 }
+
+@media (max-width: 480px) {
+  /* 状态横幅：长驳回原因可换行，不挤爆卡片 */
+  .status-banner {
+    flex-wrap: wrap;
+    row-gap: 0.35rem;
+  }
+  .st-hint {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  /* 面包屑小链接加高触控区 */
+  .crumbs a {
+    padding: 0.65rem 0.35rem;
+  }
+}
 </style>

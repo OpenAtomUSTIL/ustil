@@ -139,6 +139,25 @@ async function logout(): Promise<void> {
               </RouterLink>
             </div>
           </div>
+          <!-- 窄屏抽屉内的账号区（桌面由 nav-actions 承担，见 app.css 820px 档） -->
+          <div class="nav-account">
+            <template v-if="auth.isLoggedIn">
+              <RouterLink class="nav-link" :to="{ name: 'user-profile', params: { id: auth.user?.username } }">
+                个人中心
+              </RouterLink>
+              <RouterLink class="nav-link" :to="{ name: 'notifications' }">
+                通知<em v-if="notifications.unreadCount > 0" class="acc-count">{{ unreadLabel }}</em>
+              </RouterLink>
+              <RouterLink v-if="auth.canAccessAdmin" class="nav-link" :to="{ name: 'admin-dashboard' }">
+                管理后台
+              </RouterLink>
+              <button class="nav-link" type="button" @click="logout">退出登录</button>
+            </template>
+            <template v-else>
+              <RouterLink class="nav-link" :to="{ name: 'login' }">登录</RouterLink>
+              <RouterLink class="nav-link" :to="{ name: 'register' }">注册</RouterLink>
+            </template>
+          </div>
           <div class="nav-footer">
             <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">辽ICP备2026004720号</a>
           </div>
@@ -255,9 +274,46 @@ async function logout(): Promise<void> {
   color: var(--clay-soft);
 }
 
+/* 窄屏抽屉账号区：桌面隐藏，由 nav-actions 承担入口 */
+.nav-account {
+  display: none;
+}
+
+.nav-account .nav-link {
+  width: 100%;
+  justify-content: space-between;
+  text-align: left;
+  padding: 0.75rem 0.85rem;
+}
+
+.acc-count {
+  font-style: normal;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--br-pill);
+  background: var(--clay);
+  color: var(--gray-000);
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 820px) {
   .nav-footer {
     display: block;
+  }
+
+  .nav-account {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-top: 0.55rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--border);
   }
 }
 </style>

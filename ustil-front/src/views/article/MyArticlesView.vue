@@ -145,3 +145,12 @@ onMounted(load)
     />
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 480px) {
+  /* 查看/编辑/删除小按钮触控高度 ≥40px */
+  .btn-sm {
+    min-height: 40px;
+  }
+}
+</style>

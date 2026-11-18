@@ -311,15 +311,31 @@ onBeforeUnmount(() => {
   color: var(--ink-muted);
 }
 
-/* 附件行下载链接（我的提交 / 学生提交共用） */
+/* 附件行下载链接（我的提交 / 学生提交共用）；长文件名可断行，窄屏不溢出 */
 .file-link {
   color: var(--clay-dark);
   text-decoration: underline;
   text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+/* 提交条目头部：长昵称可断行、放不下换行，楼层号保持右对齐 */
+.reply .r-head {
+  flex-wrap: wrap;
+}
+.reply .r-name {
+  overflow-wrap: anywhere;
 }
 
 /* 详情加载块相对容器顶部的留白 */
 .state-gap {
   margin-top: 3rem;
+}
+
+/* 窄屏触控目标：小按钮点按高度 ≥40px */
+@media (max-width: 820px) {
+  .btn-sm {
+    min-height: 2.5rem;
+  }
 }
 </style>

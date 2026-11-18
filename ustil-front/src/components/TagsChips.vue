@@ -39,6 +39,9 @@ function go(tag: string): void {
 }
 
 .tags-chip {
+  /* 浮到 topic-card 拉伸标题链接（::after 覆盖整卡）之上，chip 才能点到自己的跳转 */
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   padding: 0.16rem 0.62rem;
@@ -55,5 +58,18 @@ function go(tag: string): void {
   border-color: var(--mineral);
   color: var(--mineral);
   background: var(--tint-mineral-bg);
+}
+
+@media (max-width: 820px) {
+  /* 点按目标 ≥40px：chip 加 padding，再用 ::after 外扩热区（不越出 0.4rem 的间隙） */
+  .tags-chip {
+    padding: 0.4rem 0.75rem;
+  }
+
+  .tags-chip::after {
+    content: '';
+    position: absolute;
+    inset: -0.4rem;
+  }
 }
 </style>

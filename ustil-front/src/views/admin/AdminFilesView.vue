@@ -303,4 +303,11 @@ onMounted(load)
   text-align: center;
   color: var(--ink-faint);
 }
+
+@media (max-width: 820px) {
+  /* 预览弹层经 ModalOverlay 传送到 body，布局层的触控目标规则够不到，此处本地补高 */
+  .preview-head .btn-sm {
+    padding-block: 0.75rem;
+  }
+}
 </style>

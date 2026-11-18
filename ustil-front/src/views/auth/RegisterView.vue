@@ -128,3 +128,12 @@ async function submit(): Promise<void> {
     </form>
   </div>
 </template>
+
+<style scoped>
+/* 窄屏卡片内边距收窄，把宽度留给表单 */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 1.45rem 1.35rem 1.35rem;
+  }
+}
+</style>

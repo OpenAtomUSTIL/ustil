@@ -22,3 +22,19 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown))
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+@media (max-width: 820px) {
+  /* 内容高于视口时改为可滚动：align-items 归位 + 卡片 auto 外边距居中，
+     避免 flex 居中在溢出时把弹层顶部裁掉、无法滚到 */
+  .modal-overlay {
+    overflow-y: auto;
+    align-items: flex-start;
+  }
+
+  .modal-card {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+}
+</style>

@@ -64,3 +64,17 @@ function openProfile(): void {
     </div>
   </footer>
 </template>
+
+<style scoped>
+@media (max-width: 820px) {
+  /* 页脚链接点按高度 ≥40px（footer-grid 列折叠已在 app.css 处理） */
+  .footer-col a,
+  .footer-col button {
+    padding: 0.65rem 0;
+  }
+
+  .footer-bottom .links a {
+    padding: 0.55rem 0;
+  }
+}
+</style>

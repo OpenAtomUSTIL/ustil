@@ -88,4 +88,20 @@ const emit = defineEmits<{ close: [] }>()
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+@media (max-width: 480px) {
+  /* label/value 描述栅格折叠为单列：标签在上、值在下，把宽度让给长值 */
+  .log-detail {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .log-detail dt {
+    margin-top: 0.55rem;
+  }
+
+  .log-detail dt:first-of-type {
+    margin-top: 0;
+  }
+}
 </style>

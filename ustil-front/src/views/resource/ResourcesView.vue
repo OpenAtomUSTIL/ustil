@@ -290,4 +290,16 @@ onMounted(load)
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* 窄屏触控目标：筛选 chip / 清除标签 × / 小按钮点按高度 ≥40px */
+@media (max-width: 820px) {
+  .chip,
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+  .tag-clear {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
 </style>

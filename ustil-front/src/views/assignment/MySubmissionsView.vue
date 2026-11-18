@@ -111,11 +111,22 @@ onMounted(load)
 </template>
 
 <style scoped>
+/* 附件行：长文件名可断行、放不下时下载按钮换行，不撑破窄屏 */
 .file-line {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-size: var(--fs-small);
   color: var(--ink-muted);
+}
+
+/* 窄屏触控目标：小按钮点按高度 ≥40px */
+@media (max-width: 820px) {
+  .btn-sm {
+    min-height: 2.5rem;
+  }
 }
 </style>

@@ -97,6 +97,7 @@ function remove(tag: string): void {
 }
 
 .ti-remove {
+  position: relative;
   width: 1.15rem;
   height: 1.15rem;
   display: inline-flex;
@@ -136,6 +137,7 @@ function remove(tag: string): void {
 
 .ti-foot {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.85rem;
   font-size: var(--fs-small);
 }
@@ -146,5 +148,23 @@ function remove(tag: string): void {
 
 .ti-foot .err {
   color: var(--error);
+}
+
+@media (max-width: 820px) {
+  /* chip 与 × 一起放大，× 再外扩热区：整体点按高度 ≈40px，不越出 0.45rem 的 chip 间隙 */
+  .ti-chip {
+    padding: 0.45rem 0.62rem 0.45rem 0.85rem;
+  }
+
+  .ti-remove {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .ti-remove::after {
+    content: '';
+    position: absolute;
+    inset: -0.45rem -0.35rem;
+  }
 }
 </style>

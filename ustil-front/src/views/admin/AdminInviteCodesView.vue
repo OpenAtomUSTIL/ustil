@@ -411,6 +411,7 @@ onMounted(load)
 
 .gen-result-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -480,5 +481,13 @@ onMounted(load)
 .usage-col .progress {
   width: 7.5rem;
   margin-top: 0.45rem;
+}
+
+@media (max-width: 820px) {
+  /* 字号锁定 16px：本页 .gen-form input 的 scoped 字号（--fs-meta）覆盖了
+     全局 .field input 的 16px 规则，小于 16px 时 iOS 聚焦会自动放大页面 */
+  .gen-form input {
+    font-size: 16px;
+  }
 }
 </style>

@@ -442,5 +442,27 @@ onBeforeUnmount(() => {
     border-right: none;
     border-bottom: var(--bw-hair) solid var(--gray-150);
   }
+
+  /* 工具栏换行铺开（按钮组不拆散），避免窄屏横向滚动藏起按钮；
+     保留 overflow-x: auto 兜底超窄视口（320px）下单组过宽的情况 */
+  .md-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .md-modes {
+    margin-left: 0;
+  }
+
+  /* 触控目标 ≥40px */
+  .md-tool,
+  .md-mode {
+    min-height: 2.5rem;
+    padding: 0.25rem 0.7rem;
+  }
+
+  .md-sync {
+    min-height: 2.5rem;
+  }
 }
 </style>

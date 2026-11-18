@@ -212,4 +212,23 @@ onMounted(async () => {
   font-size: var(--fs-small);
   color: var(--ink-faint);
 }
+
+@media (max-width: 480px) {
+  /* 公告行：长作者名不再挤压标题，空间不足时 meta 换到下一行 */
+  .announce-row {
+    flex-wrap: wrap;
+  }
+  .an-title {
+    flex: 1 1 60%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .an-meta {
+    margin-left: 0;
+  }
+  /* 「更多 / 查看全部」文字链接加高触控区 */
+  .feed-head a {
+    padding: 0.65rem 0.35rem;
+  }
+}
 </style>

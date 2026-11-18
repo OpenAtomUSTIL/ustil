@@ -133,4 +133,15 @@ function submit(): void {
   height: 1rem;
   accent-color: var(--clay);
 }
+
+@media (max-width: 820px) {
+  /* 复选行点按高度 ≥40px，行间距由 padding 承担 */
+  .checks {
+    gap: 0;
+  }
+
+  .check {
+    padding: 0.65rem 0;
+  }
+}
 </style>

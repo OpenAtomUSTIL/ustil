@@ -140,4 +140,16 @@ img.ac-img {
   border-color: var(--clay);
   box-shadow: 0 0 0 3px var(--ring-focus);
 }
+
+@media (max-width: 820px) {
+  /* 「换一张」点按高度 ≥40px，与验证码图（2.6rem）等高 */
+  .ac-refresh {
+    min-height: 2.5rem;
+    padding: 0 0.85rem;
+  }
+  /* scoped font: inherit 特异性压过全局 .field input 16px 锁定，此处补回防 iOS 聚焦缩放 */
+  .auth-captcha input {
+    font-size: 16px;
+  }
+}
 </style>

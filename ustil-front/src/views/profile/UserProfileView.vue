@@ -1241,6 +1241,7 @@ watch(pinType, () => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 .follow-names small {
   color: var(--ink-faint);
@@ -1534,6 +1535,7 @@ watch(pinType, () => {
   font-size: var(--fs-meta);
   color: var(--ink);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 .pinned-title:hover {
   text-decoration: underline;
@@ -1604,6 +1606,7 @@ watch(pinType, () => {
   font-size: var(--fs-meta);
   color: var(--ink);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 .tab-item-title:hover {
   text-decoration: underline;
@@ -1623,5 +1626,65 @@ watch(pinType, () => {
   margin-top: 0.25rem;
   font-size: var(--fs-small);
   color: var(--ink-faint);
+}
+
+/* 窄屏：触控目标 ≥40px；置顶管理下拉保持 16px 字号防 iOS 聚焦缩放 */
+@media (max-width: 820px) {
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+  .btn-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .tab-btn {
+    min-height: 2.5rem;
+  }
+  .stat-item {
+    padding: 0.6rem 0;
+  }
+  .follow-stat {
+    padding: 0.55rem 0;
+  }
+  .pin-add select {
+    font-size: 16px;
+  }
+}
+
+/* 窄屏：卡片内边距收窄；粉丝卡与置顶管理行改竖排，不再挤压标题 */
+@media (max-width: 480px) {
+  .profile-card {
+    padding: 1.1rem;
+  }
+  .edit-panel {
+    padding: 1.15rem;
+  }
+  .follow-card {
+    flex-wrap: wrap;
+  }
+  .follow-bio {
+    flex: 1 1 100%;
+    order: 3;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .pin-row {
+    flex-wrap: wrap;
+  }
+  .pin-title {
+    flex: 1 1 100%;
+    order: 3;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .pin-actions {
+    margin-left: auto;
+  }
+  .pin-add select {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
 }
 </style>

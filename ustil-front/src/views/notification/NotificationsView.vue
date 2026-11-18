@@ -222,6 +222,7 @@ onMounted(load)
   gap: 0.55rem;
   font-weight: var(--fw-semibold);
   font-size: var(--fs-meta);
+  overflow-wrap: anywhere;
 }
 
 .unread-dot {
@@ -240,5 +241,20 @@ onMounted(load)
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 窄屏触控目标：筛选 chip / 小按钮点按高度 ≥40px */
+@media (max-width: 820px) {
+  .chip,
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+}
+
+/* 窄屏卡片内边距收窄（与全局 .topic-card 口径一致） */
+@media (max-width: 480px) {
+  .notice-card {
+    padding: 1.05rem 1.1rem;
+  }
 }
 </style>

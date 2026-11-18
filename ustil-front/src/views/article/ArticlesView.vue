@@ -149,4 +149,20 @@ onMounted(load)
 
 <style scoped>
 .article-index { max-width: var(--w-list-narrow); margin-inline: auto; }
+
+@media (max-width: 480px) {
+  /* 清除标签 ×：扩大触控热区，不改视觉尺寸 */
+  .tag-clear {
+    position: relative;
+  }
+  .tag-clear::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+  }
+  /* 重试等小按钮触控高度 ≥40px */
+  .btn-sm {
+    min-height: 40px;
+  }
+}
 </style>
