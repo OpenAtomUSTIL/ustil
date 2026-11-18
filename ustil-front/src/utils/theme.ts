@@ -32,8 +32,21 @@ export const resolvedTheme = computed<ResolvedTheme>(() => {
   return themeMode.value
 })
 
-function apply(): void {
-  document.documentElement.dataset.theme = resolvedTheme.value
+const ANIM_MS = 280
+
+let animTimer: ReturnType<typeof setTimeout> | null = null
+
+function apply(animate = false): void {
+  const root = document.documentElement
+  if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    root.classList.add('theme-anim')
+    if (animTimer !== null) clearTimeout(animTimer)
+    animTimer = setTimeout(() => {
+      root.classList.remove('theme-anim')
+      animTimer = null
+    }, ANIM_MS)
+  }
+  root.dataset.theme = resolvedTheme.value
 }
 
 function persist(mode: ThemeMode): void {
@@ -48,20 +61,20 @@ export function initTheme(): void {
   apply()
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
     systemDark.value = event.matches
-    if (themeMode.value === 'system') apply()
+    if (themeMode.value === 'system') apply(true)
   })
   // 跨标签页同步：他标签页改主题后本页即时跟随
   window.addEventListener('storage', (event) => {
     if (event.key !== STORAGE_KEY) return
     themeMode.value = readStored() ?? 'system'
-    apply()
+    apply(true)
   })
 }
 
 export function setTheme(mode: ThemeMode): void {
   themeMode.value = mode
   persist(mode)
-  apply()
+  apply(true)
 }
 
 /** 三态循环：浅色 → 深色 → 跟随系统 */

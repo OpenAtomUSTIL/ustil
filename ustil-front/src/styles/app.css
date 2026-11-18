@@ -28,6 +28,13 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 ::selection { background: var(--selection-bg); color: var(--selection-ink); }
 
+/* ============ 主题切换过渡（html.theme-anim 仅切换后 280ms 内挂载） ============ */
+.theme-anim, .theme-anim *, .theme-anim *::before, .theme-anim *::after {
+  transition: background-color var(--t-med) var(--ease), color var(--t-med) var(--ease),
+    border-color var(--t-med) var(--ease), fill var(--t-med) var(--ease),
+    stroke var(--t-med) var(--ease), box-shadow var(--t-med) var(--ease) !important;
+}
+
 .skip-link {
   position: absolute; left: 1rem; top: -3.5rem; z-index: 100;
   padding: 0.6rem 1rem; background: var(--ink); color: var(--ink-inverse);
@@ -690,6 +697,11 @@ code.hljs { color: var(--ink); }
 .hljs-number, .hljs-literal { color: var(--plum); }
 .hljs-title, .hljs-function { color: var(--sky); }
 .hljs-type, .hljs-class { color: color-mix(in srgb, var(--heather) 55%, var(--ink)); }
+
+/* 深色专属微调：正文压亮度防刺眼，注释稍暗退后（color-mix 保 ≥4.5:1） */
+[data-theme='dark'] code.hljs { color: var(--gray-800); }
+[data-theme='dark'] .hljs-comment, [data-theme='dark'] .hljs-quote { color: color-mix(in srgb, var(--gray-500) 88%, var(--gray-100)); }
+[data-theme='dark'] .hljs-type, [data-theme='dark'] .hljs-class { color: color-mix(in srgb, var(--heather) 75%, var(--gray-800)); }
 
 /* ============ 搜索框 ============ */
 .search-box { display: flex; flex-wrap: wrap; gap: 0.55rem; max-width: 26rem; }
