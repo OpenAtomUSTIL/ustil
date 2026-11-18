@@ -68,6 +68,21 @@ services:
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
       # cookie 域（v11.0，可选）：如 .openatomustil.cn——主站会话对 docs 子域可见（文档站试调）
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      # 事务邮件（v12.0，腾讯云邮件推送 SES）：MAIL_DRIVER=api|smtp|none（生产用 api，密钥只放 .env）
+      MAIL_DRIVER: ${MAIL_DRIVER:-none}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_LINK_BASE: ${MAIL_LINK_BASE:-https://forum.openatomustil.cn}
+      MAIL_TPL_VERIFY_ID: ${MAIL_TPL_VERIFY_ID:-}
+      MAIL_TPL_RESET_ID: ${MAIL_TPL_RESET_ID:-}
+      MAIL_TPL_NOTICE_REPLY_ID: ${MAIL_TPL_NOTICE_REPLY_ID:-}
+      MAIL_TPL_NOTICE_ID: ${MAIL_TPL_NOTICE_ID:-}
+      MAIL_API_SECRET_ID: ${MAIL_API_SECRET_ID:-}
+      MAIL_API_SECRET_KEY: ${MAIL_API_SECRET_KEY:-}
+      MAIL_API_REGION: ${MAIL_API_REGION:-ap-guangzhou}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
     volumes:
       # 本地存储上传（STORAGE_DRIVER=local）
       - uploads-data:/app/storage
