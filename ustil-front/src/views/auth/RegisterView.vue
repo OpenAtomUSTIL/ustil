@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError } from '@/api/error'
+import { authApi } from '@/api/request'
 import { resolveAuthRedirect } from '@/utils/auth-redirect'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -10,7 +11,7 @@ import {
   NICKNAME_MAX,
   PASSWORD_MAX,
   PASSWORD_MIN,
-  checkIdentifier,
+  checkEmail,
   checkNickname,
   checkPassword,
 } from '@/utils/limits'
@@ -22,6 +23,7 @@ const auth = useAuthStore()
 const toast = useToastStore()
 
 const identifier = ref('')
+const emailCode = ref('')
 const nickname = ref('')
 const password = ref('')
 const passwordConfirm = ref('')
@@ -31,13 +33,70 @@ const captchaCode = ref('')
 const captchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
 const error = ref('')
 const submitting = ref(false)
+const sendingEmailCode = ref(false)
+const emailCodeCountdown = ref(0)
+let emailCodeTimer: number | null = null
+
+function startEmailCodeCountdown(): void {
+  emailCodeCountdown.value = 60
+  emailCodeTimer = window.setInterval(() => {
+    emailCodeCountdown.value -= 1
+    if (emailCodeCountdown.value <= 0 && emailCodeTimer !== null) {
+      window.clearInterval(emailCodeTimer)
+      emailCodeTimer = null
+    }
+  }, 1000)
+}
+
+onBeforeUnmount(() => {
+  if (emailCodeTimer !== null) window.clearInterval(emailCodeTimer)
+})
+
+/** 获取邮箱验证码：消费当前图形验证码，成功后刷新图形码供注册提交用 */
+async function sendEmailCode(): Promise<void> {
+  if (sendingEmailCode.value || emailCodeCountdown.value > 0) return
+  error.value = ''
+  const emailProblem = checkEmail(identifier.value)
+  if (emailProblem) {
+    error.value = emailProblem
+    return
+  }
+  if (!captchaCode.value.trim()) {
+    error.value = '请先完成图形验证码'
+    return
+  }
+  sendingEmailCode.value = true
+  try {
+    await authApi.emailCode({
+      email: identifier.value.trim(),
+      purpose: 'register',
+      captchaId: captchaId.value,
+      captchaCode: captchaCode.value,
+    })
+    toast.show('验证码已发送，请查收邮件')
+    // 图形验证码一次性消费：刷新一张供注册提交用
+    void captchaRef.value?.refresh()
+    startEmailCodeCountdown()
+  } catch (err) {
+    error.value = describeError(err)
+    // 图形验证码一次性消费：提交失败后重新拉取
+    captchaCode.value = ''
+    void captchaRef.value?.refresh()
+  } finally {
+    sendingEmailCode.value = false
+  }
+}
 
 async function submit(): Promise<void> {
   if (submitting.value) return
   error.value = ''
-  const identifierProblem = checkIdentifier(identifier.value)
-  if (identifierProblem) {
-    error.value = identifierProblem
+  const emailProblem = checkEmail(identifier.value)
+  if (emailProblem) {
+    error.value = emailProblem
+    return
+  }
+  if (!emailCode.value.trim()) {
+    error.value = '请填写邮箱验证码'
     return
   }
   const nicknameProblem = checkNickname(nickname.value)
@@ -62,6 +121,7 @@ async function submit(): Promise<void> {
       password: password.value,
       passwordConfirm: passwordConfirm.value,
       inviteCode: inviteCode.value.trim() || undefined,
+      emailCode: emailCode.value.trim(),
       captchaId: captchaId.value,
       captchaCode: captchaCode.value,
     })
@@ -84,15 +144,30 @@ async function submit(): Promise<void> {
   <div class="auth-page">
     <form class="auth-card" @submit.prevent="submit">
       <h1>注册</h1>
-      <p class="lead">邮箱或手机号任绑其一即可注册。</p>
+      <p class="lead">使用邮箱注册 USTIL 开放论坛。</p>
 
       <div v-if="error" class="form-error">{{ error }}</div>
 
       <div class="form-grid">
         <div class="field">
-          <label for="reg-identifier">邮箱 / 手机号</label>
-          <input id="reg-identifier" v-model="identifier" type="text" autocomplete="username" required placeholder="you@example.com 或 手机号">
-          <span class="hint">邮箱或手机号任填其一</span>
+          <label for="reg-identifier">邮箱</label>
+          <input id="reg-identifier" v-model="identifier" type="text" autocomplete="email" required placeholder="you@example.com">
+          <span class="hint">用于接收注册验证码与邮件通知</span>
+        </div>
+        <div class="field">
+          <label for="reg-email-code">邮箱验证码</label>
+          <div class="email-code-row">
+            <input id="reg-email-code" v-model="emailCode" type="text" autocomplete="one-time-code" required placeholder="输入收到的验证码">
+            <button
+              class="btn btn-clay email-code-btn"
+              type="button"
+              :disabled="sendingEmailCode || emailCodeCountdown > 0"
+              @click="sendEmailCode"
+            >
+              {{ emailCodeCountdown > 0 ? `${emailCodeCountdown} 秒后重发` : (sendingEmailCode ? '发送中…' : '获取验证码') }}
+            </button>
+          </div>
+          <span class="hint">验证码发往填写的邮箱，10 分钟有效</span>
         </div>
         <div class="field">
           <label for="reg-nickname">昵称</label>
@@ -130,6 +205,22 @@ async function submit(): Promise<void> {
 </template>
 
 <style scoped>
+.email-code-row {
+  display: flex;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.email-code-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.email-code-btn {
+  flex: none;
+  white-space: nowrap;
+}
+
 /* 窄屏卡片内边距收窄，把宽度留给表单 */
 @media (max-width: 480px) {
   .auth-card {

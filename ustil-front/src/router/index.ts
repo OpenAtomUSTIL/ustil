@@ -15,6 +15,8 @@ import { useAuthStore } from '@/stores/auth'
 import home from './_authenticated.home'
 import login from './_guest.login'
 import register from './_guest.register'
+import forgotPassword from './_guest.forgot-password'
+import resetPassword from './_public.reset-password'
 import articles from './_authenticated.articles'
 import articleNew from './_authenticated.article-new'
 import articleEdit from './_authenticated.article-edit'
@@ -40,12 +42,15 @@ import profile from './_authenticated.profile'
 import userProfile from './_authenticated.user-profile'
 import admin from './_admin'
 import forbidden from './_public.forbidden'
+import unsubscribe from './_public.unsubscribe'
 import notFound from './_public.not-found'
 
 const routes: RouteRecordRaw[] = [
   home,
   login,
   register,
+  forgotPassword,
+  resetPassword,
   articles,
   articleNew,
   articleEdit,
@@ -71,6 +76,7 @@ const routes: RouteRecordRaw[] = [
   userProfile,
   admin,
   forbidden,
+  unsubscribe,
   notFound,
 ]
 

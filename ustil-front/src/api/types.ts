@@ -169,7 +169,21 @@ export interface CaptchaResponse {
   image: string
 }
 
+/** 邮件验证码用途：注册 / 换绑 */
+export type EmailCodePurpose = 'register' | 'rebind'
+
+/** 拉取邮件验证码（POST /auth/email-code） */
+export interface EmailCodeRequest {
+  /** 验证码发往的邮箱 */
+  email: string
+  purpose: EmailCodePurpose
+  /** 图形验证码（一次性消费，调用后需重新拉取） */
+  captchaId: string
+  captchaCode: string
+}
+
 export interface RegisterRequest {
+  /** 注册邮箱（仅邮箱，不再支持手机号注册） */
   identifier: string
   password: string
   /** 重复密码，与 password 不一致时后端 400「两次输入的密码不一致」 */
@@ -177,9 +191,31 @@ export interface RegisterRequest {
   nickname: string
   /** 可选邀请码：有效则注册为 MEMBER，无码注册为 VISITOR */
   inviteCode?: string
+  /** 发往该邮箱的注册验证码（10 分钟有效） */
+  emailCode: string
   /** 验证码（一次性消费，提交失败后需重新拉取） */
   captchaId: string
   captchaCode: string
+}
+
+/** 忘记密码（POST /auth/password/forgot）：无论账号是否存在均 204，防枚举，前端不得据此提示「账号不存在」 */
+export interface ForgotPasswordRequest {
+  identifier: string
+  /** 验证码（一次性消费，提交失败后需重新拉取） */
+  captchaId: string
+  captchaCode: string
+}
+
+/** 重置密码（POST /auth/password/reset，token 来自邮件链接），失败 400「链接无效或已过期」 */
+export interface ResetPasswordRequest {
+  token: string
+  newPassword: string
+  newPasswordConfirm: string
+}
+
+/** 退订（POST /auth/unsubscribe，token 来自邮件链接），失败 400「链接无效或已过期」 */
+export interface UnsubscribeRequest {
+  token: string
 }
 
 export interface LoginRequest {
@@ -210,6 +246,8 @@ export interface UpdateIdentifierRequest {
   /** 验证码（一次性消费，提交失败后需重新拉取） */
   captchaId: string
   captchaCode: string
+  /** 发往新邮箱的验证码（type='email' 时必填；type='phone' 时不要携带该字段） */
+  emailCode?: string
 }
 
 /** 邀请码转正请求体（POST /auth/invite-code） */
@@ -365,6 +403,11 @@ export type NotificationType =
   | 'ROLE'
   | 'SYSTEM'
   | 'FOLLOW'
+
+/** 通知偏好（GET/PUT /users/me/notification-prefs） */
+export interface NotificationPrefs {
+  emailNoticeEnabled: boolean
+}
 
 export interface NotificationItem {
   id: string

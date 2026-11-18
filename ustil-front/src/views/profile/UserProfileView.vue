@@ -113,6 +113,15 @@ const pwCaptchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
 const idCaptchaId = ref('')
 const idCaptchaCode = ref('')
 const idCaptchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
+const identifierEmailCode = ref('')
+const sendingIdEmailCode = ref(false)
+const idEmailCodeCountdown = ref(0)
+let idEmailCodeTimer: number | null = null
+const emailNoticeEnabled = ref(false)
+const prefsLoading = ref(false)
+const prefsSaving = ref(false)
+const prefsReady = ref(false)
+const prefsError = ref('')
 const redeemCaptchaId = ref('')
 const redeemCaptchaCode = ref('')
 const redeemCaptchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
@@ -158,7 +167,10 @@ let profileRequest = 0
 let activityRequest = 0
 let tabRequest = 0
 let pinRequest = 0
-onBeforeUnmount(() => { profileRequest++; activityRequest++; tabRequest++; pinRequest++ })
+onBeforeUnmount(() => {
+  profileRequest++; activityRequest++; tabRequest++; pinRequest++
+  if (idEmailCodeTimer !== null) window.clearInterval(idEmailCodeTimer)
+})
 const tabError = ref('')
 
 async function load(): Promise<void> {
@@ -372,12 +384,14 @@ function openSettings(): void {
   identifierError.value = ''
   idCaptchaId.value = ''
   idCaptchaCode.value = ''
+  identifierEmailCode.value = ''
   inviteCode.value = ''
   redeemError.value = ''
   redeemCaptchaId.value = ''
   redeemCaptchaCode.value = ''
   editUsername.value = profile.value?.username ?? ''
   usernameError.value = ''
+  void loadNotificationPrefs()
 }
 
 // 从发布权限提示进入时直接展开本人转正表单，并把焦点移到邀请码输入。
@@ -557,6 +571,48 @@ async function changePassword(): Promise<void> {
   }
 }
 
+/** 获取换绑邮箱验证码（purpose='rebind'，发往新邮箱）：消费当前图形验证码，成功后刷新图形码供提交用 */
+async function sendIdentifierEmailCode(): Promise<void> {
+  if (sendingIdEmailCode.value || idEmailCodeCountdown.value > 0) return
+  identifierError.value = ''
+  const emailProblem = checkEmail(identifierValue.value)
+  if (emailProblem) {
+    identifierError.value = emailProblem
+    return
+  }
+  if (!idCaptchaCode.value.trim()) {
+    identifierError.value = '请先完成图形验证码'
+    return
+  }
+  sendingIdEmailCode.value = true
+  try {
+    await authApi.emailCode({
+      email: identifierValue.value.trim(),
+      purpose: 'rebind',
+      captchaId: idCaptchaId.value,
+      captchaCode: idCaptchaCode.value,
+    })
+    toast.show('验证码已发送，请查收邮件')
+    // 图形验证码一次性消费：刷新一张供提交用
+    void idCaptchaRef.value?.refresh()
+    idEmailCodeCountdown.value = 60
+    idEmailCodeTimer = window.setInterval(() => {
+      idEmailCodeCountdown.value -= 1
+      if (idEmailCodeCountdown.value <= 0 && idEmailCodeTimer !== null) {
+        window.clearInterval(idEmailCodeTimer)
+        idEmailCodeTimer = null
+      }
+    }, 1000)
+  } catch (err) {
+    identifierError.value = describeError(err)
+    // 图形验证码一次性消费：提交失败后重新拉取
+    idCaptchaCode.value = ''
+    void idCaptchaRef.value?.refresh()
+  } finally {
+    sendingIdEmailCode.value = false
+  }
+}
+
 async function bindIdentifier(): Promise<void> {
   if (savingIdentifier.value) return
   identifierError.value = ''
@@ -567,6 +623,10 @@ async function bindIdentifier(): Promise<void> {
     identifierError.value = valueProblem
     return
   }
+  if (identifierType.value === 'email' && !identifierEmailCode.value.trim()) {
+    identifierError.value = '请填写邮箱验证码'
+    return
+  }
   savingIdentifier.value = true
   try {
     const updated = await usersApi.updateIdentifier({
@@ -575,10 +635,13 @@ async function bindIdentifier(): Promise<void> {
       password: identifierPassword.value,
       captchaId: idCaptchaId.value,
       captchaCode: idCaptchaCode.value,
+      // type='phone' 时不要携带 emailCode 字段
+      emailCode: identifierType.value === 'email' ? identifierEmailCode.value.trim() : undefined,
     })
     auth.setUser(updated)
     identifierValue.value = ''
     identifierPassword.value = ''
+    identifierEmailCode.value = ''
     toast.show('绑定成功')
     // 验证码一次性消费：表单仍可继续使用，换一张
     void idCaptchaRef.value?.refresh()
@@ -590,6 +653,44 @@ async function bindIdentifier(): Promise<void> {
   } finally {
     savingIdentifier.value = false
   }
+}
+
+async function loadNotificationPrefs(): Promise<void> {
+  prefsLoading.value = true
+  prefsReady.value = false
+  prefsError.value = ''
+  try {
+    const prefs = await usersApi.getNotificationPrefs()
+    emailNoticeEnabled.value = prefs.emailNoticeEnabled
+    prefsReady.value = true
+  } catch (err) {
+    prefsError.value = describeError(err)
+  } finally {
+    prefsLoading.value = false
+  }
+}
+
+async function saveNotificationPrefs(): Promise<void> {
+  if (!prefsReady.value || prefsSaving.value) return
+  const next = emailNoticeEnabled.value
+  prefsSaving.value = true
+  prefsError.value = ''
+  try {
+    const prefs = await usersApi.updateNotificationPrefs({ emailNoticeEnabled: next })
+    emailNoticeEnabled.value = prefs.emailNoticeEnabled
+    toast.show(prefs.emailNoticeEnabled ? '已开启邮件提醒' : '已关闭邮件提醒')
+  } catch (err) {
+    // 保存失败：回滚开关并提示
+    emailNoticeEnabled.value = !next
+    prefsError.value = describeError(err)
+  } finally {
+    prefsSaving.value = false
+  }
+}
+
+function onEmailNoticeChange(event: Event): void {
+  emailNoticeEnabled.value = (event.target as HTMLInputElement).checked
+  void saveNotificationPrefs()
 }
 
 async function redeem(): Promise<void> {
@@ -970,6 +1071,21 @@ watch(pinType, () => {
                 <label for="id-value">{{ identifierType === 'email' ? '邮箱地址' : '手机号' }}</label>
                 <input id="id-value" v-model="identifierValue" type="text" required>
               </div>
+              <div v-if="identifierType === 'email'" class="field">
+                <label for="id-email-code">邮箱验证码</label>
+                <div class="email-code-row">
+                  <input id="id-email-code" v-model="identifierEmailCode" type="text" autocomplete="one-time-code" required placeholder="输入收到的验证码">
+                  <button
+                    class="btn btn-clay email-code-btn"
+                    type="button"
+                    :disabled="sendingIdEmailCode || idEmailCodeCountdown > 0"
+                    @click="sendIdentifierEmailCode"
+                  >
+                    {{ idEmailCodeCountdown > 0 ? `${idEmailCodeCountdown} 秒后重发` : (sendingIdEmailCode ? '发送中…' : '获取验证码') }}
+                  </button>
+                </div>
+                <span class="hint">验证码发往新邮箱，10 分钟有效</span>
+              </div>
               <div class="field">
                 <label for="id-password">当前密码（验证身份）</label>
                 <input id="id-password" v-model="identifierPassword" type="password" autocomplete="current-password" required>
@@ -982,6 +1098,22 @@ watch(pinType, () => {
                 {{ savingIdentifier ? '提交中…' : '确认绑定' }}
               </button>
             </form>
+          </section>
+
+          <section class="settings-section">
+            <h4>邮件提醒</h4>
+            <div v-if="prefsError" class="form-error">{{ prefsError }}</div>
+            <label class="prefs-toggle">
+              <input
+                type="checkbox"
+                :checked="emailNoticeEnabled"
+                :disabled="prefsLoading || prefsSaving || !prefsReady"
+                @change="onEmailNoticeChange"
+              >
+              <span class="prefs-toggle-track" aria-hidden="true" />
+              <span class="prefs-toggle-text">邮件提醒</span>
+            </label>
+            <p class="hint">{{ prefsLoading ? '加载中…' : '关闭后将不再向邮箱发送通知邮件。' }}</p>
           </section>
 
           <section v-if="auth.user?.role === 'VISITOR'" class="settings-section">
@@ -1436,6 +1568,71 @@ watch(pinType, () => {
 }
 .settings-section .form-grid {
   gap: 1.05rem;
+}
+.email-code-row {
+  display: flex;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+.email-code-row input {
+  flex: 1;
+  min-width: 0;
+}
+.email-code-btn {
+  flex: none;
+}
+/* 邮件提醒开关（原生 checkbox 藏于样式轨道之后，语义仍在 input 上） */
+.prefs-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+.prefs-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.prefs-toggle-track {
+  position: relative;
+  flex: none;
+  width: 2.75rem;
+  height: 1.55rem;
+  border-radius: var(--br-12);
+  border: var(--bw-sm) solid var(--border-strong);
+  background: var(--bg-sunken);
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.prefs-toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: var(--gray-000);
+  transition: transform var(--t-fast) var(--ease);
+}
+.prefs-toggle input:checked + .prefs-toggle-track {
+  background: var(--clay);
+  border-color: var(--clay);
+}
+.prefs-toggle input:checked + .prefs-toggle-track::after {
+  transform: translateX(1.2rem);
+}
+.prefs-toggle input:focus-visible + .prefs-toggle-track {
+  box-shadow: 0 0 0 3px var(--ring-focus);
+}
+.prefs-toggle input:disabled + .prefs-toggle-track {
+  opacity: 0.55;
+}
+.prefs-toggle-text {
+  font-size: var(--fs-meta);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-muted);
 }
 .edit-form {
   display: flex;

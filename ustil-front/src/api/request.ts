@@ -28,9 +28,11 @@ import type {
   CommentItem,
   CreateIssueRequest,
   CreateReplyRequest,
+  EmailCodeRequest,
   FileItem,
   FileKind,
   FollowUserItem,
+  ForgotPasswordRequest,
   GenerateInviteCodesRequest,
   InviteCode,
   IssueDetail,
@@ -40,6 +42,7 @@ import type {
   LoginRequest,
   MySubmissionItem,
   NotificationItem,
+  NotificationPrefs,
   OnlineUsersResult,
   Page,
   PageQuery,
@@ -48,12 +51,14 @@ import type {
   RedeemInviteCodeRequest,
   RegisterRequest,
   RequestLogItem,
+  ResetPasswordRequest,
   ResourceItem,
   ResourceWriteRequest,
   SubmissionView,
   TagItem,
   TrashItem,
   TrashType,
+  UnsubscribeRequest,
   UpdateIdentifierRequest,
   UpdateIssueStatusRequest,
   UpdateProfilePageRequest,
@@ -234,7 +239,10 @@ export const authApi = {
   /** 拉取验证码图片（data URI）；未登录可调，不触发 401 跳转。theme 透传 query，仅 'dark' 出深色调色板，缺省浅色 */
   getCaptcha: (theme?: 'light' | 'dark') =>
     request<CaptchaResponse>('/auth/captcha', { query: { theme }, skipAuthHandler: true, retryAuth: false }),
-  /** 注册并种下 httpOnly cookie */
+  /** 拉取邮件验证码（发往该邮箱，10 分钟有效）；图形验证码一次性消费，成功/失败后均需刷新 */
+  emailCode: (payload: EmailCodeRequest) =>
+    request<void>('/auth/email-code', { method: 'POST', body: payload, skipAuthHandler: true, retryAuth: false }),
+  /** 注册并种下 httpOnly cookie（identifier 仅邮箱，携带发往该邮箱的 emailCode） */
   register: (payload: RegisterRequest) =>
     request<UserSelf>('/auth/register', { method: 'POST', body: payload, skipAuthHandler: true, retryAuth: false }),
   login: (payload: LoginRequest) =>
@@ -243,6 +251,15 @@ export const authApi = {
   logout: () => request<void>('/auth/logout', { method: 'POST', skipAuthHandler: true, retryAuth: false }),
   changePassword: (payload: PasswordChangeRequest) =>
     request<void>('/auth/password', { method: 'POST', body: payload }),
+  /** 忘记密码：无论账号是否存在均 204（防枚举），前端不得据此提示「账号不存在」 */
+  forgotPassword: (payload: ForgotPasswordRequest) =>
+    request<void>('/auth/password/forgot', { method: 'POST', body: payload, skipAuthHandler: true, retryAuth: false }),
+  /** 重置密码（token 来自邮件链接），失败 400「链接无效或已过期」 */
+  resetPassword: (payload: ResetPasswordRequest) =>
+    request<void>('/auth/password/reset', { method: 'POST', body: payload, skipAuthHandler: true, retryAuth: false }),
+  /** 退订（token 来自邮件链接），失败 400「链接无效或已过期」 */
+  unsubscribe: (payload: UnsubscribeRequest) =>
+    request<void>('/auth/unsubscribe', { method: 'POST', body: payload, skipAuthHandler: true, retryAuth: false }),
   /** 恢复登录态的唯一来源；未登录返回 401，不触发跳转 */
   me: () => request<UserSelf>('/auth/me', { skipAuthHandler: true }),
   /** 持码转正：VISITOR 提交邀请码升级为 MEMBER，换发双 token */
@@ -280,8 +297,13 @@ export const usersApi = {
     request<Page<FollowUserItem>>(`/users/${idOrUsername}/following`, { query }),
   updateMe: (payload: UpdateProfileRequest) =>
     request<UserSelf>('/users/me', { method: 'PATCH', body: payload }),
+  /** 换绑邮箱/手机号（type='email' 时 body 必带发往新邮箱的 emailCode） */
   updateIdentifier: (payload: UpdateIdentifierRequest) =>
     request<UserSelf>('/users/me/identifier', { method: 'PUT', body: payload }),
+  /** 通知偏好 */
+  getNotificationPrefs: () => request<NotificationPrefs>('/users/me/notification-prefs'),
+  updateNotificationPrefs: (payload: NotificationPrefs) =>
+    request<NotificationPrefs>('/users/me/notification-prefs', { method: 'PUT', body: payload }),
   /** 上传头像：png / jpg / jpeg，≤10MB（前端预检见 utils/upload.ts，后端仍会拒） */
   uploadAvatar: (file: File, onProgress?: (percent: number) => void) => {
     const form = new FormData()

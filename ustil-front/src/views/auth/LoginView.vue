@@ -80,6 +80,9 @@ async function submit(): Promise<void> {
       </div>
 
       <p class="auth-switch">
+        <RouterLink :to="{ name: 'forgot-password' }">忘记密码？</RouterLink>
+      </p>
+      <p class="auth-switch">
         还没有账号？
         <RouterLink :to="{ name: 'register' }">注册</RouterLink>
       </p>

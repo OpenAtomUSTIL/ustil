@@ -573,15 +573,15 @@
 
 ### 改动清单
 
-- [ ] 腾讯云 SES 开通与配置：发信域名验证（SPF/DKIM 解析记录）、发信地址、初始配额确认（不足则申请提升）；域名/IP 预热按平台建议执行。
-- [ ] `MailService` + SMTP/API 双驱动（对接腾讯云 SES 的 SMTP 接口与 API）+ 模板（**初稿已定稿** `ustil-hub/docs/mail-templates/`：验证码 / 重置密码 / 通知·回复 / 通知·通用，HTML + 纯文本双份，`{{var}}` 变量与腾讯云 SES 模板语法一致，HTML 可直接上传控制台。**腾讯模板审核规范：链接域名必须固定，变量只能承载路径段**——模板内链接一律 `https://forum.openatomustil.cn/{{path}}` 形式，实现侧只传 `resetPath`/`actionPath`/`unsubscribePath` 等路径值，域名取配置常量）；env：`MAIL_DRIVER` / `MAIL_FROM` / `SMTP_*` / `MAIL_API_*` 进 `.env.example` 与 AGENTS.md §11。
-- [ ] `EmailCodeService`：Redis 一次性码（对齐 CaptchaService 测试口径）+ 限频；拉码端点前置图形验证码。
-- [ ] 重置密码闭环：申请 / 执行端点 + 前端「忘记密码」「重置」两页 + 成功后全会话失效。
-- [ ] 换绑邮箱补邮件验证（注册验证是否强制见决策点）。
-- [ ] 通知邮件副本：挂钩站内通知产生点 + 个人中心偏好设置 + 一键退订 + 聚合降频。
-- [ ] 文档与红线同步：AGENTS.md §2 预留条目移出并注明（「关注成员」先例）、§11 环境变量、docs/API.md / openapi.yaml / 前端 AGENTS.md 契约摘要。
-- [ ] 测试：验证码 / 重置码一次性、限次、过期、限频；拉码未过图形验证码被拒；重置后旧会话失效；偏好开关与退订生效；发信失败不影响主流程；质量门全绿。
-- 验收：QQ / 163 / Gmail 实测三类邮件送达且样式正常；轰炸防护（限频 + 图形验证码前置）实测有效；无邮箱账号有明确兜底路径；全站回归不受影响。
+- [x] 腾讯云 SES 开通与配置：模板四封已全部过审（发信域名验证随之完成）；剩余运营项：初始配额确认（不足则申请提升）、域名/IP 预热按平台建议执行。
+- [x] `MailService` + SMTP/API 双驱动（对接腾讯云 SES 的 SMTP 接口与 API）+ 模板（定稿 `ustil-hub/docs/mail-templates/`：验证码 / 重置密码 / 通知·回复 / 通知·通用，HTML + 纯文本双份。**腾讯模板审核规范：链接域名必须固定，变量只能承载路径段**——模板内链接一律 `https://forum.openatomustil.cn/{{path}}`，实现侧只传 `resetPath`/`actionPath`/`unsubscribePath` 路径值）；env：`MAIL_DRIVER` / `MAIL_FROM` / `SMTP_*` / `MAIL_API_*` 已进 `.env.example`。异步经 BullMQ 队列（`mail`），重试 3 次指数退避，日志不落收件人/正文。
+- [x] `EmailCodeService`：Redis 一次性码（sha256 不落明文、一次性、错 3 次作废）+ 限频（1 分钟 1 封 / 1 小时 5 封，口径=实际发出封数）；拉码端点前置图形验证码。
+- [x] 重置密码闭环：`POST /auth/password/forgot`（恒 204 防枚举）/ `POST /auth/password/reset`（一次性 token 30 分钟）+ 前端「忘记密码」「重置」两页（重置页公开路由，登录态可访问）+ 成功后全会话失效。
+- [x] 注册强制邮箱验证 + 仅邮箱注册（`emailCode` 必填）；换绑邮箱补邮件验证（purpose=rebind）；手机号改可选附加绑定（不再清空邮箱）。
+- [x] 通知邮件副本：挂钩站内通知产生点（回复类带昵称/内容摘要走「回复提醒」）+ 个人中心「邮件提醒」开关（默认关）+ 一键退订（HMAC token 180 天）；节奏按拍板先即时，每日摘要后置。
+- [x] 文档与红线同步：AGENTS.md §2 预留条目移出并注明、§4 契约、§11.4、§15（Redis 职责 + 队列解禁）、§21 划除；docs/API.md / openapi.yaml（含存量缺口 docs-probe 补齐）/ 前端 AGENTS.md 契约摘要。
+- [x] 测试：新增 37 条（email-code/link-tokens/auth/users/notifications + register e2e 对齐）；验证码/重置码一次性、限次、过期、限频、拉码前置图形验证码、重置后全会话失效、偏好/退订、发信失败静默均覆盖；质量门全绿（hub lint+253 测+build；front typecheck+lint+51 测）。
+- 验收（剩余运营实测）：QQ / 163 / Gmail 实测三类邮件送达且样式正常（待生产密钥配好后发真实邮件）；配额确认；全站回归不受影响（单测/e2e 已绿）。
 
 ### 需先讨论（决策点）
 
