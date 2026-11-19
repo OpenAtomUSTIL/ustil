@@ -263,158 +263,176 @@ watch(() => [route.query.q, route.query.type], () => {
 </script>
 
 <template>
-  <div class="layout single">
-    <main>
-      <div class="section-head">
-        <h2>搜索</h2>
-        <span v-if="q && !loading && !error" class="hint">找到 {{ grandTotal }} 条结果</span>
-      </div>
+  <!-- 沿用整体界面左右布局：左栏（搜索 + 分类），右栏（结果） -->
+  <div class="container">
+    <div class="search-layout">
+      <aside class="search-side">
+        <form class="search-form" role="search" @submit.prevent="submit">
+          <input
+            v-model="draft"
+            type="search"
+            :maxlength="KEYWORD_MAX"
+            placeholder="搜索人员、文章、讨论、资料、公告、作业…"
+            aria-label="搜索关键词"
+          >
+          <button class="btn btn-clay" type="submit">搜索</button>
+        </form>
 
-      <form class="search-form" role="search" @submit.prevent="submit">
-        <input
-          v-model="draft"
-          type="search"
-          :maxlength="KEYWORD_MAX"
-          placeholder="搜索人员、文章、讨论、资料、公告、作业…"
-          aria-label="搜索关键词"
-        >
-        <button class="btn btn-clay" type="submit">搜索</button>
-      </form>
+        <nav class="cat-list" role="tablist" aria-label="搜索分类">
+          <button
+            v-for="tab in visibleTabs"
+            :key="tab.value"
+            class="chip cat-item"
+            :class="{ active: activeType === tab.value }"
+            type="button"
+            role="tab"
+            :aria-selected="activeType === tab.value"
+            @click="switchType(tab.value)"
+          >
+            <span>{{ tab.label }}</span>
+            <span v-if="countOf(tab.value) !== null" class="n">{{ countOf(tab.value) }}</span>
+          </button>
+        </nav>
+      </aside>
 
-      <div class="filter-bar" role="tablist" aria-label="搜索分类">
-        <button
-          v-for="tab in visibleTabs"
-          :key="tab.value"
-          class="chip"
-          :class="{ active: activeType === tab.value }"
-          type="button"
-          role="tab"
-          :aria-selected="activeType === tab.value"
-          @click="switchType(tab.value)"
-        >
-          {{ tab.label }}<span v-if="countOf(tab.value) !== null" class="n">{{ countOf(tab.value) }}</span>
-        </button>
-      </div>
+      <main>
+        <div class="section-head">
+          <h2>搜索</h2>
+          <span v-if="q && !loading && !error" class="hint">找到 {{ grandTotal }} 条结果</span>
+        </div>
 
-      <EmptyState v-if="!q" title="输入关键词搜索人员、文章、讨论、资料、公告与作业。" />
-      <LoadingState v-else-if="loading" />
-      <EmptyState v-else-if="error" title="加载失败" :hint="error">
-        <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
-      </EmptyState>
-      <EmptyState v-else-if="grandTotal === 0" :title="emptyTitle" />
-      <template v-else>
-        <section v-for="group in groups" :key="group.key" class="result-group">
-          <h3 v-if="activeType === 'all'" class="result-head">
-            {{ group.label }}
-            <span class="result-total">共 {{ group.total }} 条</span>
-            <button
-              class="btn btn-ghost btn-sm result-more"
-              type="button"
-              @click="switchType(group.key)"
-            >
-              查看全部 →
-            </button>
-          </h3>
-
-          <div v-if="group.key === 'user'" class="result-list">
-            <div v-for="item in userResults?.items ?? []" :key="item.id" class="user-row">
-              <RouterLink class="user-main" :to="{ name: 'user-profile', params: { id: item.username } }">
-                <AppAvatar :nickname="item.nickname" :avatar-url="item.avatarUrl || ''" :user-id="item.id" />
-                <span class="user-names">
-                  <strong>{{ item.nickname }}</strong>
-                  <small>@{{ item.username }}</small>
-                </span>
-                <span class="role-badge" :data-role="item.role">{{ roleLabel(item.role) }}</span>
-              </RouterLink>
-              <p v-if="item.bio" class="user-bio">{{ item.bio }}</p>
+        <EmptyState v-if="!q" title="输入关键词搜索人员、文章、讨论、资料、公告与作业。" />
+        <LoadingState v-else-if="loading" />
+        <EmptyState v-else-if="error" title="加载失败" :hint="error">
+          <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
+        </EmptyState>
+        <EmptyState v-else-if="grandTotal === 0" :title="emptyTitle" />
+        <template v-else>
+          <section v-for="group in groups" :key="group.key" class="result-group">
+            <h3 v-if="activeType === 'all'" class="result-head">
+              {{ group.label }}
+              <span class="result-total">共 {{ group.total }} 条</span>
               <button
-                v-if="!item.isSelf && auth.canFollow"
-                class="btn btn-ghost btn-sm"
+                class="btn btn-ghost btn-sm result-more"
                 type="button"
-                @click="toggleFollowUser(item)"
+                @click="switchType(group.key)"
               >
-                {{ item.isFollowing ? '已关注' : '关注' }}
+                查看全部 →
               </button>
-            </div>
-          </div>
+            </h3>
 
-          <div v-else-if="group.key === 'article'" class="result-list">
-            <ArticleCard v-for="item in articleResults?.items ?? []" :key="item.id" :article="item" />
-          </div>
-
-          <div v-else-if="group.key === 'issue'" class="result-list">
-            <IssueCard v-for="item in issueResults?.items ?? []" :key="item.id" :issue="item" />
-          </div>
-
-          <div v-else-if="group.key === 'resource'" class="result-list">
-            <div v-for="item in resourceResults?.items ?? []" :key="item.id" class="row-item">
-              <a class="row-title" :href="item.url" target="_blank" rel="noopener noreferrer">
-                {{ item.title }} ↗
-              </a>
-              <p v-if="item.description" class="row-desc">{{ item.description }}</p>
-              <div class="row-meta">
-                <span class="badge badge-gray">{{ CATEGORY_LABELS[item.category] }}</span>
-                <RouterLink class="row-who" :to="{ name: 'user-profile', params: { id: item.creatorUsername } }">
-                  {{ item.creatorName }}
+            <div v-if="group.key === 'user'" class="result-list">
+              <div v-for="item in userResults?.items ?? []" :key="item.id" class="user-row">
+                <RouterLink class="user-main" :to="{ name: 'user-profile', params: { id: item.username } }">
+                  <AppAvatar :nickname="item.nickname" :avatar-url="item.avatarUrl || ''" :user-id="item.id" />
+                  <span class="user-names">
+                    <strong>{{ item.nickname }}</strong>
+                    <small>@{{ item.username }}</small>
+                  </span>
+                  <span class="role-badge" :data-role="item.role">{{ roleLabel(item.role) }}</span>
                 </RouterLink>
-                <span>{{ timeAgo(item.createdAt) }}</span>
+                <p v-if="item.bio" class="user-bio">{{ item.bio }}</p>
+                <button
+                  v-if="!item.isSelf && auth.canFollow"
+                  class="btn btn-ghost btn-sm"
+                  type="button"
+                  @click="toggleFollowUser(item)"
+                >
+                  {{ item.isFollowing ? '已关注' : '关注' }}
+                </button>
               </div>
             </div>
-          </div>
 
-          <div v-else-if="group.key === 'announcement'" class="result-list">
-            <div v-for="item in announcementResults?.items ?? []" :key="item.id" class="row-item">
-              <RouterLink class="row-title" :to="{ name: 'announcement-detail', params: { id: contentPathId(item) } }">
-                {{ item.title }}
-              </RouterLink>
-              <div class="row-meta">
-                <span v-if="item.pinned" class="badge badge-clay">置顶</span>
-                <RouterLink class="row-who" :to="{ name: 'user-profile', params: { id: item.authorUsername } }">
-                  {{ item.authorName }}
-                </RouterLink>
-                <span>{{ timeAgo(item.createdAt) }}</span>
+            <div v-else-if="group.key === 'article'" class="result-list">
+              <ArticleCard v-for="item in articleResults?.items ?? []" :key="item.id" :article="item" />
+            </div>
+
+            <div v-else-if="group.key === 'issue'" class="result-list">
+              <IssueCard v-for="item in issueResults?.items ?? []" :key="item.id" :issue="item" />
+            </div>
+
+            <div v-else-if="group.key === 'resource'" class="result-list">
+              <div v-for="item in resourceResults?.items ?? []" :key="item.id" class="row-item">
+                <a class="row-title" :href="item.url" target="_blank" rel="noopener noreferrer">
+                  {{ item.title }} ↗
+                </a>
+                <p v-if="item.description" class="row-desc">{{ item.description }}</p>
+                <div class="row-meta">
+                  <span class="badge badge-gray">{{ CATEGORY_LABELS[item.category] }}</span>
+                  <RouterLink class="row-who" :to="{ name: 'user-profile', params: { id: item.creatorUsername } }">
+                    {{ item.creatorName }}
+                  </RouterLink>
+                  <span>{{ timeAgo(item.createdAt) }}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div v-else class="result-list">
-            <div v-for="item in assignmentResults?.items ?? []" :key="item.id" class="row-item">
-              <RouterLink class="row-title" :to="{ name: 'assignment-detail', params: { id: contentPathId(item) } }">
-                {{ item.title }}
-              </RouterLink>
-              <div class="row-meta">
-                <StatusBadge kind="assignment" :value="item.state" />
-                <RouterLink class="row-who" :to="{ name: 'user-profile', params: { id: item.publisher.username } }">
-                  {{ item.publisher.nickname }}
+            <div v-else-if="group.key === 'announcement'" class="result-list">
+              <div v-for="item in announcementResults?.items ?? []" :key="item.id" class="row-item">
+                <RouterLink class="row-title" :to="{ name: 'announcement-detail', params: { id: contentPathId(item) } }">
+                  {{ item.title }}
                 </RouterLink>
-                <span>截止 {{ formatDateTime(item.deadlineAt) }}</span>
+                <div class="row-meta">
+                  <span v-if="item.pinned" class="badge badge-clay">置顶</span>
+                  <RouterLink class="row-who" :to="{ name: 'user-profile', params: { id: item.authorUsername } }">
+                    {{ item.authorName }}
+                  </RouterLink>
+                  <span>{{ timeAgo(item.createdAt) }}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <BasePagination
-            v-if="activeType !== 'all'"
-            :page="page"
-            :page-size="PAGE_SIZE"
-            :total="group.total"
-            @change="changePage"
-          />
-        </section>
-      </template>
-    </main>
+            <div v-else class="result-list">
+              <div v-for="item in assignmentResults?.items ?? []" :key="item.id" class="row-item">
+                <RouterLink class="row-title" :to="{ name: 'assignment-detail', params: { id: contentPathId(item) } }">
+                  {{ item.title }}
+                </RouterLink>
+                <div class="row-meta">
+                  <StatusBadge kind="assignment" :value="item.state" />
+                  <RouterLink class="row-who" :to="{ name: 'user-profile', params: { id: item.publisher.username } }">
+                    {{ item.publisher.nickname }}
+                  </RouterLink>
+                  <span>截止 {{ formatDateTime(item.deadlineAt) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <BasePagination
+              v-if="activeType !== 'all'"
+              :page="page"
+              :page-size="PAGE_SIZE"
+              :total="group.total"
+              @change="changePage"
+            />
+          </section>
+        </template>
+      </main>
+    </div>
   </div>
 </template>
 
 <style scoped>
-/* 页面主搜索框：输入 + 按钮等高一行，宽度以表单列为上限 */
+/* 沿用整体界面左右布局（对齐个人主页双栏比例）：左栏搜索/分类，右栏结果；窄屏折叠单列 */
+.search-layout {
+  display: grid;
+  grid-template-columns: clamp(15rem, 24%, 19rem) minmax(0, 1fr);
+  gap: clamp(1.75rem, 3.5vw, 3rem);
+  padding-block: var(--pad-y-page) var(--pad-b-page);
+  align-items: start;
+}
+.search-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+/* 左栏搜索框：输入与按钮纵向排布，适配侧栏宽度 */
 .search-form {
   display: flex;
+  flex-direction: column;
   gap: 0.55rem;
-  max-width: 42rem;
-  margin-bottom: 1.15rem;
 }
 .search-form input {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   padding: 0.7rem 1.05rem;
   border: var(--bw-sm) solid var(--border-strong);
@@ -429,9 +447,24 @@ watch(() => [route.query.q, route.query.type], () => {
   box-shadow: 0 0 0 3px var(--ring-focus);
 }
 .search-form .btn {
-  flex: none;
   align-self: stretch;
   padding-inline: 1.25rem;
+}
+/* 分类导航：纵向 chip 列表，命中数靠右 */
+.cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.cat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+}
+.cat-item .n {
+  margin-left: 0.55rem;
 }
 .result-group {
   margin-bottom: var(--gap-md);
@@ -539,6 +572,12 @@ watch(() => [route.query.q, route.query.type], () => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 窄屏：双栏折叠单列（与全站 820px 断点一致），搜索/分类在上、结果在下 */
+@media (max-width: 820px) {
+  .search-layout {
+    grid-template-columns: 1fr;
+  }
 }
 /* 窄屏：简介独占一行换行显示，不再挤压昵称 */
 @media (max-width: 480px) {
