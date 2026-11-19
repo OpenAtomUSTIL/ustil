@@ -894,116 +894,124 @@ watch(pinType, () => {
 
       <!-- 右栏 -->
       <main class="profile-main">
-        <!-- 编辑态（GitHub 表单式，按「身份 / 链接与社交 / 内容」分组） -->
+        <!-- 编辑态（GitHub 表单式，按「身份 / 链接与社交 / 内容」分组；分组可折叠，交互对齐设置区） -->
         <div v-if="editing && isSelf" class="edit-panel">
           <h3>编辑资料</h3>
           <div v-if="editError" class="form-error">{{ editError }}</div>
           <div class="edit-form">
-            <section class="edit-group">
-              <h4 class="edit-group-title">身份</h4>
-              <div class="field">
-                <span class="field-legend">头像</span>
-                <FileUploader
-                  :extensions="AVATAR_EXTENSIONS"
-                  :upload="uploadAvatar"
-                  button-text="更换头像"
-                />
-              </div>
-              <div class="field">
-                <label for="ep-nickname">昵称</label>
-                <input id="ep-nickname" v-model="editNickname" type="text" required :maxlength="NICKNAME_MAX">
-              </div>
-              <div class="field">
-                <label for="ep-bio">简介</label>
-                <textarea id="ep-bio" v-model="editBio" :maxlength="BIO_MAX" rows="3" />
-                <span class="hint">一句话介绍自己 · {{ editBio.length }}/{{ BIO_MAX }}</span>
-              </div>
-              <div class="field">
-                <span class="field-legend">擅长标签</span>
-                <TagInput v-model="editSkillTags" />
-                <span class="hint">展示在个人主页侧栏，最多 10 个</span>
-              </div>
-            </section>
-
-            <section class="edit-group">
-              <h4 class="edit-group-title">链接与社交</h4>
-              <div class="edit-row">
+            <details class="edit-group" open>
+              <summary class="edit-group-title">身份</summary>
+              <div class="edit-group-body">
                 <div class="field">
-                  <label for="ep-company">公司/学校</label>
-                  <input id="ep-company" v-model="editCompany" type="text" :maxlength="COMPANY_MAX">
+                  <span class="field-legend">头像</span>
+                  <FileUploader
+                    :extensions="AVATAR_EXTENSIONS"
+                    :upload="uploadAvatar"
+                    button-text="更换头像"
+                  />
                 </div>
                 <div class="field">
-                  <label for="ep-location">所在地</label>
-                  <input id="ep-location" v-model="editLocation" type="text" :maxlength="LOCATION_MAX">
+                  <label for="ep-nickname">昵称</label>
+                  <input id="ep-nickname" v-model="editNickname" type="text" required :maxlength="NICKNAME_MAX">
+                </div>
+                <div class="field">
+                  <label for="ep-bio">简介</label>
+                  <textarea id="ep-bio" v-model="editBio" :maxlength="BIO_MAX" rows="3" />
+                  <span class="hint">一句话介绍自己 · {{ editBio.length }}/{{ BIO_MAX }}</span>
+                </div>
+                <div class="field">
+                  <span class="field-legend">擅长标签</span>
+                  <TagInput v-model="editSkillTags" />
+                  <span class="hint">展示在个人主页侧栏，最多 10 个</span>
                 </div>
               </div>
-              <div class="field">
-                <label for="ep-link">个人链接</label>
-                <input id="ep-link" v-model="editLink" type="text" :maxlength="LINK_MAX" placeholder="geminimortal.cn">
-              </div>
-              <div class="field">
-                <span class="field-legend">社交账户</span>
-                <input
-                  v-for="(_, i) in editSocials"
-                  :key="i"
-                  v-model="editSocials[i]"
-                  class="social-input"
-                  type="text"
-                  :maxlength="LINK_MAX"
-                  :placeholder="`链接 ${i + 1}`"
-                  :aria-label="`社交账户链接 ${i + 1}`"
-                >
-                <span class="hint">最多 {{ SOCIALS_MAX }} 条，可填裸域名</span>
-              </div>
-            </section>
+            </details>
 
-            <section class="edit-group">
-              <h4 class="edit-group-title">内容</h4>
-              <div class="field">
-                <span class="field-legend">个人介绍 README（Markdown，{{ editReadme.length }}/{{ README_MAX }}）</span>
-                <MarkdownEditor
-                  v-model="editReadme"
-                  aria-label="个人介绍 README（Markdown）"
-                  min-height="18rem"
-                  placeholder="用 Markdown 介绍自己，支持 LaTeX 公式"
-                />
-              </div>
-              <div class="field">
-                <span class="field-legend">置顶管理（{{ editPinned.length }}/6）</span>
-                <div class="pin-manage">
-                  <div v-for="(p, idx) in editPinned" :key="`${p.type}:${p.id}`" class="pin-row">
-                    <span class="pinned-type">{{ pinTypeLabel(p.type) }}</span>
-                    <span class="pin-title">{{ p.title }}</span>
-                    <span class="pin-actions">
-                      <button class="btn-icon" type="button" :disabled="idx === 0" aria-label="上移" @click="movePin(idx, -1)">↑</button>
-                      <button class="btn-icon" type="button" :disabled="idx === editPinned.length - 1" aria-label="下移" @click="movePin(idx, 1)">↓</button>
-                      <button class="btn-icon btn-icon-danger" type="button" aria-label="取消置顶" @click="removePin(idx)">×</button>
-                    </span>
+            <details class="edit-group">
+              <summary class="edit-group-title">链接与社交</summary>
+              <div class="edit-group-body">
+                <div class="edit-row">
+                  <div class="field">
+                    <label for="ep-company">公司/学校</label>
+                    <input id="ep-company" v-model="editCompany" type="text" :maxlength="COMPANY_MAX">
                   </div>
-                  <EmptyState v-if="editPinned.length === 0" title="还没有置顶内容。" />
-                  <div class="pin-add">
-                    <select v-model="pinType" aria-label="置顶类型">
-                      <option value="ARTICLE">文章</option>
-                      <option value="ISSUE">讨论</option>
-                      <option value="RESOURCE">资源</option>
-                    </select>
-                    <select v-model="pinPickId" aria-label="选择要置顶的内容" :disabled="pinOptionsLoading">
-                      <option value="" disabled>{{ pinOptionsLoading ? '加载中…' : '选择要置顶的内容' }}</option>
-                      <option v-for="o in addablePinOptions" :key="o.id" :value="o.id">{{ o.title }}</option>
-                    </select>
-                    <button
-                      class="btn btn-secondary"
-                      type="button"
-                      :disabled="!pinPickId || editPinned.length >= 6"
-                      @click="addPin"
+                  <div class="field">
+                    <label for="ep-location">所在地</label>
+                    <input id="ep-location" v-model="editLocation" type="text" :maxlength="LOCATION_MAX">
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="ep-link">个人链接</label>
+                  <input id="ep-link" v-model="editLink" type="text" :maxlength="LINK_MAX" placeholder="geminimortal.cn">
+                </div>
+                <div class="field">
+                  <span class="field-legend">社交账户</span>
+                  <div class="social-grid">
+                    <input
+                      v-for="(_, i) in editSocials"
+                      :key="i"
+                      v-model="editSocials[i]"
+                      class="social-input"
+                      type="text"
+                      :maxlength="LINK_MAX"
+                      :placeholder="`链接 ${i + 1}`"
+                      :aria-label="`社交账户链接 ${i + 1}`"
                     >
-                      添加置顶
-                    </button>
                   </div>
-                  <p class="hint">最多置顶 6 项，仅限本人内容，顺序即展示顺序。</p>
+                  <span class="hint">最多 {{ SOCIALS_MAX }} 条，可填裸域名</span>
                 </div>
               </div>
-            </section>
+            </details>
+
+            <details class="edit-group">
+              <summary class="edit-group-title">内容</summary>
+              <div class="edit-group-body">
+                <div class="field">
+                  <span class="field-legend">个人介绍 README（Markdown，{{ editReadme.length }}/{{ README_MAX }}）</span>
+                  <MarkdownEditor
+                    v-model="editReadme"
+                    aria-label="个人介绍 README（Markdown）"
+                    min-height="18rem"
+                    placeholder="用 Markdown 介绍自己，支持 LaTeX 公式"
+                  />
+                </div>
+                <div class="field">
+                  <span class="field-legend">置顶管理（{{ editPinned.length }}/6）</span>
+                  <div class="pin-manage">
+                    <div v-for="(p, idx) in editPinned" :key="`${p.type}:${p.id}`" class="pin-row">
+                      <span class="pinned-type">{{ pinTypeLabel(p.type) }}</span>
+                      <span class="pin-title">{{ p.title }}</span>
+                      <span class="pin-actions">
+                        <button class="btn-icon" type="button" :disabled="idx === 0" aria-label="上移" @click="movePin(idx, -1)">↑</button>
+                        <button class="btn-icon" type="button" :disabled="idx === editPinned.length - 1" aria-label="下移" @click="movePin(idx, 1)">↓</button>
+                        <button class="btn-icon btn-icon-danger" type="button" aria-label="取消置顶" @click="removePin(idx)">×</button>
+                      </span>
+                    </div>
+                    <EmptyState v-if="editPinned.length === 0" title="还没有置顶内容。" />
+                    <div class="pin-add">
+                      <select v-model="pinType" aria-label="置顶类型">
+                        <option value="ARTICLE">文章</option>
+                        <option value="ISSUE">讨论</option>
+                        <option value="RESOURCE">资源</option>
+                      </select>
+                      <select v-model="pinPickId" aria-label="选择要置顶的内容" :disabled="pinOptionsLoading">
+                        <option value="" disabled>{{ pinOptionsLoading ? '加载中…' : '选择要置顶的内容' }}</option>
+                        <option v-for="o in addablePinOptions" :key="o.id" :value="o.id">{{ o.title }}</option>
+                      </select>
+                      <button
+                        class="btn btn-secondary"
+                        type="button"
+                        :disabled="!pinPickId || editPinned.length >= 6"
+                        @click="addPin"
+                      >
+                        添加置顶
+                      </button>
+                    </div>
+                    <p class="hint">最多置顶 6 项，仅限本人内容，顺序即展示顺序。</p>
+                  </div>
+                </div>
+              </div>
+            </details>
           </div>
           <div class="form-actions">
             <button class="btn btn-clay" type="button" :disabled="saving" @click="saveProfile">
@@ -1541,12 +1549,10 @@ watch(pinType, () => {
 }
 .edit-panel h3 {
   font-family: var(--font-sans);
-  font-size: var(--fs-small);
+  font-size: 1.35rem;
   font-weight: var(--fw-semibold);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  margin-bottom: 0.85rem;
+  color: var(--ink);
+  margin-bottom: 1.3rem;
 }
 .settings-section { border-top: 1px solid var(--border); padding-block: 1.15rem; }
 .settings-section:last-child { padding-bottom: 0; }
@@ -1558,7 +1564,6 @@ watch(pinType, () => {
 /* 全局 .hint 只覆盖 .field 内；节头直系提示在此补齐同款样式 */
 .settings-section .hint { display: block; overflow-wrap: anywhere; line-height: 1.65; font-size: var(--fs-small); color: var(--ink-faint); }
 .settings-section summary::marker { color: var(--ink-muted); }
-.edit-panel:has(.settings-section) h3 { color: var(--ink); font-size: 1.35rem; letter-spacing: normal; text-transform: none; margin-bottom: 1.3rem; }
 @media (max-width: 480px) { .settings-section .form-grid > .btn { align-self: stretch; } }
 /* 邮件提醒开关（原生 checkbox 藏于样式轨道之后，语义仍在 input 上） */
 .prefs-toggle {
@@ -1616,21 +1621,39 @@ watch(pinType, () => {
 .edit-form {
   display: flex;
   flex-direction: column;
-  gap: 1.55rem;
 }
-/* 分组：小节标题 + 组内字段纵向排布（拉平 .edit-form 的 flex 语义） */
+/* 分组折叠（<details>，对齐设置区 settings-section）：分隔线 + summary 行 + 组内字段纵排 */
 .edit-group {
+  border-top: 1px solid var(--border);
+  padding-block: 1.15rem;
+}
+.edit-group:last-child {
+  padding-bottom: 0;
+}
+.edit-group-title {
+  cursor: pointer;
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.edit-group-title::marker {
+  color: var(--ink-muted);
+}
+.edit-group[open] .edit-group-title {
+  margin-bottom: 1rem;
+}
+.edit-group-body {
   display: flex;
   flex-direction: column;
   gap: 1.05rem;
 }
-.edit-group-title {
-  font-family: var(--font-sans);
-  font-size: var(--fs-small);
-  font-weight: var(--fw-semibold);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+/* 短输入控件限宽（对齐设置区 38rem 表单列）；头像/擅长标签/README/置顶管理仍占满列宽 */
+.edit-group-body .field input,
+.edit-group-body .field textarea,
+.edit-group-body .edit-row,
+.edit-group-body .social-grid {
+  max-width: 38rem;
 }
 /* 短字段两列（公司/所在地），窄屏自动回单列 */
 .edit-row {
@@ -1643,8 +1666,15 @@ watch(pinType, () => {
   resize: vertical;
   line-height: 1.6;
 }
-.social-input + .social-input {
-  margin-top: 0.55rem;
+/* 社交账户 2×2 网格（窄屏回单列），替代逐个下边距堆叠 */
+.social-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem 1.05rem;
+}
+/* 末组收底后与保存行的呼吸间距（.form-actions 全局只给 0.5rem） */
+.edit-form + .form-actions {
+  margin-top: 1.15rem;
 }
 .edit-actions {
   display: flex;
@@ -1856,7 +1886,8 @@ watch(pinType, () => {
     padding: 1.15rem;
   }
   /* 短字段两列折叠为单列 */
-  .edit-row {
+  .edit-row,
+  .social-grid {
     grid-template-columns: 1fr;
   }
   .follow-card {
