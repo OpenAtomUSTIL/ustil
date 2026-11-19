@@ -54,7 +54,7 @@ function openProfile(): void {
         </div>
       </div>
       <div class="footer-bottom">
-        <span>© {{ year }} 开放原子 USTIL 学生开源社区 </span>
+        <span>© {{ year }} <a href="https://github.com/OpenAtomUSTIL" target="_blank" rel="noopener noreferrer">开放原子 USTIL 学生开源社区</a></span>
         <span class="links">
           <RouterLink :to="{ name: 'issues' }">社区公约</RouterLink>
           <RouterLink :to="{ name: 'home' }">无障碍</RouterLink>
