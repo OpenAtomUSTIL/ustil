@@ -169,8 +169,8 @@ export interface CaptchaResponse {
   image: string
 }
 
-/** 邮件验证码用途：注册 / 换绑 */
-export type EmailCodePurpose = 'register' | 'rebind'
+/** 邮件验证码用途：注册 / 换绑 / 修改密码 */
+export type EmailCodePurpose = 'register' | 'rebind' | 'password'
 
 /** 拉取邮件验证码（POST /auth/email-code） */
 export interface EmailCodeRequest {
@@ -229,9 +229,11 @@ export interface LoginRequest {
 export interface PasswordChangeRequest {
   currentPassword: string
   newPassword: string
-  /** 验证码（一次性消费，提交失败后需重新拉取） */
+  /** 图形验证码（一次性消费，提交失败后需重新拉取） */
   captchaId: string
   captchaCode: string
+  /** 邮件验证码（purpose=password，发往当前绑定邮箱） */
+  emailCode: string
 }
 
 export interface UpdateProfileRequest {

@@ -100,13 +100,20 @@ async function submit(): Promise<void> {
       <div v-if="error" class="form-error">{{ error }}</div>
 
       <div class="form-grid">
+        <div class="form-divider">
+          <h2>邮箱验证</h2>
+          <p class="hint">填写邮箱并完成验证，用于接收注册验证码与邮件通知。</p>
+        </div>
         <div class="field">
           <label for="reg-identifier">邮箱</label>
           <input id="reg-identifier" v-model="identifier" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com" :disabled="submitting || sendingEmailCode">
-          <span class="hint">用于接收注册验证码与邮件通知</span>
         </div>
         <EmailVerification v-model="emailCode" :email="identifier" purpose="register" input-id="reg-email-code" :disabled="submitting || sendingEmailCode" @busy="sendingEmailCode = $event" />
-        <div class="form-divider"><h2>账号资料</h2><p class="hint">填写昵称与密码，完成账号创建。</p></div>
+
+        <div class="form-divider">
+          <h2>账号资料</h2>
+          <p class="hint">填写昵称与密码，完成账号创建。</p>
+        </div>
         <div class="field">
           <label for="reg-nickname">昵称</label>
           <input id="reg-nickname" v-model="nickname" type="text" autocomplete="nickname" required :maxlength="NICKNAME_MAX">
@@ -125,11 +132,17 @@ async function submit(): Promise<void> {
           <input id="reg-invite" v-model="inviteCode" type="text" :maxlength="INVITE_CODE_MAX" placeholder="输入邀请码">
           <span class="hint">没有邀请码也可注册，将先成为临时访客</span>
         </div>
-        <div v-if="/^[0-9]{6}$/.test(emailCode)" class="field">
-          <span class="field-legend">提交注册前的安全校验</span>
-          <p class="hint">此验证码用于确认注册，与发送邮件前的图形校验分别验证。</p>
-          <AuthCaptcha ref="captchaRef" v-model:captcha-id="captchaId" v-model="captchaCode" :disabled="submitting || sendingEmailCode" />
-        </div>
+
+        <template v-if="/^[0-9]{6}$/.test(emailCode)">
+          <div class="form-divider">
+            <h2>安全校验</h2>
+            <p class="hint">注册前的最后一步图形校验，确认操作者是本人。</p>
+          </div>
+          <div class="field">
+            <AuthCaptcha ref="captchaRef" v-model:captcha-id="captchaId" v-model="captchaCode" :disabled="submitting || sendingEmailCode" />
+          </div>
+        </template>
+
         <button class="btn btn-primary btn-lg" type="submit" :disabled="submitting || sendingEmailCode">
           {{ submitting ? '注册中…' : '注册' }}
         </button>
@@ -147,6 +160,8 @@ async function submit(): Promise<void> {
 .register-card { max-width: 32rem; }
 .form-divider { border-top: 1px solid var(--border); padding-top: 1.4rem; margin-top: 0.25rem; }
 .form-divider h2 { font-family: var(--font-sans); font-size: 1.05rem; font-weight: var(--fw-semibold); margin-bottom: 0.4rem; }
+/* 全局 .hint 只覆盖 .field 内；节头提示在此补齐同款样式 */
+.form-divider .hint { font-size: var(--fs-small); color: var(--ink-faint); line-height: 1.65; }
 @media (max-width: 480px) {
   .register-card { padding: 1.5rem 1.15rem; }
 }

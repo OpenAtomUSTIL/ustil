@@ -5,7 +5,7 @@ import { describeError } from '@/api/error'
 import { checkEmail } from '@/utils/limits'
 import AuthCaptcha from './AuthCaptcha.vue'
 
-const props = defineProps<{ email: string; purpose: 'register' | 'rebind'; inputId: string; disabled?: boolean }>()
+const props = defineProps<{ email: string; purpose: 'register' | 'rebind' | 'password'; inputId: string; disabled?: boolean }>()
 const emit = defineEmits<{ busy: [value: boolean] }>()
 const code = defineModel<string>({ required: true })
 const captchaId = ref('')

@@ -49,8 +49,9 @@
 | 主键 | `uuid` 字符串，`MUST NOT` 当 `number` 处理 |
 | 用户寻址 | 用户 `:id` 管理类路径参数（封禁/解封/改角色/提拔/剔除等）与查询过滤参数（`userId` / `actorId` / `authorId` / `creatorId` 等）支持 uuid / username（含历史 handle）/ email / phone（按 uuid → username → email → phone 顺序解析）；路径参数解析不到 → 404「用户不存在」，查询过滤参数解析不到 → 空列表。内容实体与用户资料页读接口维持「uuid 或 slug/username」不变 |
 | 敏感操作验证码 | 注册 / 登录 / 改密 / 换绑 / 持码转正 / 拉取邮件验证码 / 忘记密码的请求体 `MUST` 额外携带 `captchaId` + `captchaCode`（取自 `GET /api/v1/auth/captcha`，一次性消费），校验失败统一 400「验证码错误或已失效」 |
-| 邮件验证码 | `POST /auth/email-code`（公开）：`{ email, purpose: 'register' \| 'rebind', captchaId, captchaCode }` → 204；限频 429「邮件发送过于频繁，请稍后再试」；图形验证码错 400「验证码错误或已失效」；验证码发往该邮箱，10 分钟有效 |
+| 邮件验证码 | `POST /auth/email-code`（公开）：`{ email, purpose: 'register' \| 'rebind' \| 'password', captchaId, captchaCode }` → 204；限频 429「邮件发送过于频繁，请稍后再试」；图形验证码错 400「验证码错误或已失效」；验证码发往该邮箱，10 分钟有效 |
 | 注册 | `POST /auth/register`（公开）：`{ identifier（仅邮箱）, password, passwordConfirm, nickname, inviteCode?, emailCode, captchaId, captchaCode }` → UserSelf |
+| 修改密码 | `POST /auth/password`（登录）：`{ currentPassword, newPassword, emailCode, captchaId, captchaCode }` → 204；`emailCode` 必填（purpose=password，发往当前绑定邮箱）；未绑定邮箱 400「该账号未绑定邮箱，请先绑定邮箱后再修改密码」 |
 | 忘记密码 | `POST /auth/password/forgot`（公开）：`{ identifier, captchaId, captchaCode }` → 204；无论账号是否存在均 204（防枚举），前端 `MUST NOT` 据此提示「账号不存在」 |
 | 重置密码 | `POST /auth/password/reset`（公开）：`{ token, newPassword, newPasswordConfirm }` → 204；失败 400「链接无效或已过期」 |
 | 退订 | `POST /auth/unsubscribe`（公开）：`{ token }` → 204；失败 400「链接无效或已过期」 |

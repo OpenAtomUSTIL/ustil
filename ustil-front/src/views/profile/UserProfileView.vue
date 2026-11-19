@@ -97,6 +97,8 @@ const newPassword = ref('')
 const newPassword2 = ref('')
 const passwordError = ref('')
 const savingPassword = ref(false)
+const passwordEmailCode = ref('')
+const sendingPwEmailCode = ref(false)
 const identifierType = ref<'email' | 'phone'>('email')
 const identifierValue = ref('')
 const identifierPassword = ref('')
@@ -378,6 +380,7 @@ function openSettings(): void {
   passwordError.value = ''
   pwCaptchaId.value = ''
   pwCaptchaCode.value = ''
+  passwordEmailCode.value = ''
   identifierType.value = 'email'
   identifierValue.value = ''
   identifierPassword.value = ''
@@ -556,6 +559,7 @@ async function changePassword(): Promise<void> {
       newPassword: newPassword.value,
       captchaId: pwCaptchaId.value,
       captchaCode: pwCaptchaCode.value,
+      emailCode: passwordEmailCode.value,
     })
     // 改密成功后旧 token 全部失效：清理登录态并回登录页，避免假在线
     toast.show('密码已修改，请重新登录')
@@ -1005,6 +1009,7 @@ watch(pinType, () => {
 
           <details class="settings-section">
             <summary>修改密码</summary>
+            <p class="hint">需当前密码与邮箱验证码；修改成功后所有设备将退出登录。</p>
             <div v-if="passwordError" class="form-error">{{ passwordError }}</div>
             <form class="form-grid" @submit.prevent="changePassword">
               <div class="field">
@@ -1020,8 +1025,9 @@ watch(pinType, () => {
                 <label for="pw-new2">确认新密码</label>
                 <input id="pw-new2" v-model="newPassword2" type="password" autocomplete="new-password" required :minlength="PASSWORD_MIN" :maxlength="PASSWORD_MAX">
               </div>
+              <EmailVerification v-model="passwordEmailCode" :email="auth.user?.email ?? ''" purpose="password" input-id="pw-email-code" :disabled="savingPassword || sendingPwEmailCode" @busy="sendingPwEmailCode = $event" />
               <div class="field">
-                <span class="field-legend">验证码</span>
+                <span class="field-legend">图形验证码</span>
                 <AuthCaptcha ref="pwCaptchaRef" v-model:captcha-id="pwCaptchaId" v-model="pwCaptchaCode" />
               </div>
               <button class="btn btn-primary" type="submit" :disabled="savingPassword">
@@ -1032,6 +1038,7 @@ watch(pinType, () => {
 
           <details class="settings-section">
             <summary>绑定邮箱 / 手机号</summary>
+            <p class="hint">{{ auth.user?.email ? `当前绑定邮箱：${auth.user.email}` : '当前未绑定邮箱' }}{{ auth.user?.phone ? ` · 手机号：${auth.user.phone}` : '' }}；换绑邮箱需新邮箱验证码，绑定手机号无需。</p>
             <div v-if="identifierError" class="form-error">{{ identifierError }}</div>
             <form class="form-grid" @submit.prevent="bindIdentifier">
               <div class="field">
@@ -1051,8 +1058,7 @@ watch(pinType, () => {
                 <input id="id-password" v-model="identifierPassword" type="password" autocomplete="current-password" required>
               </div>
               <div class="field">
-                <span class="field-legend">确认修改前的安全校验</span>
-                <p v-if="identifierType === 'email'" class="hint">邮件发送完成后，请填写此图形验证码以确认修改。</p>
+                <span class="field-legend">图形验证码</span>
                 <AuthCaptcha ref="idCaptchaRef" v-model:captcha-id="idCaptchaId" v-model="idCaptchaCode" :disabled="savingIdentifier || sendingIdEmailCode" />
               </div>
               <button class="btn btn-primary" type="submit" :disabled="savingIdentifier || sendingIdEmailCode">
@@ -1072,7 +1078,7 @@ watch(pinType, () => {
                 @change="onEmailNoticeChange"
               >
               <span class="prefs-toggle-track" aria-hidden="true" />
-              <span class="prefs-toggle-text">邮件提醒</span>
+              <span class="prefs-toggle-text">接收通知邮件</span>
             </label>
             <p class="hint">{{ prefsLoading ? '加载中…' : '关闭后将不再向邮箱发送通知邮件。' }}</p>
           </details>
@@ -1087,7 +1093,7 @@ watch(pinType, () => {
                 <input id="pd-invite" v-model="inviteCode" type="text" :maxlength="INVITE_CODE_MAX" required placeholder="输入邀请码">
               </div>
               <div class="field">
-                <span class="field-legend">验证码</span>
+                <span class="field-legend">图形验证码</span>
                 <AuthCaptcha ref="redeemCaptchaRef" v-model:captcha-id="redeemCaptchaId" v-model="redeemCaptchaCode" />
               </div>
               <button class="btn btn-clay" type="submit" :disabled="savingRedeem">
@@ -1524,7 +1530,8 @@ watch(pinType, () => {
 .settings-section .form-grid { gap: 1.1rem; margin-top: 1.15rem; max-width: 38rem; }
 .settings-section .form-grid > .btn { justify-self: start; align-self: flex-start; }
 .settings-section .field { min-width: 0; }
-.settings-section .hint { display: block; overflow-wrap: anywhere; line-height: 1.65; }
+/* 全局 .hint 只覆盖 .field 内；节头直系提示在此补齐同款样式 */
+.settings-section .hint { display: block; overflow-wrap: anywhere; line-height: 1.65; font-size: var(--fs-small); color: var(--ink-faint); }
 .settings-section summary::marker { color: var(--ink-muted); }
 .edit-panel:has(.settings-section) h3 { color: var(--ink); font-size: 1.35rem; letter-spacing: normal; text-transform: none; margin-bottom: 1.3rem; }
 @media (max-width: 480px) { .settings-section .form-grid > .btn { align-self: stretch; } }
