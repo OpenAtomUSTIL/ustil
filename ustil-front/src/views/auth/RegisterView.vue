@@ -34,6 +34,13 @@ const captchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
 const error = ref('')
 const submitting = ref(false)
 const sendingEmailCode = ref(false)
+
+// 邀请链接直达（/register?invite=CODE）：预填邀请码
+const inviteParam = typeof route.query.invite === 'string' ? route.query.invite.trim() : ''
+const inviteFromLink = inviteParam.length > 0
+if (inviteFromLink) {
+  inviteCode.value = inviteParam.slice(0, INVITE_CODE_MAX)
+}
 async function submit(): Promise<void> {
   if (submitting.value || sendingEmailCode.value) return
   error.value = ''
@@ -130,7 +137,7 @@ async function submit(): Promise<void> {
         <div class="field">
           <label for="reg-invite">邀请码（可选）</label>
           <input id="reg-invite" v-model="inviteCode" type="text" :maxlength="INVITE_CODE_MAX" placeholder="输入邀请码">
-          <span class="hint">没有邀请码也可注册，将先成为临时访客</span>
+          <span class="hint">{{ inviteFromLink ? '已从邀请链接自动填入，可修改' : '没有邀请码也可注册，将先成为临时访客' }}</span>
         </div>
 
         <template v-if="/^[0-9]{6}$/.test(emailCode)">

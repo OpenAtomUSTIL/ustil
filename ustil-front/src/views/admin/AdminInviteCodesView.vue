@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { describeError } from '@/api/error'
 import { adminApi } from '@/api/request'
 import type { InviteCode, Page } from '@/api/types'
@@ -10,6 +11,7 @@ import { useToastStore } from '@/stores/toast'
 import { formatDateTime, timeAgo } from '@/utils/format'
 
 const toast = useToastStore()
+const router = useRouter()
 
 const count = ref(1)
 const maxUses = ref(1)
@@ -134,6 +136,23 @@ async function copyAll(): Promise<void> {
   await copyText(newCodes.value.join('\n'), `已复制 ${newCodes.value.length} 个邀请码`)
 }
 
+/** 注册邀请链接：直达注册页并预填邀请码（/register?invite=CODE） */
+function inviteLink(code: string): string {
+  const { href } = router.resolve({ name: 'register', query: { invite: code } })
+  return `${window.location.origin}${href}`
+}
+
+async function copyLink(code: string): Promise<void> {
+  await copyText(inviteLink(code), '已复制注册邀请链接')
+}
+
+async function copyAllLinks(): Promise<void> {
+  await copyText(
+    newCodes.value.map((code) => inviteLink(code)).join('\n'),
+    `已复制 ${newCodes.value.length} 条注册邀请链接`,
+  )
+}
+
 async function revoke(item: InviteCode): Promise<void> {
   if (busyId.value) return
   busyId.value = item.id
@@ -196,6 +215,7 @@ onMounted(load)
           <strong>刚生成 {{ newCodes.length }} 个邀请码</strong>
           <div class="gen-result-ops">
             <button class="btn btn-sm btn-secondary" type="button" @click="copyAll">复制全部</button>
+            <button class="btn btn-sm btn-secondary" type="button" @click="copyAllLinks">复制全部链接</button>
             <button class="btn btn-sm btn-ghost" type="button" @click="newCodes = []">收起</button>
           </div>
         </div>
@@ -203,6 +223,7 @@ onMounted(load)
           <li v-for="code in newCodes" :key="code">
             <code>{{ code }}</code>
             <button class="btn btn-sm btn-ghost" type="button" @click="copyText(code)">复制</button>
+            <button class="btn btn-sm btn-ghost" type="button" @click="copyLink(code)">复制链接</button>
           </li>
         </ul>
       </div>
@@ -267,6 +288,14 @@ onMounted(load)
                   @click="copyText(item.code)"
                 >
                   复制
+                </button>
+                <button
+                  class="btn btn-sm btn-ghost"
+                  type="button"
+                  title="复制注册邀请链接（直达注册页并预填邀请码）"
+                  @click="copyLink(item.code)"
+                >
+                  复制链接
                 </button>
               </div>
             </td>
