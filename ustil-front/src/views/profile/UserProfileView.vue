@@ -42,6 +42,7 @@ import { AVATAR_EXTENSIONS } from '@/utils/upload'
 import AppAvatar from '@/components/AppAvatar.vue'
 import ArticleCard from '@/components/ArticleCard.vue'
 import AuthCaptcha from '@/components/AuthCaptcha.vue'
+import EmailVerification from '@/components/EmailVerification.vue'
 import BasePagination from '@/components/BasePagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FileUploader from '@/components/FileUploader.vue'
@@ -115,8 +116,6 @@ const idCaptchaCode = ref('')
 const idCaptchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
 const identifierEmailCode = ref('')
 const sendingIdEmailCode = ref(false)
-const idEmailCodeCountdown = ref(0)
-let idEmailCodeTimer: number | null = null
 const emailNoticeEnabled = ref(false)
 const prefsLoading = ref(false)
 const prefsSaving = ref(false)
@@ -169,7 +168,6 @@ let tabRequest = 0
 let pinRequest = 0
 onBeforeUnmount(() => {
   profileRequest++; activityRequest++; tabRequest++; pinRequest++
-  if (idEmailCodeTimer !== null) window.clearInterval(idEmailCodeTimer)
 })
 const tabError = ref('')
 
@@ -370,6 +368,8 @@ function startEdit(): void {
 }
 
 function openSettings(): void {
+  // 已展开时保留表单和验证码，避免图片还在但 captchaId 被清空。
+  if (showSettings.value) return
   showSettings.value = true
   editing.value = false
   currentPassword.value = ''
@@ -571,50 +571,8 @@ async function changePassword(): Promise<void> {
   }
 }
 
-/** 获取换绑邮箱验证码（purpose='rebind'，发往新邮箱）：消费当前图形验证码，成功后刷新图形码供提交用 */
-async function sendIdentifierEmailCode(): Promise<void> {
-  if (sendingIdEmailCode.value || idEmailCodeCountdown.value > 0) return
-  identifierError.value = ''
-  const emailProblem = checkEmail(identifierValue.value)
-  if (emailProblem) {
-    identifierError.value = emailProblem
-    return
-  }
-  if (!idCaptchaCode.value.trim()) {
-    identifierError.value = '请先完成图形验证码'
-    return
-  }
-  sendingIdEmailCode.value = true
-  try {
-    await authApi.emailCode({
-      email: identifierValue.value.trim(),
-      purpose: 'rebind',
-      captchaId: idCaptchaId.value,
-      captchaCode: idCaptchaCode.value,
-    })
-    toast.show('验证码已发送，请查收邮件')
-    // 图形验证码一次性消费：刷新一张供提交用
-    void idCaptchaRef.value?.refresh()
-    idEmailCodeCountdown.value = 60
-    idEmailCodeTimer = window.setInterval(() => {
-      idEmailCodeCountdown.value -= 1
-      if (idEmailCodeCountdown.value <= 0 && idEmailCodeTimer !== null) {
-        window.clearInterval(idEmailCodeTimer)
-        idEmailCodeTimer = null
-      }
-    }, 1000)
-  } catch (err) {
-    identifierError.value = describeError(err)
-    // 图形验证码一次性消费：提交失败后重新拉取
-    idCaptchaCode.value = ''
-    void idCaptchaRef.value?.refresh()
-  } finally {
-    sendingIdEmailCode.value = false
-  }
-}
-
 async function bindIdentifier(): Promise<void> {
-  if (savingIdentifier.value) return
+  if (savingIdentifier.value || sendingIdEmailCode.value) return
   identifierError.value = ''
   const valueProblem = identifierType.value === 'email'
     ? checkEmail(identifierValue.value)
@@ -625,6 +583,10 @@ async function bindIdentifier(): Promise<void> {
   }
   if (identifierType.value === 'email' && !identifierEmailCode.value.trim()) {
     identifierError.value = '请填写邮箱验证码'
+    return
+  }
+  if (!idCaptchaId.value || !idCaptchaCode.value.trim()) {
+    identifierError.value = '请完成确认修改前的安全校验'
     return
   }
   savingIdentifier.value = true
@@ -639,6 +601,10 @@ async function bindIdentifier(): Promise<void> {
       emailCode: identifierType.value === 'email' ? identifierEmailCode.value.trim() : undefined,
     })
     auth.setUser(updated)
+    if (profile.value?.isSelf) {
+      profile.value.email = updated.email
+      profile.value.phone = updated.phone
+    }
     identifierValue.value = ''
     identifierPassword.value = ''
     identifierEmailCode.value = ''
@@ -757,6 +723,14 @@ watch(() => route.params.id, () => {
   if (route.name === 'user-profile') void load()
 })
 watch(() => route.query.settings, revealInviteSettings)
+watch(identifierType, () => {
+  identifierValue.value = ''
+  identifierPassword.value = ''
+  identifierEmailCode.value = ''
+  identifierError.value = ''
+  idCaptchaCode.value = ''
+  void idCaptchaRef.value?.refresh()
+})
 watch(pinType, () => {
   if (editing.value) void loadPinOptions()
 })
@@ -1014,8 +988,8 @@ watch(pinType, () => {
         <div v-if="showSettings && isSelf" class="edit-panel">
           <h3>设置</h3>
 
-          <section class="settings-section">
-            <h4>用户名（主页地址）</h4>
+          <details class="settings-section" open>
+            <summary>用户名（主页地址）</summary>
             <p class="hint">主页地址为 /users/用户名，改动后旧链接将自动跳转新地址。</p>
             <div v-if="usernameError" class="form-error">{{ usernameError }}</div>
             <form class="form-grid" @submit.prevent="saveUsername">
@@ -1027,10 +1001,10 @@ watch(pinType, () => {
                 {{ savingUsername ? '保存中…' : '保存用户名' }}
               </button>
             </form>
-          </section>
+          </details>
 
-          <section class="settings-section">
-            <h4>修改密码</h4>
+          <details class="settings-section">
+            <summary>修改密码</summary>
             <div v-if="passwordError" class="form-error">{{ passwordError }}</div>
             <form class="form-grid" @submit.prevent="changePassword">
               <div class="field">
@@ -1054,54 +1028,41 @@ watch(pinType, () => {
                 {{ savingPassword ? '提交中…' : '修改密码' }}
               </button>
             </form>
-          </section>
+          </details>
 
-          <section class="settings-section">
-            <h4>绑定邮箱 / 手机号</h4>
+          <details class="settings-section">
+            <summary>绑定邮箱 / 手机号</summary>
             <div v-if="identifierError" class="form-error">{{ identifierError }}</div>
             <form class="form-grid" @submit.prevent="bindIdentifier">
               <div class="field">
                 <label for="id-type">类型</label>
-                <select id="id-type" v-model="identifierType">
+                <select id="id-type" v-model="identifierType" :disabled="savingIdentifier || sendingIdEmailCode">
                   <option value="email">邮箱</option>
                   <option value="phone">手机号</option>
                 </select>
               </div>
               <div class="field">
                 <label for="id-value">{{ identifierType === 'email' ? '邮箱地址' : '手机号' }}</label>
-                <input id="id-value" v-model="identifierValue" type="text" required>
+                <input id="id-value" v-model="identifierValue" :type="identifierType === 'email' ? 'email' : 'tel'" :inputmode="identifierType === 'email' ? 'email' : 'tel'" :autocomplete="identifierType === 'email' ? 'email' : 'tel'" :disabled="savingIdentifier || sendingIdEmailCode" required>
               </div>
-              <div v-if="identifierType === 'email'" class="field">
-                <label for="id-email-code">邮箱验证码</label>
-                <div class="email-code-row">
-                  <input id="id-email-code" v-model="identifierEmailCode" type="text" autocomplete="one-time-code" required placeholder="输入收到的验证码">
-                  <button
-                    class="btn btn-clay email-code-btn"
-                    type="button"
-                    :disabled="sendingIdEmailCode || idEmailCodeCountdown > 0"
-                    @click="sendIdentifierEmailCode"
-                  >
-                    {{ idEmailCodeCountdown > 0 ? `${idEmailCodeCountdown} 秒后重发` : (sendingIdEmailCode ? '发送中…' : '获取验证码') }}
-                  </button>
-                </div>
-                <span class="hint">验证码发往新邮箱，10 分钟有效</span>
-              </div>
+              <EmailVerification v-if="identifierType === 'email'" v-model="identifierEmailCode" :email="identifierValue" purpose="rebind" input-id="id-email-code" :disabled="savingIdentifier || sendingIdEmailCode" @busy="sendingIdEmailCode = $event" />
               <div class="field">
                 <label for="id-password">当前密码（验证身份）</label>
                 <input id="id-password" v-model="identifierPassword" type="password" autocomplete="current-password" required>
               </div>
               <div class="field">
-                <span class="field-legend">验证码</span>
-                <AuthCaptcha ref="idCaptchaRef" v-model:captcha-id="idCaptchaId" v-model="idCaptchaCode" />
+                <span class="field-legend">确认修改前的安全校验</span>
+                <p v-if="identifierType === 'email'" class="hint">邮件发送完成后，请填写此图形验证码以确认修改。</p>
+                <AuthCaptcha ref="idCaptchaRef" v-model:captcha-id="idCaptchaId" v-model="idCaptchaCode" :disabled="savingIdentifier || sendingIdEmailCode" />
               </div>
-              <button class="btn btn-primary" type="submit" :disabled="savingIdentifier">
+              <button class="btn btn-primary" type="submit" :disabled="savingIdentifier || sendingIdEmailCode">
                 {{ savingIdentifier ? '提交中…' : '确认绑定' }}
               </button>
             </form>
-          </section>
+          </details>
 
-          <section class="settings-section">
-            <h4>邮件提醒</h4>
+          <details class="settings-section">
+            <summary>邮件提醒</summary>
             <div v-if="prefsError" class="form-error">{{ prefsError }}</div>
             <label class="prefs-toggle">
               <input
@@ -1114,10 +1075,10 @@ watch(pinType, () => {
               <span class="prefs-toggle-text">邮件提醒</span>
             </label>
             <p class="hint">{{ prefsLoading ? '加载中…' : '关闭后将不再向邮箱发送通知邮件。' }}</p>
-          </section>
+          </details>
 
-          <section v-if="auth.user?.role === 'VISITOR'" class="settings-section">
-            <h4>邀请码转正</h4>
+          <details v-if="auth.user?.role === 'VISITOR'" class="settings-section" :open="route.query.settings === 'invite'">
+            <summary>邀请码转正</summary>
             <p class="hint">持邀请码可立即成为学习成员；临时访客账号满 7 天将自动删除。</p>
             <div v-if="redeemError" class="form-error">{{ redeemError }}</div>
             <form class="form-grid" @submit.prevent="redeem">
@@ -1133,7 +1094,7 @@ watch(pinType, () => {
                 {{ savingRedeem ? '提交中…' : '转正为学习成员' }}
               </button>
             </form>
-          </section>
+          </details>
 
           <div class="edit-actions">
             <button class="btn btn-ghost" type="button" @click="showSettings = false">收起设置</button>
@@ -1556,31 +1517,17 @@ watch(pinType, () => {
   color: var(--ink-faint);
   margin-bottom: 0.85rem;
 }
-.settings-section {
-  margin-bottom: 1.5rem;
-}
-.settings-section h4 {
-  font-family: var(--font-sans);
-  font-size: var(--fs-meta);
-  font-weight: var(--fw-semibold);
-  color: var(--ink-muted);
-  margin-bottom: 0.65rem;
-}
-.settings-section .form-grid {
-  gap: 1.05rem;
-}
-.email-code-row {
-  display: flex;
-  gap: 0.65rem;
-  align-items: stretch;
-}
-.email-code-row input {
-  flex: 1;
-  min-width: 0;
-}
-.email-code-btn {
-  flex: none;
-}
+.settings-section { border-top: 1px solid var(--border); padding-block: 1.15rem; }
+.settings-section:last-child { padding-bottom: 0; }
+.settings-section summary { cursor: pointer; font-weight: var(--fw-semibold); color: var(--ink); line-height: 1.5; overflow-wrap: anywhere; }
+.settings-section[open] summary { margin-bottom: 1rem; }
+.settings-section .form-grid { gap: 1.1rem; margin-top: 1.15rem; max-width: 38rem; }
+.settings-section .form-grid > .btn { justify-self: start; align-self: flex-start; }
+.settings-section .field { min-width: 0; }
+.settings-section .hint { display: block; overflow-wrap: anywhere; line-height: 1.65; }
+.settings-section summary::marker { color: var(--ink-muted); }
+.edit-panel:has(.settings-section) h3 { color: var(--ink); font-size: 1.35rem; letter-spacing: normal; text-transform: none; margin-bottom: 1.3rem; }
+@media (max-width: 480px) { .settings-section .form-grid > .btn { align-self: stretch; } }
 /* 邮件提醒开关（原生 checkbox 藏于样式轨道之后，语义仍在 input 上） */
 .prefs-toggle {
   position: relative;

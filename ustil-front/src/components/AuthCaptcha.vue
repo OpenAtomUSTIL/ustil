@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { authApi } from '@/api/request'
 import { resolvedTheme } from '@/utils/theme'
 
-const props = defineProps<{ captchaId: string; modelValue: string }>()
+const props = withDefaults(defineProps<{ captchaId: string; modelValue: string; required?: boolean; disabled?: boolean }>(), { required: true, disabled: false })
 const emit = defineEmits<{ 'update:captchaId': [value: string]; 'update:modelValue': [value: string] }>()
 
 const image = ref('')
@@ -22,6 +22,7 @@ async function load(): Promise<void> {
   const seq = ++loadSeq
   loading.value = true
   failed.value = false
+  emit('update:captchaId', '')
   try {
     const data = await authApi.getCaptcha(resolvedTheme.value)
     if (seq !== loadSeq) return
@@ -61,9 +62,9 @@ defineExpose({ refresh })
       <img v-if="image && !failed && !loading" class="ac-img" :src="image" alt="验证码图片">
       <div v-else-if="loading" class="ac-img ac-placeholder" aria-hidden="true" />
       <button v-else type="button" class="ac-img ac-retry" @click="refresh">加载失败，点击重试</button>
-      <button type="button" class="ac-refresh" :disabled="loading" @click="refresh">换一张</button>
+      <button type="button" class="ac-refresh" :disabled="loading || disabled" @click="refresh">换一张</button>
     </div>
-    <input v-model="code" type="text" autocomplete="off" aria-label="验证码" maxlength="16" placeholder="输入验证码" required>
+    <input v-model="code" type="text" autocomplete="off" aria-label="验证码" maxlength="16" placeholder="输入图形验证码" :required="required" :disabled="loading || disabled">
   </div>
 </template>
 
@@ -83,7 +84,7 @@ defineExpose({ refresh })
 
 .ac-img {
   height: 2.6rem;
-  min-width: 7.5rem;
+  min-width: min(7.5rem, 100%);
   border: var(--bw-sm) solid var(--border-strong);
   border-radius: var(--br-8);
   background: var(--bg-raised);

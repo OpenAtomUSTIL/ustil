@@ -826,3 +826,13 @@ code.hljs { color: var(--ink); }
   /* 后台筛选条与 .filter-bar 同口径：控件满宽不各自占 11rem */
   .admin-filters input, .admin-filters select { min-width: 0; max-width: 100%; }
 }
+
+/* 表单与提示按可用空间换行；移动端不再靠截断文字适配。 */
+.field, .form-grid { min-width: 0; }
+.field .hint { display: block; line-height: 1.65; overflow-wrap: anywhere; }
+.form-error, .lead, h1, h2, h3, h4 { overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .btn { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  .auth-card { padding: 1.5rem 1.15rem; }
+  .field input, .field select, .field textarea { min-width: 0; max-width: 100%; }
+}

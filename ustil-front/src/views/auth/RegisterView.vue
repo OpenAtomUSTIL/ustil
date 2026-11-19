@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describeError } from '@/api/error'
-import { authApi } from '@/api/request'
 import { resolveAuthRedirect } from '@/utils/auth-redirect'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -16,6 +15,7 @@ import {
   checkPassword,
 } from '@/utils/limits'
 import AuthCaptcha from '@/components/AuthCaptcha.vue'
+import EmailVerification from '@/components/EmailVerification.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,61 +34,8 @@ const captchaRef = ref<InstanceType<typeof AuthCaptcha> | null>(null)
 const error = ref('')
 const submitting = ref(false)
 const sendingEmailCode = ref(false)
-const emailCodeCountdown = ref(0)
-let emailCodeTimer: number | null = null
-
-function startEmailCodeCountdown(): void {
-  emailCodeCountdown.value = 60
-  emailCodeTimer = window.setInterval(() => {
-    emailCodeCountdown.value -= 1
-    if (emailCodeCountdown.value <= 0 && emailCodeTimer !== null) {
-      window.clearInterval(emailCodeTimer)
-      emailCodeTimer = null
-    }
-  }, 1000)
-}
-
-onBeforeUnmount(() => {
-  if (emailCodeTimer !== null) window.clearInterval(emailCodeTimer)
-})
-
-/** 获取邮箱验证码：消费当前图形验证码，成功后刷新图形码供注册提交用 */
-async function sendEmailCode(): Promise<void> {
-  if (sendingEmailCode.value || emailCodeCountdown.value > 0) return
-  error.value = ''
-  const emailProblem = checkEmail(identifier.value)
-  if (emailProblem) {
-    error.value = emailProblem
-    return
-  }
-  if (!captchaCode.value.trim()) {
-    error.value = '请先完成图形验证码'
-    return
-  }
-  sendingEmailCode.value = true
-  try {
-    await authApi.emailCode({
-      email: identifier.value.trim(),
-      purpose: 'register',
-      captchaId: captchaId.value,
-      captchaCode: captchaCode.value,
-    })
-    toast.show('验证码已发送，请查收邮件')
-    // 图形验证码一次性消费：刷新一张供注册提交用
-    void captchaRef.value?.refresh()
-    startEmailCodeCountdown()
-  } catch (err) {
-    error.value = describeError(err)
-    // 图形验证码一次性消费：提交失败后重新拉取
-    captchaCode.value = ''
-    void captchaRef.value?.refresh()
-  } finally {
-    sendingEmailCode.value = false
-  }
-}
-
 async function submit(): Promise<void> {
-  if (submitting.value) return
+  if (submitting.value || sendingEmailCode.value) return
   error.value = ''
   const emailProblem = checkEmail(identifier.value)
   if (emailProblem) {
@@ -111,6 +58,10 @@ async function submit(): Promise<void> {
   }
   if (password.value !== passwordConfirm.value) {
     error.value = '两次输入的密码不一致'
+    return
+  }
+  if (!captchaId.value || !captchaCode.value.trim()) {
+    error.value = '请完成提交注册前的安全校验'
     return
   }
   submitting.value = true
@@ -142,8 +93,8 @@ async function submit(): Promise<void> {
 
 <template>
   <div class="auth-page">
-    <form class="auth-card" @submit.prevent="submit">
-      <h1>注册</h1>
+    <form class="auth-card register-card" @submit.prevent="submit">
+      <h1>创建账号</h1>
       <p class="lead">使用邮箱注册 USTIL 开放论坛。</p>
 
       <div v-if="error" class="form-error">{{ error }}</div>
@@ -151,24 +102,11 @@ async function submit(): Promise<void> {
       <div class="form-grid">
         <div class="field">
           <label for="reg-identifier">邮箱</label>
-          <input id="reg-identifier" v-model="identifier" type="text" autocomplete="email" required placeholder="you@example.com">
+          <input id="reg-identifier" v-model="identifier" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com" :disabled="submitting || sendingEmailCode">
           <span class="hint">用于接收注册验证码与邮件通知</span>
         </div>
-        <div class="field">
-          <label for="reg-email-code">邮箱验证码</label>
-          <div class="email-code-row">
-            <input id="reg-email-code" v-model="emailCode" type="text" autocomplete="one-time-code" required placeholder="输入收到的验证码">
-            <button
-              class="btn btn-clay email-code-btn"
-              type="button"
-              :disabled="sendingEmailCode || emailCodeCountdown > 0"
-              @click="sendEmailCode"
-            >
-              {{ emailCodeCountdown > 0 ? `${emailCodeCountdown} 秒后重发` : (sendingEmailCode ? '发送中…' : '获取验证码') }}
-            </button>
-          </div>
-          <span class="hint">验证码发往填写的邮箱，10 分钟有效</span>
-        </div>
+        <EmailVerification v-model="emailCode" :email="identifier" purpose="register" input-id="reg-email-code" :disabled="submitting || sendingEmailCode" @busy="sendingEmailCode = $event" />
+        <div class="form-divider"><h2>账号资料</h2><p class="hint">填写昵称与密码，完成账号创建。</p></div>
         <div class="field">
           <label for="reg-nickname">昵称</label>
           <input id="reg-nickname" v-model="nickname" type="text" autocomplete="nickname" required :maxlength="NICKNAME_MAX">
@@ -184,14 +122,15 @@ async function submit(): Promise<void> {
         </div>
         <div class="field">
           <label for="reg-invite">邀请码（可选）</label>
-          <input id="reg-invite" v-model="inviteCode" type="text" :maxlength="INVITE_CODE_MAX" placeholder="持邀请码注册可直接成为学习成员">
+          <input id="reg-invite" v-model="inviteCode" type="text" :maxlength="INVITE_CODE_MAX" placeholder="输入邀请码">
           <span class="hint">没有邀请码也可注册，将先成为临时访客</span>
         </div>
-        <div class="field">
-          <span class="field-legend">验证码</span>
-          <AuthCaptcha ref="captchaRef" v-model:captcha-id="captchaId" v-model="captchaCode" />
+        <div v-if="/^[0-9]{6}$/.test(emailCode)" class="field">
+          <span class="field-legend">提交注册前的安全校验</span>
+          <p class="hint">此验证码用于确认注册，与发送邮件前的图形校验分别验证。</p>
+          <AuthCaptcha ref="captchaRef" v-model:captcha-id="captchaId" v-model="captchaCode" :disabled="submitting || sendingEmailCode" />
         </div>
-        <button class="btn btn-primary btn-lg" type="submit" :disabled="submitting">
+        <button class="btn btn-primary btn-lg" type="submit" :disabled="submitting || sendingEmailCode">
           {{ submitting ? '注册中…' : '注册' }}
         </button>
       </div>
@@ -205,26 +144,10 @@ async function submit(): Promise<void> {
 </template>
 
 <style scoped>
-.email-code-row {
-  display: flex;
-  gap: 0.65rem;
-  align-items: stretch;
-}
-
-.email-code-row input {
-  flex: 1;
-  min-width: 0;
-}
-
-.email-code-btn {
-  flex: none;
-  white-space: nowrap;
-}
-
-/* 窄屏卡片内边距收窄，把宽度留给表单 */
+.register-card { max-width: 32rem; }
+.form-divider { border-top: 1px solid var(--border); padding-top: 1.4rem; margin-top: 0.25rem; }
+.form-divider h2 { font-family: var(--font-sans); font-size: 1.05rem; font-weight: var(--fw-semibold); margin-bottom: 0.4rem; }
 @media (max-width: 480px) {
-  .auth-card {
-    padding: 1.45rem 1.35rem 1.35rem;
-  }
+  .register-card { padding: 1.5rem 1.15rem; }
 }
 </style>
