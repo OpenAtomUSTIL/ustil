@@ -58,6 +58,7 @@
 | 通知偏好（读） | `GET /users/me/notification-prefs`（登录）→ `{ emailNoticeEnabled }` |
 | 通知偏好（写） | `PUT /users/me/notification-prefs`（登录）：`{ emailNoticeEnabled }` → `{ emailNoticeEnabled }` |
 | 换绑邮箱/手机号 | `PUT /users/me/identifier`（登录）：`{ type: 'email' \| 'phone', value, password, captchaId, captchaCode, emailCode? }`；type='email' 时 `emailCode` 必填（发往新邮箱的验证码），type='phone' 时 `MUST NOT` 携带该字段 |
+| 人员搜索 | `GET /users`（登录）：`?keyword=`（必填，trim 后非空、≤100）+ `page`/`pageSize` → `Page<FollowUserView>`（同粉丝列表结构）；昵称/用户名模糊匹配、排除封禁；keyword 缺失/全空白/超长 → 400（空 keyword 不枚举用户）。`GET /assignments` 列表支持可选 `keyword`（标题/描述模糊搜） |
 
 ## 5. 鉴权状态
 

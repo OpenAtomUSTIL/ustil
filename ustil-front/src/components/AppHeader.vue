@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useToastStore } from '@/stores/toast'
+import { KEYWORD_MAX } from '@/utils/limits'
 import { cycleTheme, resolvedTheme, themeMode } from '@/utils/theme'
 import AppAvatar from '@/components/AppAvatar.vue'
 
@@ -18,6 +19,7 @@ const scrolled = ref(false)
 const menuOpen = ref(false)
 const publishOpen = ref(false)
 const publishItem = ref<HTMLElement | null>(null)
+const searchText = ref('')
 
 const nickname = computed(() => auth.user?.nickname ?? '')
 const avatarUrl = computed(() => auth.user?.avatarUrl ?? '')
@@ -73,6 +75,22 @@ async function logout(): Promise<void> {
   toast.show('已退出登录')
   router.push({ name: 'home' })
 }
+
+/** 导航搜索框：回车直达 /search 结果页 */
+function goSearch(): void {
+  const next = searchText.value.trim()
+  if (!next) return
+  void router.push({ name: 'search', query: { q: next } })
+}
+
+// 搜索页 URL 的 q 同步回导航框（站内跳转/回退时跟随）
+watch(
+  () => (route.name === 'search' ? route.query.q : null),
+  (q) => {
+    searchText.value = typeof q === 'string' ? q : ''
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -139,6 +157,21 @@ async function logout(): Promise<void> {
               </RouterLink>
             </div>
           </div>
+
+          <form class="nav-search" role="search" @submit.prevent="goSearch">
+            <svg class="nav-search-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.8-3.8" />
+            </svg>
+            <input
+              v-model="searchText"
+              type="search"
+              :maxlength="KEYWORD_MAX"
+              placeholder="搜索…"
+              aria-label="搜索站内内容"
+            >
+          </form>
+
           <!-- 窄屏抽屉内的账号区（桌面由 nav-actions 承担，见 app.css 820px 档） -->
           <div class="nav-account">
             <template v-if="auth.isLoggedIn">

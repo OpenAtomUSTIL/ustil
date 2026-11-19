@@ -16,6 +16,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => user.value?.role === 'ADMIN')
   const canViewAssignments = computed(() => isLoggedIn.value && role.value !== 'VISITOR')
   const canCreateIssue = computed(() => isLoggedIn.value && role.value !== 'VISITOR')
+  /** 关注他人入口显隐（VISITOR 403，体验优化，权限以后端为准） */
+  const canFollow = computed(() => isLoggedIn.value && role.value !== 'VISITOR')
   /** 内容创作入口显隐（体验优化，权限以后端为准） */
   const canManageContent = computed(
     () => user.value?.role === 'ADMIN' || user.value?.role === 'ALUMNI' || user.value?.role === 'WHEEL',
@@ -79,6 +81,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     canViewAssignments,
     canCreateIssue,
+    canFollow,
     canManageContent,
     canPublishArticle,
     canAccessAdmin,

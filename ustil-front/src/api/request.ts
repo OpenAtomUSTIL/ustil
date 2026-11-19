@@ -295,6 +295,9 @@ export const usersApi = {
   /** 关注列表 */
   getFollowing: (idOrUsername: string, query: PageQuery) =>
     request<Page<FollowUserItem>>(`/users/${idOrUsername}/following`, { query }),
+  /** 人员搜索：昵称/用户名模糊匹配（keyword 必填，trim 后非空、≤100），排除封禁 */
+  search: (query: PageQuery & { keyword: string }) =>
+    request<Page<FollowUserItem>>('/users', { query }),
   updateMe: (payload: UpdateProfileRequest) =>
     request<UserSelf>('/users/me', { method: 'PATCH', body: payload }),
   /** 换绑邮箱/手机号（type='email' 时 body 必带发往新邮箱的 emailCode） */
@@ -340,7 +343,8 @@ export const assignmentsApi = {
     }), false)
     return res.blob()
   },
-  list: (query: PageQuery) => request<Page<AssignmentItem>>('/assignments', { query }),
+  /** keyword 可选：按标题/描述模糊搜索 */
+  list: (query: PageQuery & { keyword?: string }) => request<Page<AssignmentItem>>('/assignments', { query }),
   get: (id: string) => request<AssignmentItem>(`/assignments/${id}`),
   create: (payload: AssignmentWriteRequest) =>
     request<void>('/assignments', { method: 'POST', body: payload }),
