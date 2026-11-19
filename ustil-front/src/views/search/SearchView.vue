@@ -267,9 +267,10 @@ watch(() => [route.query.q, route.query.type], () => {
     <main>
       <div class="section-head">
         <h2>搜索</h2>
+        <span v-if="q && !loading && !error" class="hint">找到 {{ grandTotal }} 条结果</span>
       </div>
 
-      <form class="search-box" role="search" @submit.prevent="submit">
+      <form class="search-form" role="search" @submit.prevent="submit">
         <input
           v-model="draft"
           type="search"
@@ -303,11 +304,10 @@ watch(() => [route.query.q, route.query.type], () => {
       <EmptyState v-else-if="grandTotal === 0" :title="emptyTitle" />
       <template v-else>
         <section v-for="group in groups" :key="group.key" class="result-group">
-          <h3 class="result-head">
+          <h3 v-if="activeType === 'all'" class="result-head">
             {{ group.label }}
             <span class="result-total">共 {{ group.total }} 条</span>
             <button
-              v-if="activeType === 'all'"
               class="btn btn-ghost btn-sm result-more"
               type="button"
               @click="switchType(group.key)"
@@ -406,6 +406,33 @@ watch(() => [route.query.q, route.query.type], () => {
 </template>
 
 <style scoped>
+/* 页面主搜索框：输入 + 按钮等高一行，宽度以表单列为上限 */
+.search-form {
+  display: flex;
+  gap: 0.55rem;
+  max-width: 42rem;
+  margin-bottom: 1.15rem;
+}
+.search-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.7rem 1.05rem;
+  border: var(--bw-sm) solid var(--border-strong);
+  border-radius: var(--br-8);
+  background: var(--bg-raised);
+  font-size: 16px;
+  color: var(--ink);
+}
+.search-form input:focus {
+  outline: none;
+  border-color: var(--gray-400);
+  box-shadow: 0 0 0 3px var(--ring-focus);
+}
+.search-form .btn {
+  flex: none;
+  align-self: stretch;
+  padding-inline: 1.25rem;
+}
 .result-group {
   margin-bottom: var(--gap-md);
 }

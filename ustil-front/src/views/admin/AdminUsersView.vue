@@ -29,6 +29,55 @@ const pendingDelete = ref<AdminUser | null>(null)
 
 const ROLE_OPTIONS: UpdateUserRoleRequest['role'][] = ['VISITOR', 'MEMBER', 'ALUMNI', 'WHEEL']
 
+/** 用户分类（角色）chips + 命中数，替代原角色下拉 */
+const ROLE_CATEGORIES: { value: string; label: string }[] = [
+  { value: '', label: '全部' },
+  { value: 'VISITOR', label: '临时访客' },
+  { value: 'MEMBER', label: '学习成员' },
+  { value: 'ALUMNI', label: '校友' },
+  { value: 'WHEEL', label: '负责人' },
+  { value: 'ADMIN', label: '管理员' },
+]
+const roleCounts = ref<Record<string, number | null>>({})
+let countsVersion = 0
+
+function countOf(value: string): number | null {
+  return roleCounts.value[value] ?? null
+}
+
+/** 分类命中数：与列表同口径（keyword + 状态过滤），仅角色维度变化；单条失败置 null 不拖垮整排 */
+async function loadCounts(): Promise<void> {
+  const version = ++countsVersion
+  const keywordValue = keyword.value.trim() || undefined
+  const statusValue = statusFilter.value || undefined
+  const settled = await Promise.allSettled(
+    ROLE_CATEGORIES.map((cat) =>
+      adminApi.listUsers({
+        page: 1,
+        pageSize: 1,
+        keyword: keywordValue,
+        role: cat.value || undefined,
+        status: statusValue,
+      }),
+    ),
+  )
+  if (version !== countsVersion) return
+  const next: Record<string, number | null> = {}
+  ROLE_CATEGORIES.forEach((cat, index) => {
+    const result = settled[index]
+    next[cat.value] = result.status === 'fulfilled' ? result.value.total : null
+  })
+  roleCounts.value = next
+}
+
+/** 分类切换即刷列表（keyword / 状态仍由表单提交生效） */
+function selectRole(value: string): void {
+  if (roleFilter.value === value) return
+  roleFilter.value = value
+  page.value = 1
+  void load()
+}
+
 // 只展示最近一次筛选的响应，防止慢请求覆盖新结果。
 let loadVersion = 0
 
@@ -63,6 +112,7 @@ async function load(): Promise<void> {
 function search(): void {
   page.value = 1
   void load()
+  void loadCounts()
 }
 
 function reset(): void {
@@ -84,6 +134,7 @@ async function runAction(id: string, action: () => Promise<unknown>, message: st
     await action()
     toast.show(message)
     await load()
+    void loadCounts()
   } catch (err) {
     toast.show(describeError(err))
   } finally {
@@ -124,7 +175,10 @@ function confirmRemove(): void {
   void runAction(user.id, () => adminApi.deleteUser(user.id), '已剔除')
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void loadCounts()
+})
 </script>
 
 <template>
@@ -139,16 +193,6 @@ onMounted(load)
         <input v-model="keyword" type="search" :maxlength="KEYWORD_MAX" placeholder="搜索昵称 / 用户名 / 邮箱 / 手机号">
       </div>
       <div class="field">
-        <select v-model="roleFilter">
-          <option value="">全部角色</option>
-          <option value="VISITOR">临时访客</option>
-          <option value="MEMBER">学习成员</option>
-          <option value="ALUMNI">校友</option>
-          <option value="WHEEL">负责人</option>
-          <option value="ADMIN">管理员</option>
-        </select>
-      </div>
-      <div class="field">
         <select v-model="statusFilter">
           <option value="">全部状态</option>
           <option value="ACTIVE">正常</option>
@@ -158,6 +202,21 @@ onMounted(load)
       <button class="btn btn-secondary" type="submit">搜索</button>
       <button class="btn btn-ghost" type="button" @click="reset">重置</button>
     </form>
+
+    <div class="filter-bar" role="tablist" aria-label="用户分类">
+      <button
+        v-for="cat in ROLE_CATEGORIES"
+        :key="cat.value"
+        class="chip"
+        :class="{ active: roleFilter === cat.value }"
+        type="button"
+        role="tab"
+        :aria-selected="roleFilter === cat.value"
+        @click="selectRole(cat.value)"
+      >
+        {{ cat.label }}<span v-if="countOf(cat.value) !== null" class="n">{{ countOf(cat.value) }}</span>
+      </button>
+    </div>
 
     <div v-if="error" class="form-error">{{ error }}</div>
     <LoadingState v-else-if="loading" />
