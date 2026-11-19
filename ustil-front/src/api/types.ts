@@ -519,7 +519,7 @@ export interface CommentItem {
   deletedAt: string | null
 }
 
-export type TrashType = 'ARTICLE' | 'ANNOUNCEMENT' | 'RESOURCE' | 'COMMENT'
+export type TrashType = 'ARTICLE' | 'ANNOUNCEMENT' | 'RESOURCE' | 'ISSUE' | 'ASSIGNMENT' | 'COMMENT'
 
 /** 回收站项（GET /admin/trash；restore 按 type + id 恢复） */
 export interface TrashItem {
@@ -566,6 +566,8 @@ export interface UpdateProfilePageRequest {
   link?: string | null
   /** 社交账户链接（≤4 条、每条 ≤200，可裸域名） */
   socials?: string[]
+  /** 擅长标签（≤10 个、每个 ≤30 字符；服务端小写归一 + 去重，[] 清空） */
+  skillTags?: string[]
 }
 
 /** 个人主页视图 */
@@ -592,7 +594,8 @@ export interface UserProfile {
     replies: number
     submissions: number
   }
-  topTags: { name: string; count: number }[]
+  /** 擅长标签（本人自配置；空数组 = 未配置，展示层隐藏该区块） */
+  skillTags: string[]
   pinnedItems: PinnedItem[]
   isSelf: boolean
   isFollowing: boolean

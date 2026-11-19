@@ -9,6 +9,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import { formatDateTime, roleLabel, timeAgo } from '@/utils/format'
 import AppAvatar from '@/components/AppAvatar.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingState from '@/components/LoadingState.vue'
 import MarkdownBody from '@/components/MarkdownBody.vue'
@@ -35,6 +36,26 @@ const issueId = computed(() => String(route.params.id))
 
 /** 入口显隐仅为体验优化，权限以后端为准 */
 const canChangeStatus = computed(() => auth.canManageContent)
+/** 软删除讨论：WHEEL/ADMIN（显隐为体验优化，权限以后端为准） */
+const canDelete = computed(() => auth.canAccessAdmin)
+
+const confirmDelete = ref(false)
+const deleting = ref(false)
+
+async function removeIssue(): Promise<void> {
+  if (deleting.value || !issue.value) return
+  deleting.value = true
+  try {
+    await issuesApi.remove(issue.value.id)
+    toast.show('讨论已删除，可在后台回收站恢复')
+    await router.push({ name: 'issues' })
+  } catch (err) {
+    toast.show(describeError(err))
+  } finally {
+    deleting.value = false
+    confirmDelete.value = false
+  }
+}
 
 const STATUS_OPTIONS: Array<{ value: IssueStatus; label: string }> = [
   { value: 'OPEN', label: '未解决' },
@@ -163,6 +184,15 @@ onMounted(load)
         >
           {{ savingStatus ? '保存中…' : '保存状态' }}
         </button>
+        <button
+          v-if="canDelete"
+          class="btn btn-danger btn-sm status-delete"
+          type="button"
+          :disabled="deleting"
+          @click="confirmDelete = true"
+        >
+          删除讨论
+        </button>
       </div>
 
       <div class="post-block">
@@ -221,6 +251,16 @@ onMounted(load)
       <button class="btn btn-sm btn-secondary" type="button" @click="load">重试</button>
     </EmptyState>
     <EmptyState v-else title="讨论不存在" hint="它可能已被删除。" />
+
+    <ConfirmModal
+      v-if="confirmDelete"
+      title="确认删除讨论？"
+      message="讨论与其回复将一并隐藏，可在后台回收站恢复。"
+      confirm-text="删除"
+      :busy="deleting"
+      @confirm="removeIssue"
+      @cancel="confirmDelete = false"
+    />
   </div>
 </template>
 
@@ -234,6 +274,10 @@ onMounted(load)
 .status-label {
   font-size: var(--fs-meta);
   color: var(--ink-muted);
+}
+/* 删除按钮靠右，与状态控件分组 */
+.status-delete {
+  margin-left: auto;
 }
 .thread-loading {
   margin-top: 3rem;

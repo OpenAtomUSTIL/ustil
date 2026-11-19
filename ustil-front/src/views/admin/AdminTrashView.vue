@@ -14,6 +14,8 @@ const TYPE_TABS: { value: TrashType; label: string }[] = [
   { value: 'ARTICLE', label: '文章' },
   { value: 'ANNOUNCEMENT', label: '公告' },
   { value: 'RESOURCE', label: '资源' },
+  { value: 'ISSUE', label: '讨论' },
+  { value: 'ASSIGNMENT', label: '作业' },
   { value: 'COMMENT', label: '评论' },
 ]
 

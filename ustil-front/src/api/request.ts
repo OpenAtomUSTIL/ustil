@@ -346,6 +346,8 @@ export const assignmentsApi = {
     request<void>('/assignments', { method: 'POST', body: payload }),
   update: (id: string, payload: AssignmentWriteRequest) =>
     request<void>(`/assignments/${id}`, { method: 'PATCH', body: payload }),
+  /** 软删除作业（WHEEL/ADMIN）：移入后台回收站，不连带删提交 */
+  remove: (id: string) => request<void>(`/assignments/${id}`, { method: 'DELETE' }),
   /** 提交作业：file 必填、note 选填；是否可提交以接口 canSubmit 为准 */
   submit: (
     id: string,
@@ -375,6 +377,8 @@ export const issuesApi = {
     request<void>(`/issues/${id}/replies`, { method: 'POST', body: payload }),
   updateStatus: (id: string, payload: UpdateIssueStatusRequest) =>
     request<void>(`/issues/${id}/status`, { method: 'PATCH', body: payload }),
+  /** 软删除讨论（WHEEL/ADMIN）：移入后台回收站，回复随讨论一并隐藏 */
+  remove: (id: string) => request<void>(`/issues/${id}`, { method: 'DELETE' }),
 }
 
 export const adminApi = {

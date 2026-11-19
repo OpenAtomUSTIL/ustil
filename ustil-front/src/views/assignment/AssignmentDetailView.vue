@@ -12,6 +12,7 @@ import { downloadAttachmentFile } from '@/utils/download'
 import { NOTE_MAX } from '@/utils/limits'
 import { SUBMIT_EXTENSIONS } from '@/utils/upload'
 import AppAvatar from '@/components/AppAvatar.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FileUploader from '@/components/FileUploader.vue'
 import LoadingState from '@/components/LoadingState.vue'
@@ -46,6 +47,26 @@ const isPublisher = computed(
 const canViewSubmissions = computed(() => auth.isAdmin || (auth.canManageContent && isPublisher.value))
 /** 编辑入口：发布者或 ADMIN 且角色属于 ALUMNI / WHEEL / ADMIN（与后端 PATCH 权限一致） */
 const canEdit = computed(() => (isPublisher.value || auth.isAdmin) && auth.canManageContent)
+/** 软删除作业：WHEEL/ADMIN（显隐为体验优化，权限以后端为准） */
+const canDelete = computed(() => auth.canAccessAdmin)
+
+const confirmDelete = ref(false)
+const deleting = ref(false)
+
+async function removeAssignment(): Promise<void> {
+  if (deleting.value || !assignment.value) return
+  deleting.value = true
+  try {
+    await assignmentsApi.remove(assignment.value.id)
+    toast.show('作业已删除，可在后台回收站恢复')
+    await router.push({ name: 'assignments' })
+  } catch (err) {
+    toast.show(describeError(err))
+  } finally {
+    deleting.value = false
+    confirmDelete.value = false
+  }
+}
 
 async function download(attachment: AttachmentView): Promise<void> {
   try {
@@ -177,10 +198,23 @@ onBeforeUnmount(() => {
 
       <div class="post-block">
         <MarkdownBody class="pb-body" :content="assignment.description" />
-        <div v-if="canEdit" class="pb-actions">
-          <RouterLink class="btn btn-secondary" :to="{ name: 'assignment-edit', params: { id: contentPathId(assignment) } }">
+        <div v-if="canEdit || canDelete" class="pb-actions">
+          <RouterLink
+            v-if="canEdit"
+            class="btn btn-secondary"
+            :to="{ name: 'assignment-edit', params: { id: contentPathId(assignment) } }"
+          >
             编辑
           </RouterLink>
+          <button
+            v-if="canDelete"
+            class="btn btn-danger"
+            type="button"
+            :disabled="deleting"
+            @click="confirmDelete = true"
+          >
+            删除
+          </button>
         </div>
       </div>
 
@@ -279,6 +313,16 @@ onBeforeUnmount(() => {
       <button class="btn btn-sm btn-secondary" type="button" @click="reload">重试</button>
     </EmptyState>
     <EmptyState v-else title="作业不存在" hint="它可能已被删除。" />
+
+    <ConfirmModal
+      v-if="confirmDelete"
+      title="确认删除作业？"
+      message="作业将隐藏（他人提交一并不可见），可在后台回收站恢复。"
+      confirm-text="删除"
+      :busy="deleting"
+      @confirm="removeAssignment"
+      @cancel="confirmDelete = false"
+    />
   </div>
 </template>
 
