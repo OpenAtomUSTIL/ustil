@@ -151,40 +151,51 @@ async function load(): Promise<void> {
   error.value = ''
   if (!q.value) {
     resetResults()
+    loading.value = false
     return
   }
   loading.value = true
   try {
     const keyword = q.value
     if (activeType.value === 'all') {
-      // 全部：每类并行取前 PREVIEW_SIZE 条做分组预览（作业仅 MEMBER+ 可见）
-      const jobs: Promise<void>[] = [
-        usersApi.search({ page: 1, pageSize: PREVIEW_SIZE, keyword }).then((r) => { userResults.value = r }),
-        articlesApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }).then((r) => { articleResults.value = r }),
-        issuesApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }).then((r) => { issueResults.value = r }),
-        resourcesApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }).then((r) => { resourceResults.value = r }),
-        announcementsApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }).then((r) => { announcementResults.value = r }),
-      ]
-      if (auth.canViewAssignments) {
-        jobs.push(
-          assignmentsApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }).then((r) => { assignmentResults.value = r }),
-        )
-      }
-      await Promise.all(jobs)
+      // 等所有分类完成后统一更新；旧请求和部分失败均不能污染当前结果。
+      const [users, articles, issues, resources, announcements, assignments] = await Promise.all([
+        usersApi.search({ page: 1, pageSize: PREVIEW_SIZE, keyword }),
+        articlesApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }),
+        issuesApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }),
+        resourcesApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }),
+        announcementsApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword }),
+        auth.canViewAssignments
+          ? assignmentsApi.list({ page: 1, pageSize: PREVIEW_SIZE, keyword })
+          : Promise.resolve(null),
+      ])
+      if (seq !== loadSeq) return
+      userResults.value = users
+      articleResults.value = articles
+      issueResults.value = issues
+      resourceResults.value = resources
+      announcementResults.value = announcements
+      assignmentResults.value = assignments
     } else {
       const p = page.value
       if (activeType.value === 'user') {
-        userResults.value = await usersApi.search({ page: p, pageSize: PAGE_SIZE, keyword })
+        const result = await usersApi.search({ page: p, pageSize: PAGE_SIZE, keyword })
+        if (seq === loadSeq) userResults.value = result
       } else if (activeType.value === 'article') {
-        articleResults.value = await articlesApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        const result = await articlesApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        if (seq === loadSeq) articleResults.value = result
       } else if (activeType.value === 'issue') {
-        issueResults.value = await issuesApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        const result = await issuesApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        if (seq === loadSeq) issueResults.value = result
       } else if (activeType.value === 'resource') {
-        resourceResults.value = await resourcesApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        const result = await resourcesApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        if (seq === loadSeq) resourceResults.value = result
       } else if (activeType.value === 'announcement') {
-        announcementResults.value = await announcementsApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        const result = await announcementsApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        if (seq === loadSeq) announcementResults.value = result
       } else {
-        assignmentResults.value = await assignmentsApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        const result = await assignmentsApi.list({ page: p, pageSize: PAGE_SIZE, keyword })
+        if (seq === loadSeq) assignmentResults.value = result
       }
     }
   } catch (err) {
