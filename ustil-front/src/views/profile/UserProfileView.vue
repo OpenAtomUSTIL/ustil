@@ -548,7 +548,7 @@ function movePin(index: number, delta: number): void {
 }
 
 async function changePassword(): Promise<void> {
-  if (savingPassword.value) return
+  if (savingPassword.value || sendingPwEmailCode.value) return
   passwordError.value = ''
   const passwordProblem = checkPassword(newPassword.value)
   if (passwordProblem) {
@@ -1061,9 +1061,9 @@ watch(pinType, () => {
               <EmailVerification v-model="passwordEmailCode" :email="auth.user?.email ?? ''" purpose="password" input-id="pw-email-code" :disabled="savingPassword || sendingPwEmailCode" @busy="sendingPwEmailCode = $event" />
               <div class="field">
                 <span class="field-legend">图形验证码</span>
-                <AuthCaptcha ref="pwCaptchaRef" v-model:captcha-id="pwCaptchaId" v-model="pwCaptchaCode" />
+                <AuthCaptcha ref="pwCaptchaRef" v-model:captcha-id="pwCaptchaId" v-model="pwCaptchaCode" :disabled="savingPassword || sendingPwEmailCode" />
               </div>
-              <button class="btn btn-primary" type="submit" :disabled="savingPassword">
+              <button class="btn btn-primary" type="submit" :disabled="savingPassword || sendingPwEmailCode">
                 {{ savingPassword ? '提交中…' : '修改密码' }}
               </button>
             </form>
