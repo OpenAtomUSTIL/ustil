@@ -47,7 +47,8 @@ docker run -d --name ustil-dev-redis \
 ```bash
 cd ustil-hub
 pnpm install
-cp .env.example .env        # 替换 JWT / APP_ENCRYPTION_KEY 占位值；端口已对齐 dev 容器：
+cp -n .env.example .env     # 仅首次；已有 .env 时 MUST NOT 覆盖（内含密钥，覆盖=换钥，库内旧数据全部解不开）
+                            # 首次需替换 JWT / APP_ENCRYPTION_KEY 占位值；端口已对齐 dev 容器：
                             #   DATABASE_URL=postgres://ustil:change-me@localhost:55432/ustil
                             #   REDIS_URL=redis://localhost:56379
 pnpm db:migrate             # 首次 / 结构变更后执行（幂等，读 .env 的 DATABASE_URL）
@@ -79,6 +80,8 @@ pnpm dev                    # Vite 开发服务器（:5173，/api 代理到 :300
 - **全局只能有一个 ADMIN**：users 表有 `users_admin_role_key` 部分唯一约束，`pnpm seed:admin` 在已存在其他 ADMIN 时拒绝新建。需要多套后台验证账号时，用 SQL 把测试用户临时提为 `WHEEL`（WHEEL 可进管理后台），用完降回。
 - **敏感操作带图形验证码**：登录 / 注册 / 改密等均需图形验证码（Redis 存 sha256、5 分钟 TTL、3 次失败作废）；自动化登录需处理验证码。
 - **会话 cookie 为 `secure: true`**：浏览器把 localhost 视为安全上下文，正常使用没问题；curl 在 http 下既不存也不回传 cookie。自动化请用浏览器会话（如 Playwright），或从登录响应头捕获 Set-Cookie 后注入浏览器上下文。
+- **别覆盖 `.env`、别随手换 `APP_ENCRYPTION_KEY`**：`.env` 里的主密钥是库内个人数据的钥匙，`cp .env.example .env` 覆盖旧文件 = 换钥，已有用户全部"查无此人"、个人字段永久解不开。换钥必须先解密重封（AGENTS.md §11.5 的轮换流程）。
+- **重置 dev 库（丢数据重来）**：`docker exec ustil-dev-pg psql -U ustil -d postgres -c 'DROP DATABASE ustil WITH (FORCE)' -c 'CREATE DATABASE ustil'`，然后重新 `pnpm db:migrate` + `pnpm seed:admin`。
 
 ## Docker 部署
 
