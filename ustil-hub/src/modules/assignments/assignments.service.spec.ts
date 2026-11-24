@@ -248,6 +248,110 @@ describe('AssignmentsService', () => {
     );
   });
 
+  it('修改作业：仅时间调整 → 通知时间变更文案并写审计', async () => {
+    assignmentsRepository.findById.mockResolvedValue(assignmentRow());
+    usersService.listUserIdsByRoles.mockResolvedValue(['u-1', 'u-2']);
+
+    await service.update(
+      '01890a5d-ac96-7000-8000-0000000000b1',
+      { id: '01890a5d-ac96-7000-8000-000000000001', role: Role.ALUMNI },
+      { deadlineAt: new Date('2999-06-01T00:00:00.000Z') },
+    );
+
+    expect(notificationsService.notifyUsers).toHaveBeenCalledWith(
+      ['u-1', 'u-2'],
+      expect.objectContaining({
+        type: 'ASSIGNMENT',
+        title: '作业一',
+        body: '作业时间已调整，请留意新的开放与截止时间',
+        link: '/assignments/作业一',
+      }),
+    );
+    expect(auditLogService.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'assignment.update' }),
+    );
+  });
+
+  it('修改作业：正文大量变化 → 通知内容更新文案', async () => {
+    const longDesc =
+      '请同学们认真完成本次作业，作业要求提交一份PDF文档，文档内容包括需求分析、设计方案与测试结果三个部分，务必在截止时间前提交。';
+    assignmentsRepository.findById.mockResolvedValue(assignmentRow({ description: longDesc }));
+    usersService.listUserIdsByRoles.mockResolvedValue(['u-1', 'u-2']);
+
+    await service.update(
+      '01890a5d-ac96-7000-8000-0000000000b1',
+      { id: '01890a5d-ac96-7000-8000-000000000001', role: Role.ALUMNI },
+      { description: '本次作业改为提交实验报告，报告需包含背景、方法、结果与结论四节，迟交不再受理。' },
+    );
+
+    expect(notificationsService.notifyUsers).toHaveBeenCalledWith(
+      ['u-1', 'u-2'],
+      expect.objectContaining({ body: '作业内容已更新，请查看最新要求' }),
+    );
+  });
+
+  it('修改作业：时间与内容同时变更 → 通知合并文案', async () => {
+    const longDesc =
+      '请同学们认真完成本次作业，作业要求提交一份PDF文档，文档内容包括需求分析、设计方案与测试结果三个部分，务必在截止时间前提交。';
+    assignmentsRepository.findById.mockResolvedValue(assignmentRow({ description: longDesc }));
+    usersService.listUserIdsByRoles.mockResolvedValue(['u-1', 'u-2']);
+
+    await service.update(
+      '01890a5d-ac96-7000-8000-0000000000b1',
+      { id: '01890a5d-ac96-7000-8000-000000000001', role: Role.ALUMNI },
+      {
+        deadlineAt: new Date('2999-06-01T00:00:00.000Z'),
+        description: '本次作业改为提交实验报告，报告需包含背景、方法、结果与结论四节，迟交不再受理。',
+      },
+    );
+
+    expect(notificationsService.notifyUsers).toHaveBeenCalledWith(
+      ['u-1', 'u-2'],
+      expect.objectContaining({ body: '作业时间与内容已更新，请查看最新安排' }),
+    );
+  });
+
+  it('修改作业：措辞微调与同值提交 → 不通知', async () => {
+    const longDesc =
+      '请同学们认真完成本次作业，作业要求提交一份PDF文档，文档内容包括需求分析、设计方案与测试结果三个部分，务必在截止时间前提交。';
+    assignmentsRepository.findById.mockResolvedValue(assignmentRow({ description: longDesc }));
+    usersService.listUserIdsByRoles.mockResolvedValue(['u-1', 'u-2']);
+
+    // 错别字级微调（2 字符）
+    await service.update(
+      '01890a5d-ac96-7000-8000-0000000000b1',
+      { id: '01890a5d-ac96-7000-8000-000000000001', role: Role.ALUMNI },
+      { description: longDesc.replace('务必', '必须') },
+    );
+    expect(notificationsService.notifyUsers).not.toHaveBeenCalled();
+
+    // 同值提交（时间与原文一致）
+    await service.update(
+      '01890a5d-ac96-7000-8000-0000000000b1',
+      { id: '01890a5d-ac96-7000-8000-000000000001', role: Role.ALUMNI },
+      {
+        startAt: new Date('2025-12-01T00:00:00.000Z'),
+        deadlineAt: new Date('2999-01-01T00:00:00.000Z'),
+      },
+    );
+    expect(notificationsService.notifyUsers).not.toHaveBeenCalled();
+    expect(assignmentsRepository.update).toHaveBeenCalled();
+  });
+
+  it('修改作业：MEMBER 无权返回 403 且不通知（失败路径）', async () => {
+    assignmentsRepository.findById.mockResolvedValue(assignmentRow());
+
+    await expect(
+      service.update(
+        '01890a5d-ac96-7000-8000-0000000000b1',
+        { id: '01890a5d-ac96-7000-8000-000000000002', role: Role.MEMBER },
+        { deadlineAt: new Date('2999-06-01T00:00:00.000Z') },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(assignmentsRepository.update).not.toHaveBeenCalled();
+    expect(notificationsService.notifyUsers).not.toHaveBeenCalled();
+  });
+
   it('我的提交：VISITOR 返回 403', async () => {
     await expect(
       service.listMySubmissions(

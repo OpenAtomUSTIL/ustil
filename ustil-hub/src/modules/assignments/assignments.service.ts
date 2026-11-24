@@ -96,6 +96,33 @@ export class AssignmentsService {
     return row;
   }
 
+  /**
+   * 「大量字符变化」判定（2026-11-24 拍板）：忽略空白后，变更段（去公共前后缀）达到
+   * max(3, min(20, 原文长度/3)) 字符——长文本按 20 字符封顶，短文本（如标题）按原文三分之一，
+   * 整段重写能触发、错别字级微调不触发。
+   */
+  private isSignificantTextChange(oldText: string, newText: string): boolean {
+    const a = oldText.replace(/\s+/g, '');
+    const b = newText.replace(/\s+/g, '');
+    if (a === b) {
+      return false;
+    }
+    let prefix = 0;
+    while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) {
+      prefix += 1;
+    }
+    let suffix = 0;
+    while (
+      suffix < a.length - prefix &&
+      suffix < b.length - prefix &&
+      a[a.length - 1 - suffix] === b[b.length - 1 - suffix]
+    ) {
+      suffix += 1;
+    }
+    const changed = Math.max(a.length - prefix - suffix, b.length - prefix - suffix);
+    return changed >= Math.max(3, Math.min(20, Math.floor(a.length / 3)));
+  }
+
   private assertWindowValid(startAt: Date, deadlineAt: Date): void {
     if (deadlineAt.getTime() <= startAt.getTime()) {
       throw new BadRequestException('截止时间必须晚于开始时间');
@@ -253,6 +280,27 @@ export class AssignmentsService {
       ...(dto.startAt !== undefined ? { startAt: dto.startAt } : {}),
       ...(dto.deadlineAt !== undefined ? { deadlineAt: dto.deadlineAt } : {}),
     });
+    // 关键变更才重新通知（时间调整 / 标题或正文大量变化），措辞微调不打扰（2026-11-24 拍板）
+    const timeChanged =
+      (dto.startAt !== undefined && dto.startAt.getTime() !== row.startAt.getTime()) ||
+      (dto.deadlineAt !== undefined && dto.deadlineAt.getTime() !== row.deadlineAt.getTime());
+    const textChanged =
+      (dto.title !== undefined && this.isSignificantTextChange(row.title, dto.title)) ||
+      (dto.description !== undefined && this.isSignificantTextChange(row.description, dto.description));
+    if (timeChanged || textChanged) {
+      const memberIds = await this.usersService.listUserIdsByRoles([Role.MEMBER, Role.ALUMNI]);
+      await this.notificationsService.notifyUsers(memberIds, {
+        type: 'ASSIGNMENT',
+        title: dto.title ?? row.title,
+        body:
+          timeChanged && textChanged
+            ? '作业时间与内容已更新，请查看最新安排'
+            : timeChanged
+              ? '作业时间已调整，请留意新的开放与截止时间'
+              : '作业内容已更新，请查看最新要求',
+        link: `/assignments/${row.slug}`,
+      });
+    }
     await this.auditLogService.record({
       actor: user,
       action: 'assignment.update',
